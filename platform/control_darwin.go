@@ -1,0 +1,3 @@
+package platform
+
+import "C"
