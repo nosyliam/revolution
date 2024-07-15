@@ -1,8 +1,6 @@
 #include "base.h"
 #include <stdio.h>
 
-extern AXError _AXUIElementGetWindow(AXUIElementRef, CGWindowID* out);
-
 typedef struct Frame {
 	int width;
     int height;
@@ -25,6 +23,52 @@ typedef struct Screenshot {
 } Screenshot;
 
 #if defined(IS_MACOSX)
+
+static Boolean(*gAXIsProcessTrustedWithOptions) (CFDictionaryRef);
+static CFStringRef* gkAXTrustedCheckOptionPrompt;
+
+bool check_ax_enabled(bool showPrompt) {
+    // Statically load all required functions one time
+    static dispatch_once_t once; dispatch_once (&once,
+    ^{
+        // Open the framework
+        void* handle = dlopen("/System/Library/Frameworks/Application"
+            "Services.framework/ApplicationServices", RTLD_LAZY);
+
+        // Validate the handle
+        if (handle != NULL) {
+            *(void**) (&gAXIsProcessTrustedWithOptions) = dlsym (handle, "AXIsProcessTrustedWithOptions");
+            gkAXTrustedCheckOptionPrompt = (CFStringRef*) dlsym (handle, "kAXTrustedCheckOptionPrompt");
+        }
+    });
+
+    // Check for new OSX 10.9 function
+    if (gAXIsProcessTrustedWithOptions) {
+        // Check whether to show prompt
+        CFBooleanRef displayPrompt = showPrompt ? kCFBooleanTrue : kCFBooleanFalse;
+
+        // Convert display prompt value into a dictionary
+        const void* k[] = { *gkAXTrustedCheckOptionPrompt };
+        const void* v[] = { displayPrompt };
+        CFDictionaryRef o = CFDictionaryCreate(NULL, k, v, 1, NULL, NULL);
+
+        // Determine whether the process is actually trusted
+        bool result = (*gAXIsProcessTrustedWithOptions)(o);
+        // Free memory
+        CFRelease(o);
+        return result;
+    } else {
+        // Ignore deprecated warnings
+        #pragma clang diagnostic push
+        #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+
+        // Check whether we have accessibility access
+        return AXAPIEnabled() || AXIsProcessTrusted();
+        #pragma clang diagnostic pop
+    }
+}
+
+extern AXError _AXUIElementGetWindow(AXUIElementRef, CGWindowID* out);
 
 typedef struct Window {
 	AXUIElementRef window;

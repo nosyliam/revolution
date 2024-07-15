@@ -21,10 +21,19 @@ const (
 	LShift
 	Space
 	One
+	Two
+	Three
+	Four
+	Five
+	Six
+	Seven
 )
 
-type System interface {
-	SendKeyDown(Key) error
-	SendKeyUp(Key) error
-	MoveMouse()
+type Backend interface {
+	KeyDown(pid int, key Key)
+	KeyUp(pid int, key Key)
+	MoveMouse(x, y int)
+	ScrollMouse(x, y int)
+	Sleep(ms int, interrupt <-chan interface{})
+	SleepAsync(ms int, interrupt <-chan interface{}) <-chan interface{}
 }

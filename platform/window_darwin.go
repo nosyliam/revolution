@@ -1,19 +1,17 @@
 //go:build darwin
-// +build darwin
 
 package platform
 
-//#cgo darwin CFLAGS: -x objective-c -Wno-deprecated-declarations
-//#cgo darwin LDFLAGS: -framework Cocoa -framework OpenGL -framework IOKit
-//#cgo darwin LDFLAGS: -framework Carbon -framework CoreFoundation
 // #include "window.h"
+import "C"
+
 import "C"
 
 import (
 	"encoding/json"
 	"fmt"
 	ps "github.com/mitchellh/go-ps"
-	image2 "github.com/nosyliam/revolution/pkg/image"
+	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
 	"image"
@@ -274,7 +272,7 @@ func (w *windowBackend) Screenshot(id int) (*image.RGBA, error) {
 	return &img, nil
 }
 
-func (w *windowBackend) GetFrame(id int) (*image2.Frame, error) {
+func (w *windowBackend) GetFrame(id int) (*revimg.Frame, error) {
 	win, err := w.getWindow(id)
 	if err != nil {
 		return nil, err
@@ -285,7 +283,7 @@ func (w *windowBackend) GetFrame(id int) (*image2.Frame, error) {
 		return nil, errors.New("failed to get window frame")
 	}
 
-	return &image2.Frame{
+	return &revimg.Frame{
 		Width:  int(C.int(cFrame.width)),
 		Height: int(C.int(cFrame.height)),
 		X:      int(C.int(cFrame.x)),
@@ -293,7 +291,7 @@ func (w *windowBackend) GetFrame(id int) (*image2.Frame, error) {
 	}, nil
 }
 
-func (w *windowBackend) SetFrame(id int, frame image2.Frame) error {
+func (w *windowBackend) SetFrame(id int, frame revimg.Frame) error {
 	win, err := w.getWindow(id)
 	if err != nil {
 		return err
@@ -303,15 +301,15 @@ func (w *windowBackend) SetFrame(id int, frame image2.Frame) error {
 	return nil
 }
 
-func (w *windowBackend) DisplayFrames() ([]image2.Frame, error) {
-	var goFrames []image2.Frame
+func (w *windowBackend) DisplayFrames() ([]revimg.Frame, error) {
+	var goFrames []revimg.Frame
 	frames := (*C.Frames)(C.get_display_frames())
 	if int(C.int(frames.len)) == 0 {
 		return nil, errors.New("no displays were detected")
 	}
 	for i := 0; i < int(C.int(frames.len)); i++ {
 		cFrame := (*C.Frame)(unsafe.Pointer(uintptr(unsafe.Pointer(frames.frames)) + (unsafe.Sizeof(C.Frame{}) * uintptr(i))))
-		goFrames = append(goFrames, image2.Frame{
+		goFrames = append(goFrames, revimg.Frame{
 			Width:  int(C.int(cFrame.width)),
 			Height: int(C.int(cFrame.height)),
 			X:      int(C.int(cFrame.x)),

@@ -206,8 +206,8 @@ func cgoSearch(hStride, hWidth, hHeight, nStride, nWidth, nHeight, sx1, sy1, sx2
 
 	x, y := 0, 0
 	ret := (C.int)(C.search((*C.int)(unsafe.Pointer(&x)), (*C.int)(unsafe.Pointer(&y)), (*C.uchar)(unsafe.Pointer(hScan)),
-		(*C.uchar)(unsafe.Pointer(nScan)), (C.int)(nWidth), (C.int)(nHeight), (C.int)(hStride), (C.int)(nStride),
-		(C.int)(sx1), (C.int)(sy1), (C.int)(sx2), (C.int)(sy2), (C.int)(variation), (C.int)(sd)))
+		(*C.uchar)(unsafe.Pointer(nScan)), C.int(nWidth), C.int(nHeight), C.int(hStride), C.int(nStride),
+		C.int(sx1), C.int(sy1), C.int(sx2), C.int(sy2), C.int(variation), C.int(sd)))
 
 	if ret == 0 {
 		return &Point{x, y}, nil

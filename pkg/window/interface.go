@@ -1,7 +1,7 @@
 package window
 
 import (
-	revimage "github.com/nosyliam/revolution/pkg/image"
+	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
 	"image"
 )
@@ -24,14 +24,18 @@ type Backend interface {
 	SetRobloxLocation(loc string)
 
 	Screenshot(id int) (*image.RGBA, error)
-	GetFrame(id int) (*revimage.Frame, error)
-	SetFrame(id int, frame revimage.Frame) error
-	DisplayFrames() ([]revimage.Frame, error)
+	GetFrame(id int) (*revimg.Frame, error)
+	SetFrame(id int, frame revimg.Frame) error
+	DisplayFrames() ([]revimg.Frame, error)
 }
 
 type Window struct {
 	backend Backend
 	id      int
+}
+
+func (w *Window) GetPID() int {
+	return w.id
 }
 
 func (w *Window) FindImage(bitmapName string) int {

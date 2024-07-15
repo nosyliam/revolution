@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/platform"
 )
 
 func main() {
-	frames, _ := platform.WindowBackend.DisplayFrames()
-	fmt.Println(frames)
+	platform.ControlBackend.Sleep(10, make(chan interface{}))
 }

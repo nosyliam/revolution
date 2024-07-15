@@ -47,5 +47,5 @@ func Test_PollenSearch(t *testing.T) {
 	haystack = bitmaps.Registry.Get("test2")
 	assert.NotNil(t, needle)
 	assert.NotNil(t, haystack)
-	fmt.Println(ImageSearch(needle, haystack, &SearchOptions{Variation: 2}))
+	fmt.Println(ImageSearch(needle, haystack, &SearchOptions{Variation: 0}))
 }
