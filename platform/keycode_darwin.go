@@ -1,7 +1,7 @@
 package platform
 
 import (
-	. "github.com/nosyliam/revolution/pkg/control"
+	. "github.com/nosyliam/revolution/pkg/control/common"
 )
 
 var KeyCodeMap = map[Key]int{

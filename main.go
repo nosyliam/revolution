@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	platform.ControlBackend.Sleep(10, make(chan interface{}))
+	platform.ControlBackend.Sleep(10, make(chan struct{}))
 }

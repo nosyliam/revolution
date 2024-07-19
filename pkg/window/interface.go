@@ -1,6 +1,7 @@
 package window
 
 import (
+	"github.com/nosyliam/revolution/bitmaps"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
 	"image"
@@ -10,7 +11,6 @@ var (
 	PermissionDeniedErr = errors.New("accessibility permissions required")
 	WindowNotFoundErr   = errors.New("window not found")
 )
-var Manager = &windowManager{}
 
 type JoinOptions struct {
 	LinkCode string
@@ -30,24 +30,37 @@ type Backend interface {
 }
 
 type Window struct {
-	backend Backend
-	id      int
+	backend    Backend
+	id         int
+	screenshot *image.RGBA
 }
 
-func (w *Window) GetPID() int {
+func (w *Window) PID() int {
 	return w.id
 }
 
-func (w *Window) FindImage(bitmapName string) int {
-	return 0
+func (w *Window) FindImage(bitmapName string, options *revimg.SearchOptions) ([]revimg.Point, error) {
+	needle := bitmaps.Registry.Get(bitmapName)
+	return revimg.ImageSearch(needle, w.screenshot, options)
 }
 
-type windowManager struct {
+func (w *Window) Screenshot() error {
+	var err error
+	w.screenshot, err = w.backend.Screenshot(w.id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+type Manager struct {
 	backend Backend
 }
 
-func (m *windowManager) FindRoblox() (*Window, error) {
+func (m *Manager) OpenRoblox() (*Window, error) {
 	return nil, nil
 }
 
-//func (m *windowManager) OpenRoblox() *Window
+func NewWindowManager(backend Backend) *Manager {
+	return &Manager{backend: backend}
+}

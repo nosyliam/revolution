@@ -6,19 +6,19 @@ package platform
 import "C"
 
 import (
-	"github.com/nosyliam/revolution/pkg/control"
+	"github.com/nosyliam/revolution/pkg/control/common"
 	"unsafe"
 )
 
-var ControlBackend control.Backend = &controlBackend{}
+var ControlBackend common.Backend = &controlBackend{}
 
 type controlBackend struct{}
 
-func (c controlBackend) KeyDown(pid int, key control.Key) {
+func (c controlBackend) KeyDown(pid int, key common.Key) {
 	C.send_key_event(C.int(pid), true, C.int(KeyCodeMap[key]))
 }
 
-func (c controlBackend) KeyUp(pid int, key control.Key) {
+func (c controlBackend) KeyUp(pid int, key common.Key) {
 	C.send_key_event(C.int(pid), false, C.int(KeyCodeMap[key]))
 }
 
@@ -30,8 +30,8 @@ func (c controlBackend) ScrollMouse(x, y int) {
 	C.scroll_mouse(C.int(x), C.int(y))
 }
 
-func (c controlBackend) SleepAsync(ms int, interrupt <-chan interface{}) <-chan interface{} {
-	sleepDone := make(chan interface{})
+func (c controlBackend) SleepAsync(ms int, interrupt <-chan struct{}) <-chan struct{} {
+	sleepDone := make(chan struct{})
 
 	go func() {
 		intV := 0
@@ -53,7 +53,7 @@ func (c controlBackend) SleepAsync(ms int, interrupt <-chan interface{}) <-chan 
 	return sleepDone
 }
 
-func (c controlBackend) Sleep(ms int, interrupt <-chan interface{}) {
+func (c controlBackend) Sleep(ms int, interrupt <-chan struct{}) {
 	intV := 0
 	done := make(chan bool)
 

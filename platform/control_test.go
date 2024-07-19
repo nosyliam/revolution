@@ -2,7 +2,7 @@ package platform
 
 import (
 	"fmt"
-	"github.com/nosyliam/revolution/pkg/control"
+	"github.com/nosyliam/revolution/pkg/control/common"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
@@ -10,16 +10,16 @@ import (
 
 func Test_Sleep(t *testing.T) {
 	start := time.Now()
-	ControlBackend.Sleep(500, make(chan interface{}))
+	ControlBackend.Sleep(500, make(chan struct{}))
 	end := time.Now()
 	assert.GreaterOrEqual(t, end.Sub(start), 500*time.Millisecond)
 
 	// Test interrupt
-	interrupt := make(chan interface{})
+	interrupt := make(chan struct{})
 	start = time.Now()
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		interrupt <- true
+		interrupt <- struct{}{}
 	}()
 	ControlBackend.Sleep(500, interrupt)
 	end = time.Now()
@@ -37,7 +37,7 @@ func TestControlBackend_ScrollMouse(t *testing.T) {
 }
 
 func TestControlBackend_Key(t *testing.T) {
-	ControlBackend.KeyDown(0, control.Forward)
+	ControlBackend.KeyDown(0, common.Forward)
 	time.Sleep(1 * time.Second)
-	ControlBackend.KeyUp(0, control.Forward)
+	ControlBackend.KeyUp(0, common.Forward)
 }
