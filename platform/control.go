@@ -6,7 +6,7 @@ package platform
 import "C"
 
 import (
-	"github.com/nosyliam/revolution/pkg/control/common"
+	"github.com/nosyliam/revolution/pkg/common"
 	"unsafe"
 )
 
@@ -47,7 +47,7 @@ func (c controlBackend) SleepAsync(ms int, interrupt <-chan struct{}) <-chan str
 
 		C.microsleep(C.int(ms), (*C.int)(unsafe.Pointer(&intV)))
 		close(done)
-		sleepDone <- true
+		sleepDone <- struct{}{}
 	}()
 
 	return sleepDone

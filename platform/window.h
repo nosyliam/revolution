@@ -2,24 +2,24 @@
 #include <stdio.h>
 
 typedef struct Frame {
-	int width;
+    int width;
     int height;
     int x;
     int y;
 } Frame;
 
 typedef struct Frames {
-	int len;
-	Frame* frames;
+    int len;
+    Frame* frames;
 } Frames;
 
 typedef struct Screenshot {
     size_t width;
-	size_t height;
-	size_t stride;
+    size_t height;
+    size_t stride;
 
-	unsigned int len;
-	unsigned char* data;
+    unsigned int len;
+    unsigned char* data;
 } Screenshot;
 
 #if defined(IS_MACOSX)

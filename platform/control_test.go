@@ -2,7 +2,7 @@ package platform
 
 import (
 	"fmt"
-	"github.com/nosyliam/revolution/pkg/control/common"
+	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"

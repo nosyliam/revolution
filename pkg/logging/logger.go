@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+	"github.com/nosyliam/revolution/pkg/config"
 	"image"
 	"os"
 	"time"
@@ -32,13 +33,21 @@ func (l *logWriter) Write(level LogLevel, line string) error {
 }
 
 type Logger struct {
-	stack   []string
-	loggers []*Logger
-	discord *Discord
+	stack     []string
+	verbosity int
+	settings  *config.Settings
+}
+
+func (s *Logger) V(verbosity int) *Logger {
+	return &Logger{stack: s.stack, verbosity: verbosity, settings: s.settings}
+}
+
+func (s *Logger) Child(name string) *Logger {
+	return &Logger{stack: append(s.stack, name), settings: s.settings}
 }
 
 func (s *Logger) Log(level LogLevel, message string) error {
-	levelStr := fmt.Sprintf("[%s] %s", time.Now().Format("hh:mm:ss"), message)
+	_ = fmt.Sprintf("[%s] %s", time.Now().Format("hh:mm:ss"), message)
 	return nil
 }
 
@@ -46,12 +55,6 @@ func (s *Logger) LogUpdate(level LogLevel, message string, id *int, screenshot *
 	return nil, nil
 }
 
-func (s *Logger) NewLogger(name string) *Logger {
-	logger := &Logger{stack: append(s.stack, name), discord: s.discord}
-	s.loggers = append(s.loggers, logger)
-	return logger
-}
-
-func NewLogger(name string, discord *Discord) *Logger {
-	return &Logger{discord: discord}
+func NewLogger(name string, settings *config.Settings) *Logger {
+	return &Logger{stack: []string{name}, settings: settings}
 }

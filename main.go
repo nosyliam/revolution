@@ -1,9 +1,12 @@
 package main
 
 import (
-	"github.com/nosyliam/revolution/platform"
+	"fmt"
+	"github.com/robfig/cron/v3"
+	"time"
 )
 
 func main() {
-	platform.ControlBackend.Sleep(10, make(chan struct{}))
+	s, _ := cron.ParseStandard("@weekly")
+	fmt.Println(s.Next(time.Now().Add(time.Hour * 24 * 4)))
 }

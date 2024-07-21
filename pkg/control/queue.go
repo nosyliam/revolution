@@ -1,6 +1,8 @@
 package control
 
-import "github.com/nosyliam/revolution/pkg/control/common"
+import (
+	"github.com/nosyliam/revolution/pkg/common"
+)
 
 type event struct {
 	event common.Event
@@ -12,24 +14,29 @@ type eventBusImpl struct {
 	backend common.Backend
 }
 
-func (e *eventBusImpl) KeyDown(pid int, key common.Key) <-chan struct{} {
+func (e *eventBusImpl) KeyDown(pid int, key common.Key) common.Receiver {
 	ch := make(chan struct{})
+	e.queue <- event{&KeyDownEvent{key, pid}, ch}
+	return ch
 
 }
 
-func (e *eventBusImpl) KeyUp(pid int, key common.Key) <-chan struct{} {
-	//TODO implement me
-	panic("implement me")
+func (e *eventBusImpl) KeyUp(pid int, key common.Key) common.Receiver {
+	ch := make(chan struct{})
+	e.queue <- event{&KeyUpEvent{key, pid}, ch}
+	return ch
 }
 
-func (e *eventBusImpl) MoveMouse(x, y int) <-chan struct{} {
-	//TODO implement me
-	panic("implement me")
+func (e *eventBusImpl) MoveMouse(x, y int) common.Receiver {
+	ch := make(chan struct{})
+	e.queue <- event{&MouseMoveEvent{x, y}, ch}
+	return ch
 }
 
-func (e *eventBusImpl) ScrollMouse(x, y int) <-chan struct{} {
-	//TODO implement me
-	panic("implement me")
+func (e *eventBusImpl) ScrollMouse(x, y int) common.Receiver {
+	ch := make(chan struct{})
+	e.queue <- event{&MouseScrollEvent{x, y}, ch}
+	return ch
 }
 
 func (e *eventBusImpl) Start() {

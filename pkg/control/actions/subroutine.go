@@ -1,15 +1,15 @@
 package actions
 
 import (
-	. "github.com/nosyliam/revolution/pkg/control/common"
+	. "github.com/nosyliam/revolution/pkg/common"
 )
 
 type subroutineAction struct {
 	name string
 }
 
-func (a *subroutineAction) Execute(deps *Dependencies) error {
-	return deps.Exec(a.name)
+func (a *subroutineAction) Execute(deps *Macro) error {
+	return deps.ExecRoutine(a.name)
 }
 
 func Subroutine(name string) Action {

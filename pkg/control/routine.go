@@ -1,17 +1,17 @@
 package control
 
 import (
-	"github.com/nosyliam/revolution/pkg/control/actions"
-	"github.com/nosyliam/revolution/pkg/control/common"
+	"fmt"
+	"github.com/nosyliam/revolution/pkg/common"
 )
 
-var Routines = make(map[RoutineKind][]common.Action)
+var Routines = make(map[common.RoutineKind]common.RoutineFunc)
 
-type RoutineKind string
+const MainRoutine common.RoutineKind = "main"
 
 type Routine struct {
-	dependencies *common.Dependencies
-	actions      []common.Action
+	macro   *common.Macro
+	actions []common.Action
 
 	stop  <-chan struct{}
 	pause <-chan <-chan struct{}
@@ -21,13 +21,14 @@ type Routine struct {
 func (r *Routine) Copy(routine *Routine) {
 	r.stop = routine.stop
 	r.pause = routine.pause
-	r.dependencies = routine.dependencies
+	r.macro = routine.macro
 }
 
 func (r *Routine) Execute() error {
 	for _, action := range r.actions {
-		if err := action.Execute(r.dependencies); err != nil {
+		if err := action.Execute(r.macro); err != nil {
 			r.err <- err.Error()
+			<-<-r.pause
 		}
 		if len(r.pause) > 0 {
 			<-<-r.pause
@@ -37,8 +38,43 @@ func (r *Routine) Execute() error {
 			return nil
 		}
 	}
+	return nil
 }
 
-func NewRoutine(kind RoutineKind, actions ...actions.Action) {
-	Routines[kind] = actions
+func ExecuteRoutine(
+	macro *common.Macro,
+	actions []common.Action,
+	stop <-chan struct{},
+	pause <-chan <-chan struct{},
+	err chan<- string,
+) error {
+	routine := &Routine{
+		macro:   macro,
+		actions: actions,
+		stop:    stop,
+		pause:   pause,
+		err:     err,
+	}
+	var exec func(routine *Routine, macro *common.Macro) common.RoutineExecutor
+	exec = func(routine *Routine, macro *common.Macro) common.RoutineExecutor {
+		return func(kind common.RoutineKind) error {
+			fn, ok := Routines[kind]
+			if !ok {
+				panic(fmt.Sprintf("unknown subroutine %s", string(kind)))
+			}
+			subMacro := macro.Copy()
+			subMacro.Logger = subMacro.Logger.Child(string(kind))
+			subMacro.Results = &common.ActionResults{}
+			subMacro.ExecRoutine = exec(routine, subMacro)
+			subRoutine := &Routine{macro: subMacro, actions: fn(subMacro)}
+			subRoutine.Copy(routine)
+			return subRoutine.Execute()
+		}
+	}
+	macro.ExecRoutine = exec(routine, macro)
+	return routine.Execute()
+}
+
+func Register(kind common.RoutineKind, fn common.RoutineFunc) {
+	Routines[kind] = fn
 }
