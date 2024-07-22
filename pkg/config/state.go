@@ -13,6 +13,15 @@ type State struct {
 	Macros map[string]*MacroState `json:"macros"`
 }
 
+func (s *State) State(name string) *MacroState {
+	if state, ok := s.Macros[name]; ok {
+		return state
+	}
+	state := &MacroState{state: s}
+	s.Macros[name] = state
+	return state
+}
+
 func NewState() *State {
 	return &State{configFile: configFile{path: "state.yaml", format: YAML}, Macros: make(map[string]*MacroState)}
 }

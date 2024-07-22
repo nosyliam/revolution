@@ -9,7 +9,7 @@ import (
 type (
 	RoutineKind     string
 	RoutineFunc     func(macro *Macro) []Action
-	RoutineExecutor func(kind RoutineKind) error
+	RoutineExecutor func(kind RoutineKind)
 )
 
 type Macro struct {
@@ -22,6 +22,7 @@ type Macro struct {
 	State       *config.MacroState
 	ExecRoutine RoutineExecutor
 	ExecAction  func(Action) error
+	SetStatus   func(string)
 }
 
 func (m *Macro) Copy() *Macro {

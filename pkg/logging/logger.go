@@ -51,6 +51,10 @@ func (s *Logger) Log(level LogLevel, message string) error {
 	return nil
 }
 
+func (s *Logger) LogDiscord(level LogLevel, message string) error {
+	return s.Log(level, message)
+}
+
 func (s *Logger) LogUpdate(level LogLevel, message string, id *int, screenshot *image.RGBA) (*int, error) {
 	return nil, nil
 }

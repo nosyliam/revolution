@@ -14,7 +14,7 @@ type Routine struct {
 	actions []common.Action
 
 	stop  <-chan struct{}
-	pause <-chan <-chan struct{}
+	pause <-chan (<-chan struct{})
 	err   chan<- string
 }
 
@@ -24,7 +24,7 @@ func (r *Routine) Copy(routine *Routine) {
 	r.macro = routine.macro
 }
 
-func (r *Routine) Execute() error {
+func (r *Routine) Execute() {
 	for _, action := range r.actions {
 		if err := action.Execute(r.macro); err != nil {
 			r.err <- err.Error()
@@ -35,19 +35,18 @@ func (r *Routine) Execute() error {
 		}
 		if len(r.stop) > 0 {
 			<-r.stop
-			return nil
 		}
 	}
-	return nil
 }
 
 func ExecuteRoutine(
 	macro *common.Macro,
 	actions []common.Action,
 	stop <-chan struct{},
-	pause <-chan <-chan struct{},
+	pause <-chan (<-chan struct{}),
+	status chan<- string,
 	err chan<- string,
-) error {
+) {
 	routine := &Routine{
 		macro:   macro,
 		actions: actions,
@@ -57,7 +56,7 @@ func ExecuteRoutine(
 	}
 	var exec func(routine *Routine, macro *common.Macro) common.RoutineExecutor
 	exec = func(routine *Routine, macro *common.Macro) common.RoutineExecutor {
-		return func(kind common.RoutineKind) error {
+		return func(kind common.RoutineKind) {
 			fn, ok := Routines[kind]
 			if !ok {
 				panic(fmt.Sprintf("unknown subroutine %s", string(kind)))
@@ -65,14 +64,24 @@ func ExecuteRoutine(
 			subMacro := macro.Copy()
 			subMacro.Logger = subMacro.Logger.Child(string(kind))
 			subMacro.Results = &common.ActionResults{}
+			subMacro.SetStatus = macro.SetStatus
 			subMacro.ExecRoutine = exec(routine, subMacro)
+			subMacro.ExecAction = func(action common.Action) error {
+				return action.Execute(subMacro)
+			}
 			subRoutine := &Routine{macro: subMacro, actions: fn(subMacro)}
 			subRoutine.Copy(routine)
-			return subRoutine.Execute()
+			subRoutine.Execute()
 		}
 	}
 	macro.ExecRoutine = exec(routine, macro)
-	return routine.Execute()
+	macro.ExecAction = func(action common.Action) error {
+		return action.Execute(macro)
+	}
+	macro.SetStatus = func(stat string) {
+		status <- stat
+	}
+	routine.Execute()
 }
 
 func Register(kind common.RoutineKind, fn common.RoutineFunc) {
