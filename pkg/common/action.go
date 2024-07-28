@@ -11,7 +11,8 @@ const (
 )
 
 type ActionResults struct {
-	imageSearchPoints []revimg.Point
+	ImageSearchPoints []revimg.Point
+	RetryCount        int
 }
 
 type Action interface {

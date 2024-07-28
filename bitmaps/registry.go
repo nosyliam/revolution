@@ -3,6 +3,7 @@ package bitmaps
 import (
 	"bytes"
 	"github.com/nosyliam/revolution/bitmaps/convert"
+	"github.com/nosyliam/revolution/bitmaps/fixture"
 	"github.com/nosyliam/revolution/bitmaps/offset"
 	"image"
 	"image/draw"
@@ -39,6 +40,7 @@ func (b *bitmapRegistry) RegisterPng(name string, data []byte) {
 func (b *bitmapRegistry) initialize() {
 	offset.Register(b)
 	convert.Register(b)
+	fixture.Register(b)
 }
 
 func init() {

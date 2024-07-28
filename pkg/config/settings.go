@@ -1,9 +1,25 @@
 package config
 
+type WindowAlignment string
+
+const (
+	TopLeftWindowAlignment     WindowAlignment = "top-left"
+	TopRightWindowAlignment    WindowAlignment = "top-right"
+	BottomLeftWindowAlignment  WindowAlignment = "bottom-left"
+	BottomRightwindowAlignment WindowAlignment = "bottom-right"
+)
+
 type DiscordSettings struct {
 	Enabled    bool   `yaml:"enabled"`
 	WebhookUrl string `yaml:"webhookUrl"`
 	PingID     int64  `yaml:"pingID"`
+}
+
+type WindowSettings struct {
+	ID        string `yaml:"id"`
+	Alignment string `yaml:"alignment"`
+
+	Width
 }
 
 // Settings defines the configuration for an individual preset

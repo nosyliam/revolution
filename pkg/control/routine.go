@@ -7,8 +7,6 @@ import (
 
 var Routines = make(map[common.RoutineKind]common.RoutineFunc)
 
-const MainRoutine common.RoutineKind = "main"
-
 type Routine struct {
 	macro   *common.Macro
 	actions []common.Action
@@ -25,10 +23,21 @@ func (r *Routine) Copy(routine *Routine) {
 }
 
 func (r *Routine) Execute() {
-	for _, action := range r.actions {
-		if err := action.Execute(r.macro); err != nil {
-			r.err <- err.Error()
-			<-<-r.pause
+	for i := 0; i < len(r.actions); i++ {
+		if err := r.actions[i].Execute(r.macro); err != nil {
+			switch err {
+			case common.RetrySignal:
+				i -= 2
+				continue
+			case common.RestartSignal:
+				i = 0
+				continue
+			case common.TerminateSignal:
+				return
+			default:
+				r.err <- err.Error()
+				<-<-r.pause
+			}
 		}
 		if len(r.pause) > 0 {
 			<-<-r.pause
@@ -64,9 +73,9 @@ func ExecuteRoutine(
 			subMacro := macro.Copy()
 			subMacro.Logger = subMacro.Logger.Child(string(kind))
 			subMacro.Results = &common.ActionResults{}
-			subMacro.SetStatus = macro.SetStatus
-			subMacro.ExecRoutine = exec(routine, subMacro)
-			subMacro.ExecAction = func(action common.Action) error {
+			subMacro.Status = macro.Status
+			subMacro.Routine = exec(routine, subMacro)
+			subMacro.Action = func(action common.Action) error {
 				return action.Execute(subMacro)
 			}
 			subRoutine := &Routine{macro: subMacro, actions: fn(subMacro)}
@@ -74,11 +83,11 @@ func ExecuteRoutine(
 			subRoutine.Execute()
 		}
 	}
-	macro.ExecRoutine = exec(routine, macro)
-	macro.ExecAction = func(action common.Action) error {
+	macro.Routine = exec(routine, macro)
+	macro.Action = func(action common.Action) error {
 		return action.Execute(macro)
 	}
-	macro.SetStatus = func(stat string) {
+	macro.Status = func(stat string) {
 		status <- stat
 	}
 	routine.Execute()

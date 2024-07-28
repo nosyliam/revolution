@@ -9,7 +9,7 @@ type routineAction struct {
 }
 
 func (a *routineAction) Execute(deps *common.Macro) error {
-	deps.ExecRoutine(a.name)
+	deps.Routine(a.name)
 	return nil
 }
 
@@ -22,7 +22,7 @@ type statusAction struct {
 }
 
 func (a *statusAction) Execute(deps *common.Macro) error {
-	deps.SetStatus(a.status)
+	deps.Status(a.status)
 	return nil
 }
 
