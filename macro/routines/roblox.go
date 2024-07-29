@@ -10,7 +10,7 @@ import (
 const CheckRobloxRoutineKind RoutineKind = "CheckRoblox"
 
 func openRoblox(macro *Macro) error {
-	win, err := macro.WinManager.OpenRoblox()
+	win, err := macro.WinManager.OpenWindow()
 	if err != nil {
 		//_ = macro.Action(Sleep(1000))
 		return RetrySignal
@@ -22,14 +22,17 @@ func openRoblox(macro *Macro) error {
 func CheckRobloxRoutine(macro *Macro) []Action {
 	return []Action{
 		Condition(
-			If(Nil(macro.Window)),
+			If(Nil(Window)),
 			openRoblox,
 		),
 		Condition(
-			If(func() bool { return macro.Results.RetryCount > 10 }),
+			If(GreaterThan(RetryCount, 10)),
 			func() error { return errors.New("failed to adjust and screenshot window") },
 			If(NotNil(macro.Window.Screenshot())),
-			func() error { macro.Results.RetryCount++; return RetrySignal },
+			func() error {
+				macro.Results.RetryCount++
+				return RetrySignal
+			},
 		),
 	}
 }

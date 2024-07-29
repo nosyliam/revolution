@@ -8,15 +8,23 @@ import (
 )
 
 var (
-	RestartSignal   = errors.New("restart")   // RestartSignal the routine
-	RetrySignal     = errors.New("retry")     // Step back and retry the last action
-	TerminateSignal = errors.New("terminate") // TerminateSignal execution of the routine
+	RestartSignal   = errors.New("restart")   // Restarts the routine
+	TerminateSignal = errors.New("terminate") // Terminates the routine
+	RetrySignal     = errors.New("retry")     // Retry the current action
+	StepBackSignal  = errors.New("step back") // Step back to the last action
 )
 
+type RedirectExecution struct {
+	Routine RoutineKind
+}
+
+func (e RedirectExecution) Error() string { return "redirect" }
+
 type (
-	RoutineKind     string
-	RoutineFunc     func(macro *Macro) []Action
-	RoutineExecutor func(kind RoutineKind)
+	RoutineKind        string
+	RoutineFunc        func(macro *Macro) []Action
+	RoutineExecutor    func(kind RoutineKind)
+	SubroutineExecutor func(actions []Action)
 )
 
 type Macro struct {
@@ -29,9 +37,10 @@ type Macro struct {
 	WinManager *window.Manager
 	State      *config.MacroState
 
-	Routine RoutineExecutor
-	Action  func(Action) error
-	Status  func(string)
+	Routine    RoutineExecutor
+	Subroutine SubroutineExecutor
+	Action     func(Action) error
+	Status     func(string)
 }
 
 func (m *Macro) Copy() *Macro {
@@ -42,6 +51,7 @@ func (m *Macro) Copy() *Macro {
 		Logger:   m.Logger,
 		Window:   m.Window,
 		State:    m.State,
+		Results:  &ActionResults{},
 	}
 	macro.Action = func(action Action) error {
 		return action.Execute(macro)

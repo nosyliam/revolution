@@ -2,6 +2,8 @@ package config
 
 type MacroState struct {
 	state *State
+
+	Unwind bool
 }
 
 func (m *MacroState) Save() error {

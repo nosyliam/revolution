@@ -7,6 +7,7 @@
     #include <CoreFoundation/CoreFoundation.h>
     #include <CoreGraphics/CoreGraphics.h>
     #include <ApplicationServices/ApplicationServices.h>
+    #include <IOKit/graphics/IOGraphicsTypes.h>
 #endif /* IS_MACOSX */
 
 #if !defined(IS_WINDOWS) && (defined(WIN32) || defined(_WIN32) || \

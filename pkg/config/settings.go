@@ -4,9 +4,16 @@ type WindowAlignment string
 
 const (
 	TopLeftWindowAlignment     WindowAlignment = "top-left"
-	TopRightWindowAlignment    WindowAlignment = "top-right"
-	BottomLeftWindowAlignment  WindowAlignment = "bottom-left"
-	BottomRightwindowAlignment WindowAlignment = "bottom-right"
+	TopRightWindowAlignment                    = "top-right"
+	BottomLeftWindowAlignment                  = "bottom-left"
+	BottomRightwindowAlignment                 = "bottom-right"
+)
+
+type WindowWidth string
+
+const (
+	HalfWindowWidth WindowWidth = "half"
+	FullWindowWidth             = "full"
 )
 
 type DiscordSettings struct {
@@ -16,15 +23,16 @@ type DiscordSettings struct {
 }
 
 type WindowSettings struct {
-	ID        string `yaml:"id"`
-	Alignment string `yaml:"alignment"`
-
-	Width
+	ID        string          `yaml:"id"`
+	Alignment WindowAlignment `yaml:"alignment"`
+	Width     *WindowWidth    `yaml:"width"`
+	Screen    int             `yaml:"screen"`
 }
 
 // Settings defines the configuration for an individual preset
 type Settings struct {
 	Name         string           `yaml:"name"`
+	WindowID     *string          `yaml:"windowId"`
 	LogVerbosity int              `yaml:"logVerbosity"`
 	Discord      *DiscordSettings `yaml:"discord"`
 
@@ -41,7 +49,8 @@ func (s *Settings) Save() error {
 
 type Config struct {
 	configFile
-	Presets []*Settings `yaml:"presets"`
+	Presets []*Settings       `yaml:"presets"`
+	Windows []*WindowSettings `yaml:"windows"`
 }
 
 func (c *Config) NewPreset(name string) *Settings {

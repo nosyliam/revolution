@@ -30,7 +30,7 @@ func (c controlBackend) ScrollMouse(x, y int) {
 	C.scroll_mouse(C.int(x), C.int(y))
 }
 
-func (c controlBackend) SleepAsync(ms int, interrupt <-chan struct{}) <-chan struct{} {
+func (c controlBackend) SleepAsync(ms int, interrupt common.Receiver) common.Receiver {
 	sleepDone := make(chan struct{})
 
 	go func() {
@@ -53,7 +53,7 @@ func (c controlBackend) SleepAsync(ms int, interrupt <-chan struct{}) <-chan str
 	return sleepDone
 }
 
-func (c controlBackend) Sleep(ms int, interrupt <-chan struct{}) {
+func (c controlBackend) Sleep(ms int, interrupt common.Receiver) {
 	intV := 0
 	done := make(chan bool)
 

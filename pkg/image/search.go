@@ -26,6 +26,11 @@ type Frame struct {
 	Height int
 }
 
+type ScreenFrame struct {
+	Frame
+	Scale float32
+}
+
 type SearchOptions struct {
 	BoundStart      *Point
 	BoundEnd        *Point

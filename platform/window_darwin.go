@@ -217,7 +217,7 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 	}
 
 	for i := 0; i < 10; i++ {
-		cmd := exec.Command("open", url)
+		cmd := exec.Command("open", "-n", url)
 		err = cmd.Start()
 		if err != nil {
 			return 0, errors.New("failed to start installer")
@@ -262,11 +262,6 @@ func (w *windowBackend) Screenshot(id int) (*image.RGBA, error) {
 	img.Pix = data
 	img.Stride = int(stride)
 
-	//f, _ := os.Create("./roblox.png")
-	//defer f.Close()
-	// save image
-	//png.Encode(f, &img)
-
 	C.free(unsafe.Pointer(screen.data))
 	C.free(unsafe.Pointer(screen))
 	return &img, nil
@@ -301,19 +296,22 @@ func (w *windowBackend) SetFrame(id int, frame revimg.Frame) error {
 	return nil
 }
 
-func (w *windowBackend) DisplayFrames() ([]revimg.Frame, error) {
-	var goFrames []revimg.Frame
+func (w *windowBackend) DisplayFrames() ([]revimg.ScreenFrame, error) {
+	var goFrames []revimg.ScreenFrame
 	frames := (*C.Frames)(C.get_display_frames())
 	if int(C.int(frames.len)) == 0 {
 		return nil, errors.New("no displays were detected")
 	}
 	for i := 0; i < int(C.int(frames.len)); i++ {
 		cFrame := (*C.Frame)(unsafe.Pointer(uintptr(unsafe.Pointer(frames.frames)) + (unsafe.Sizeof(C.Frame{}) * uintptr(i))))
-		goFrames = append(goFrames, revimg.Frame{
-			Width:  int(C.int(cFrame.width)),
-			Height: int(C.int(cFrame.height)),
-			X:      int(C.int(cFrame.x)),
-			Y:      int(C.int(cFrame.y)),
+		goFrames = append(goFrames, revimg.ScreenFrame{
+			Frame: revimg.Frame{
+				Width:  int(C.int(cFrame.width)),
+				Height: int(C.int(cFrame.height)),
+				X:      int(C.int(cFrame.x)),
+				Y:      int(C.int(cFrame.y)),
+			},
+			Scale: float32(C.float(cFrame.scale)),
 		})
 	}
 	C.free(unsafe.Pointer(frames))

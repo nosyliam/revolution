@@ -1,28 +1,38 @@
 package actions
 
-import "github.com/nosyliam/revolution/pkg/common"
+import (
+	"github.com/nosyliam/revolution/pkg/common"
+)
 
 type logicAction struct {
-	name  string
-	logic func() error
+	exec func(*common.Macro) error
 }
 
 func (a *logicAction) Execute(macro *common.Macro) error {
-	return a.logic()
+	return a.exec(macro)
 }
 
-func Logic(name string) common.Action {
-	return &logicAction{name: name}
+func Logic(logic interface{}) common.Action {
+	switch fn := logic.(type) {
+	case func():
+		return &logicAction{func(*common.Macro) error { fn(); return nil }}
+	case func() error:
+		return &logicAction{func(*common.Macro) error { return fn() }}
+	case func(macro *common.Macro) error:
+		return &logicAction{fn}
+	default:
+		panic("unknown logic type")
+	}
 }
 
 type (
 	conditionType int
-	PredicateFunc func() bool
+	loopType      int
+	PredicateFunc func(macro *common.Macro) bool
 )
 
 const (
 	ifConditionType conditionType = iota
-	elseifConditionType
 	elseConditionType
 )
 
@@ -41,15 +51,20 @@ type Predicate interface {
 	Type() conditionType
 }
 
+type Loop interface {
+	Predicate() PredicateFunc
+	Type() loopType
+}
+
 func (a *conditionalAction) Execute(macro *common.Macro) error {
-	var lastCond conditionType
 	for _, cond := range a.conditions {
-		if cond.Predicate() {
+		if cond.Predicate(macro) {
 			for _, exec := range cond.Exec {
 				if err := exec(macro); err != nil {
 					return err
 				}
 			}
+			return nil
 		}
 	}
 	return nil
@@ -59,7 +74,8 @@ func Condition(conds ...interface{}) common.Action {
 	var activeCond *condition
 	var conditions []*condition
 	for _, cond := range conds {
-		if fn, ok := cond.(Predicate); ok {
+		switch fn := cond.(type) {
+		case Predicate:
 			if activeCond != nil {
 				conditions = append(conditions, activeCond)
 			}
@@ -68,15 +84,20 @@ func Condition(conds ...interface{}) common.Action {
 			if activeCond.Type != elseConditionType {
 				activeCond.Predicate = fn.Predicate()
 			} else {
-				activeCond.Predicate = func() bool { return true }
+				activeCond.Predicate = func(*common.Macro) bool { return true }
 			}
-		} else if fn, ok := cond.(common.Action); ok {
+		case common.Action:
 			activeCond.Exec = append(activeCond.Exec, func(macro *common.Macro) error { return fn.Execute(macro) })
-		} else if fn, ok := cond.(func() error); ok {
+		case func() error:
 			activeCond.Exec = append(activeCond.Exec, func(macro *common.Macro) error { return fn() })
-		} else if fn, ok := cond.(func(macro *common.Macro) error); ok {
+		case func(macro *common.Macro) error:
 			activeCond.Exec = append(activeCond.Exec, fn)
+		default:
+			panic("unknown predicate type")
 		}
+	}
+	if activeCond != nil {
+		conditions = append(conditions, activeCond)
 	}
 	return &conditionalAction{conditions}
 }
@@ -92,17 +113,6 @@ func If(predicate PredicateFunc) Predicate {
 	return &ifPredicate{predicate}
 }
 
-type elseifPredicate struct {
-	predicate PredicateFunc
-}
-
-func (p *elseifPredicate) Type() conditionType      { return elseifConditionType }
-func (p *elseifPredicate) Predicate() PredicateFunc { return p.predicate }
-
-func Elseif(predicate PredicateFunc) Predicate {
-	return &elseifPredicate{predicate}
-}
-
 type elsePredicate struct{}
 
 func (p *elsePredicate) Type() conditionType      { return elseConditionType }
@@ -112,18 +122,32 @@ func Else() Predicate {
 	return &elsePredicate{}
 }
 
-func NotNil(obj interface{}) PredicateFunc {
-	return func() bool { return obj != nil }
+func And(fns ...PredicateFunc) PredicateFunc {
+	return func(macro *common.Macro) bool {
+		for _, fn := range fns {
+			if !fn(macro) {
+				return false
+			}
+		}
+		return true
+	}
 }
 
-func Nil(obj interface{}) PredicateFunc {
-	return func() bool { return obj == nil }
+func Or(fns ...PredicateFunc) PredicateFunc {
+	return func(macro *common.Macro) bool {
+		for _, fn := range fns {
+			if fn(macro) {
+				return true
+			}
+		}
+		return false
+	}
 }
 
-type retryAction struct{}
+type stepBackAction struct{}
 
-func (r *retryAction) Execute(*common.Macro) error { return common.RetrySignal }
-func Retry() common.Action                         { return &retryAction{} }
+func (r *stepBackAction) Execute(*common.Macro) error { return common.StepBackSignal }
+func StepBack() common.Action                         { return &stepBackAction{} }
 
 type restartAction struct{}
 

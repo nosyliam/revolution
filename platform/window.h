@@ -6,6 +6,7 @@ typedef struct Frame {
     int height;
     int x;
     int y;
+    float scale;
 } Frame;
 
 typedef struct Frames {
@@ -92,12 +93,19 @@ Frames* get_display_frames() {
 
     for (int i = 0; i < count; i++) {
     	CGRect bounds = CGDisplayBounds(displays[i]);
+
+    	CGImageRef image = NULL;
+    	CGRect screenCaptureRect = CGRectMake(0, 0, CGDisplayPixelsWide(displays[i]), CGDisplayPixelsHigh(displays[i]));
+    	image = CGDisplayCreateImageForRect(displays[i], screenCaptureRect);
+
     	Frame *frame = malloc(sizeof(Frame));
     	frame->width = (int)bounds.size.width;
     	frame->height = (int)bounds.size.height;
     	frame->x = bounds.origin.x;
     	frame->y = bounds.origin.y;
+    	frame->scale = CGImageGetWidth(image) / CGDisplayPixelsWide(displays[i]);
     	data[i] = *frame;
+    	CFRelease(image);
     }
 
     return frames;
@@ -115,6 +123,7 @@ void set_window_frame(const Window* window, const int width, const int height, c
 	CGSize* size = malloc(sizeof(CGSize));
 	size->width = width;
 	size->height = height;
+
 	CFTypeRef sizeStorage = AXValueCreate(kAXValueCGSizeType, size);
 	AXUIElementSetAttributeValue(window->window, (CFStringRef)kAXSizeAttribute, sizeStorage);
 	CFRelease(sizeStorage);
