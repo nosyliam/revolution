@@ -2,6 +2,7 @@ package routines
 
 import (
 	. "github.com/nosyliam/revolution/pkg/common"
+	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/control"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 	"github.com/stretchr/testify/assert"
@@ -67,6 +68,117 @@ func Test_Conditionals(t *testing.T) {
 		Terminate(),
 	})
 	assert.Equal(t, 10, macro.Results.RetryCount)
+}
+
+func Test_Loops(t *testing.T) {
+	macro := &Macro{Results: &ActionResults{}, State: &config.MacroState{LoopState: &config.LoopState{}}}
+	exec(macro, []Action{
+		Loop(
+			For(10),
+			Increment,
+		),
+		Loop(
+			For(1, 10),
+			Increment,
+		),
+		Loop(
+			For(0, 10, 2),
+			Increment,
+		),
+		Terminate(),
+	})
+	assert.Equal(t, 24, macro.Results.RetryCount)
+	macro.Results.RetryCount = 0
+	exec(macro, []Action{
+		Loop(
+			For(10),
+			Loop(
+				For(10),
+				Condition(
+					If(Equal(Index(1), 5)),
+					Increment,
+				),
+			),
+		),
+		Terminate(),
+	})
+	assert.Equal(t, 10, macro.Results.RetryCount)
+
+	macro.Results.RetryCount = 0
+	exec(macro, []Action{
+		Loop(
+			For(10),
+			Condition(
+				If(Equal(Index(), 5)),
+				Break(),
+			),
+			Increment,
+		),
+		Loop(
+			For(10),
+			Loop(
+				For(10),
+				Condition(
+					If(Equal(Index(1), 5)),
+					Break(1),
+				),
+			),
+			Increment,
+		),
+		Loop(
+			For(10),
+			Subroutine(
+				Loop(
+					For(10),
+					Condition(
+						If(Equal(Index(1), 5)),
+						Break(1),
+					),
+				),
+			),
+			Increment,
+		),
+		Terminate(),
+	})
+	assert.Equal(t, 15, macro.Results.RetryCount)
+	macro.Results.RetryCount = 0
+	exec(macro, []Action{
+		Loop(
+			For(10),
+			Condition(
+				If(Equal(Index(), 5)),
+				Continue(),
+			),
+			Increment,
+		),
+		Loop(
+			For(10),
+			Loop(
+				For(10),
+				Condition(
+					If(Equal(Index(1), 5)),
+					Continue(1),
+				),
+			),
+			Increment,
+		),
+		Loop(
+			For(10),
+			Subroutine(
+				Loop(
+					For(10),
+					Condition(
+						If(Equal(Index(1), 5)),
+						Continue(1),
+					),
+				),
+			),
+			Increment,
+		),
+		Terminate(),
+	})
+	assert.Equal(t, 27, macro.Results.RetryCount)
+
 }
 
 func Test_Assertions(t *testing.T) {

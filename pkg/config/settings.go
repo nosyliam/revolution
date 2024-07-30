@@ -6,14 +6,7 @@ const (
 	TopLeftWindowAlignment     WindowAlignment = "top-left"
 	TopRightWindowAlignment                    = "top-right"
 	BottomLeftWindowAlignment                  = "bottom-left"
-	BottomRightwindowAlignment                 = "bottom-right"
-)
-
-type WindowWidth string
-
-const (
-	HalfWindowWidth WindowWidth = "half"
-	FullWindowWidth             = "full"
+	BottomRightWindowAlignment                 = "bottom-right"
 )
 
 type DiscordSettings struct {
@@ -25,7 +18,7 @@ type DiscordSettings struct {
 type WindowSettings struct {
 	ID        string          `yaml:"id"`
 	Alignment WindowAlignment `yaml:"alignment"`
-	Width     *WindowWidth    `yaml:"width"`
+	FullWidth bool            `yaml:"fullWidth"`
 	Screen    int             `yaml:"screen"`
 }
 

@@ -30,8 +30,8 @@ func (r *Routine) Execute() {
 	for {
 		for i := 0; i < len(r.actions); i++ {
 			if err := r.actions[i].Execute(r.macro); err != nil {
-				if redirect, ok := err.(common.RedirectExecution); ok {
-					r.parent.redirect = &redirect
+				if redirect, ok := err.(*common.RedirectExecution); ok {
+					r.parent.redirect = redirect
 					return
 				}
 				switch err {
@@ -57,6 +57,12 @@ func (r *Routine) Execute() {
 					return
 				}
 				r.macro.Routine(r.redirect.Routine)
+				break
+			}
+			if r.macro.State.LoopState.Unwind != nil {
+				if r.depth == 0 {
+					panic("invalid loop state: not in a loop")
+				}
 				break
 			}
 			if len(r.pause) > 0 {
@@ -101,7 +107,7 @@ func ExecuteRoutine(
 			subMacro.Action = func(action common.Action) error {
 				return action.Execute(subMacro)
 			}
-			subRoutine := &Routine{macro: subMacro, actions: actions, depth: routine.depth, parent: routine.parent}
+			subRoutine := &Routine{macro: subMacro, actions: actions, depth: routine.depth + 1, parent: routine.parent}
 			subRoutine.Copy(routine)
 			subRoutine.Execute()
 		}

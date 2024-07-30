@@ -1,9 +1,19 @@
 package config
 
-type MacroState struct {
-	state *State
+type UnwindLoop struct {
+	Depth    int
+	Continue bool
+}
 
-	Unwind bool
+type LoopState struct {
+	Unwind *UnwindLoop
+	Index  []int
+}
+
+type MacroState struct {
+	LoopState *LoopState
+
+	state *State
 }
 
 func (m *MacroState) Save() error {

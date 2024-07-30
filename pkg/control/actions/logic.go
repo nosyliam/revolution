@@ -2,6 +2,7 @@ package actions
 
 import (
 	"github.com/nosyliam/revolution/pkg/common"
+	"github.com/nosyliam/revolution/pkg/config"
 )
 
 type logicAction struct {
@@ -36,6 +37,12 @@ const (
 	elseConditionType
 )
 
+const (
+	whileLoopType loopType = iota
+	untilLoopType
+	forLoopType
+)
+
 type condition struct {
 	Predicate PredicateFunc
 	Exec      []func(macro *common.Macro) error
@@ -46,14 +53,9 @@ type conditionalAction struct {
 	conditions []*condition
 }
 
-type Predicate interface {
+type ConditionPredicate interface {
 	Predicate() PredicateFunc
 	Type() conditionType
-}
-
-type Loop interface {
-	Predicate() PredicateFunc
-	Type() loopType
 }
 
 func (a *conditionalAction) Execute(macro *common.Macro) error {
@@ -75,7 +77,7 @@ func Condition(conds ...interface{}) common.Action {
 	var conditions []*condition
 	for _, cond := range conds {
 		switch fn := cond.(type) {
-		case Predicate:
+		case ConditionPredicate:
 			if activeCond != nil {
 				conditions = append(conditions, activeCond)
 			}
@@ -109,7 +111,7 @@ type ifPredicate struct {
 func (p *ifPredicate) Type() conditionType      { return ifConditionType }
 func (p *ifPredicate) Predicate() PredicateFunc { return p.predicate }
 
-func If(predicate PredicateFunc) Predicate {
+func If(predicate PredicateFunc) ConditionPredicate {
 	return &ifPredicate{predicate}
 }
 
@@ -118,7 +120,7 @@ type elsePredicate struct{}
 func (p *elsePredicate) Type() conditionType      { return elseConditionType }
 func (p *elsePredicate) Predicate() PredicateFunc { return nil }
 
-func Else() Predicate {
+func Else() ConditionPredicate {
 	return &elsePredicate{}
 }
 
@@ -142,6 +144,172 @@ func Or(fns ...PredicateFunc) PredicateFunc {
 		}
 		return false
 	}
+}
+
+type LoopPredicate interface {
+	Predicate() PredicateFunc
+	Step() func(*common.Macro)
+	Start() func(*common.Macro)
+}
+
+type loopAction struct {
+	loop LoopPredicate
+	exec []common.Action
+}
+
+func (a *loopAction) Execute(macro *common.Macro) error {
+	state := macro.State.LoopState
+	defer func() {
+		state.Index = state.Index[1:]
+	}()
+	if state.Unwind != nil {
+		panic("invalid loop state: cannot start a new loop while unwinding")
+	}
+	state.Index = append([]int{0}, state.Index...)
+	if start := a.loop.Start(); start != nil {
+		start(macro)
+	}
+	pred := a.loop.Predicate()
+	for {
+		if pred(macro) {
+			for _, exec := range a.exec {
+				if err := macro.Action(exec); err != nil {
+					return err
+				}
+				if unwind := state.Unwind; unwind != nil {
+					break
+				}
+			}
+			if step := a.loop.Step(); step != nil {
+				step(macro)
+			} else {
+				state.Index[0]++
+			}
+			if unwind := state.Unwind; unwind != nil {
+				if unwind.Depth == 0 {
+					state.Unwind = nil
+					if unwind.Continue {
+						continue
+					}
+					break
+				}
+				unwind.Depth--
+				break
+			}
+		} else {
+			break
+		}
+	}
+	return nil
+}
+
+type forLoop struct {
+	start int
+	end   int
+	step  int
+}
+
+func (l *forLoop) Predicate() PredicateFunc {
+	return func(macro *common.Macro) bool {
+		if macro.State.LoopState.Index[0] < l.end {
+			return true
+		}
+
+		return false
+	}
+}
+
+func (l *forLoop) Step() func(*common.Macro) {
+	return func(macro *common.Macro) {
+		if l.step != 0 {
+			macro.State.LoopState.Index[0] += l.step
+		} else {
+			macro.State.LoopState.Index[0]++
+		}
+	}
+}
+
+func (l *forLoop) Start() func(*common.Macro) {
+	return func(macro *common.Macro) {
+		macro.State.LoopState.Index[0] = l.start
+	}
+}
+
+func For(args ...int) LoopPredicate {
+	if len(args) > 3 {
+		panic("invalid arguments")
+	}
+	switch len(args) {
+	case 3:
+		return &forLoop{args[0], args[1], args[2]}
+	case 2:
+		return &forLoop{args[0], args[1], 0}
+	case 1:
+		return &forLoop{0, args[0], 0}
+	default:
+		panic("invalid arguments")
+	}
+}
+
+func Loop(predicate LoopPredicate, actions ...interface{}) common.Action {
+	var actionFns []common.Action
+	for _, action := range actions {
+		switch fn := action.(type) {
+		case common.Action:
+			actionFns = append(actionFns, fn)
+		case func() error:
+		case func(macro *common.Macro) error:
+			actionFns = append(actionFns, Logic(fn))
+		default:
+			panic("unknown action type")
+		}
+	}
+	return &loopAction{predicate, actionFns}
+}
+
+type continueAction struct {
+	depth int
+}
+
+func (a *continueAction) Execute(macro *common.Macro) error {
+	macro.State.LoopState.Unwind = &config.UnwindLoop{Depth: a.depth, Continue: true}
+	return nil
+}
+
+func Continue(depth ...int) common.Action {
+	if len(depth) > 1 {
+		panic("invalid arguments")
+	}
+	var depthV int
+	if len(depth) == 1 {
+		depthV = depth[0]
+	}
+	return &continueAction{depth: depthV}
+}
+
+type breakAction struct {
+	depth int
+}
+
+func (a *breakAction) Execute(macro *common.Macro) error {
+	macro.State.LoopState.Unwind = &config.UnwindLoop{Depth: a.depth}
+	return nil
+}
+
+func Break(depth ...int) common.Action {
+	if len(depth) > 1 {
+		panic("invalid arguments")
+	}
+	var depthV int
+	if len(depth) == 1 {
+		depthV = depth[0]
+	}
+	return &breakAction{depth: depthV}
+}
+
+type Cases[T comparable] map[T]common.Action
+
+type switchAction struct {
 }
 
 type stepBackAction struct{}
