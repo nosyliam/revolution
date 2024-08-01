@@ -179,3 +179,32 @@ func Nil(obj interface{}) PredicateFunc {
 	fn := obj.(func(*common.Macro) interface{})
 	return func(macro *common.Macro) bool { return fn(macro) == nil }
 }
+
+func execError(exec interface{}, err bool) PredicateFunc {
+	var exc func(macro *common.Macro) error
+	switch fn := exec.(type) {
+	case func(macro *common.Macro) error:
+		exc = fn
+	case func() error:
+		exc = func(*common.Macro) error { return fn() }
+	case common.Action:
+		exc = fn.Execute
+	default:
+		panic("invalid")
+	}
+	return func(macro *common.Macro) bool {
+		if err {
+			return exc(macro) == nil
+		} else {
+			return exc(macro) != nil
+		}
+	}
+}
+
+func ExecError(exec interface{}) PredicateFunc {
+	return execError(exec, true)
+}
+
+func ExecNoError(exec interface{}) PredicateFunc {
+	return execError(exec, false)
+}

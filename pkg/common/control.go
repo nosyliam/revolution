@@ -32,6 +32,14 @@ const (
 	Seven
 )
 
+type InterruptType int
+
+const (
+	ImmediateInterrupt InterruptType = iota
+	DelayedInterrupt
+	IntervalInterrupt
+)
+
 type Backend interface {
 	KeyDown(pid int, key Key)
 	KeyUp(pid int, key Key)
@@ -47,6 +55,10 @@ type EventBus interface {
 	KeyUp(pid int, key Key) Receiver
 	MoveMouse(x, y int) Receiver
 	ScrollMouse(x, y int) Receiver
+}
+
+type Scheduler interface {
+	Execute(macro *Macro, interruptType InterruptType) error
 }
 
 type Event interface {

@@ -24,10 +24,10 @@ type WindowSettings struct {
 
 // Settings defines the configuration for an individual preset
 type Settings struct {
-	Name         string           `yaml:"name"`
-	WindowID     *string          `yaml:"windowId"`
-	LogVerbosity int              `yaml:"logVerbosity"`
-	Discord      *DiscordSettings `yaml:"discord"`
+	Name           string           `yaml:"name"`
+	WindowConfigID *string          `yaml:"windowId"`
+	LogVerbosity   int              `yaml:"logVerbosity"`
+	Discord        *DiscordSettings `yaml:"discord"`
 
 	config *Config
 }

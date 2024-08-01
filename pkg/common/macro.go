@@ -22,7 +22,6 @@ func (e RedirectExecution) Error() string { return "redirect" }
 
 type (
 	RoutineKind        string
-	RoutineFunc        func(macro *Macro) []Action
 	RoutineExecutor    func(kind RoutineKind)
 	SubroutineExecutor func(actions []Action)
 )

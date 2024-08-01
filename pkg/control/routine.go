@@ -5,7 +5,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/common"
 )
 
-var Routines = make(map[common.RoutineKind]common.RoutineFunc)
+var Routines = make(map[common.RoutineKind]common.Actions)
 
 type Routine struct {
 	macro   *common.Macro
@@ -114,7 +114,7 @@ func ExecuteRoutine(
 	}
 	exec = func(routine *Routine, macro *common.Macro) common.RoutineExecutor {
 		return func(kind common.RoutineKind) {
-			fn, ok := Routines[kind]
+			subActions, ok := Routines[kind]
 			if !ok {
 				panic(fmt.Sprintf("unknown subroutine %s", string(kind)))
 			}
@@ -126,7 +126,7 @@ func ExecuteRoutine(
 			subMacro.Action = func(action common.Action) error {
 				return action.Execute(subMacro)
 			}
-			subRoutine := &Routine{macro: subMacro, actions: fn(subMacro), depth: routine.depth + 1, parent: routine}
+			subRoutine := &Routine{macro: subMacro, actions: subActions, depth: routine.depth + 1, parent: routine}
 			subRoutine.Copy(routine)
 			subRoutine.Execute()
 		}
@@ -142,6 +142,6 @@ func ExecuteRoutine(
 	routine.Execute()
 }
 
-func Register(kind common.RoutineKind, fn common.RoutineFunc) {
+func Register(kind common.RoutineKind, fn common.Actions) {
 	Routines[kind] = fn
 }

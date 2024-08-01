@@ -29,16 +29,3 @@ func (a *subroutineAction) Execute(macro *common.Macro) error {
 func Subroutine(actions ...common.Action) common.Action {
 	return &subroutineAction{actions: actions}
 }
-
-type statusAction struct {
-	status string
-}
-
-func (a *statusAction) Execute(deps *common.Macro) error {
-	deps.Status(a.status)
-	return nil
-}
-
-func Status(status string) common.Action {
-	return &statusAction{status: status}
-}

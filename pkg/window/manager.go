@@ -3,6 +3,7 @@ package window
 import (
 	"fmt"
 	"github.com/nosyliam/revolution/bitmaps"
+	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
@@ -49,6 +50,10 @@ func (w *Window) Screenshot() error {
 	return nil
 }
 
+func (w *Window) Close() error {
+	return w.backend.CloseWindow(w.id)
+}
+
 type Manager struct {
 	sync.Mutex
 	backend         Backend
@@ -81,7 +86,7 @@ func (m *Manager) reserveWindow(settings config.WindowSettings) error {
 
 	screen := screens[settings.Screen]
 	if screen.Scale > 1 {
-		return errors.New(fmt.Sprintf("Retina displays are not supported. Please install DeskPad to add a virtual monitor."))
+		return errors.New(fmt.Sprintf("Retina displays are not supported. Attach a monitor or install DeskPad to add a virtual monitor."))
 	}
 
 	if len(screens) > len(m.reservedWindows) {
@@ -157,7 +162,7 @@ func (m *Manager) reserveWindow(settings config.WindowSettings) error {
 	return nil
 }
 
-func (m *Manager) OpenWindow() (*Window, error) {
+func (m *Manager) OpenWindow(macro *common.Macro) (*Window, error) {
 	return nil, nil
 }
 

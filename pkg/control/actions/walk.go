@@ -1,5 +1,5 @@
 package actions
 
-type walkAction struct {
-	studs int
+type sleepAction struct {
+	ms int
 }
