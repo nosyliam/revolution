@@ -41,7 +41,11 @@ func (w *Window) Fix() error {
 	return nil
 }
 
-func (w *Window) Screenshot() error {
+func (w *Window) Screenshot() *image.RGBA {
+	return w.screenshot
+}
+
+func (w *Window) TakeScreenshot() error {
 	var err error
 	w.screenshot, err = w.backend.Screenshot(w.id)
 	if err != nil {

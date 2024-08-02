@@ -11,7 +11,6 @@ import (
 type LogLevel string
 
 const (
-	System  LogLevel = "SYSTEM"
 	Info    LogLevel = "INFO"
 	Warning LogLevel = "WARNING"
 	Error   LogLevel = "ERROR"
@@ -38,25 +37,17 @@ type Logger struct {
 	settings  *config.Settings
 }
 
-func (s *Logger) V(verbosity int) *Logger {
-	return &Logger{stack: s.stack, verbosity: verbosity, settings: s.settings}
-}
-
 func (s *Logger) Child(name string) *Logger {
 	return &Logger{stack: append(s.stack, name), settings: s.settings}
 }
 
-func (s *Logger) Log(level LogLevel, message string) error {
-	_ = fmt.Sprintf("[%s] %s", time.Now().Format("hh:mm:ss"), message)
+func (s *Logger) Log(verbosity int, level LogLevel, message string) error {
+	_ = fmt.Sprintf("[%s] %s: %s", time.Now().Format("hh:mm:ss"), level, message)
 	return nil
 }
 
-func (s *Logger) LogDiscord(level LogLevel, message string) error {
-	return s.Log(level, message)
-}
-
-func (s *Logger) LogUpdate(level LogLevel, message string, id *int, screenshot *image.RGBA) (*int, error) {
-	return nil, nil
+func (s *Logger) LogDiscord(level LogLevel, message string, id *int, screenshot *image.RGBA) (int, error) {
+	return 0, nil
 }
 
 func NewLogger(name string, settings *config.Settings) *Logger {
