@@ -16,9 +16,9 @@ type Interface struct {
 	Logger   *logging.Logger
 	Name     string
 
-	pause  chan struct{}
-	stop   chan struct{}
-	status chan string
+	pause   chan struct{}
+	stop    chan struct{}
+	restart chan struct{}
 }
 
 func (i *Interface) Start() {
@@ -32,10 +32,10 @@ func (i *Interface) Start() {
 	}
 
 	var unpause chan struct{}
-	stop := make(chan struct{})
-	pause := make(chan (<-chan struct{}))
-	err := make(chan string)
-	status := make(chan string)
+	stop := make(chan struct{}, 1)
+	pause := make(chan (<-chan struct{}), 1)
+	err := make(chan string, 1)
+	status := make(chan string, 1)
 
 	go func() {
 		for {
@@ -59,8 +59,8 @@ func (i *Interface) Start() {
 		}
 	}()
 
-	main := control.Routines[routines.MainRoutineKind]
-	control.ExecuteRoutine(macro, main(macro), stop, pause, status, err)
+	main := common.Routines[routines.MainRoutineKind]
+	control.ExecuteRoutine(macro, main, stop, pause, status, err, i.restart)
 }
 
 func (i *Interface) SendError(err string) {
@@ -104,8 +104,8 @@ func NewInterface(
 		State:    state.State(name),
 		Name:     name,
 
-		pause:  make(chan struct{}),
-		stop:   make(chan struct{}),
-		status: make(chan string),
+		pause:    make(chan struct{}),
+		stop:     make(chan struct{}),
+		redirect: make(chan *common.RedirectExecution, 1),
 	}
 }

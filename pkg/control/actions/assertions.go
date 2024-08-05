@@ -194,8 +194,10 @@ func execError(exec interface{}, err bool) PredicateFunc {
 	}
 	return func(macro *common.Macro) bool {
 		if err {
+			res := exc(macro)
 			return exc(macro) == nil
 		} else {
+			res := exc(macro)
 			return exc(macro) != nil
 		}
 	}

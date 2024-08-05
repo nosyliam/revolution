@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/logging"
+	"github.com/pkg/errors"
 	"image"
 )
 
@@ -24,19 +25,23 @@ func execArgs(macro *common.Macro, args []interface{}) []interface{} {
 	return res
 }
 
-type logAction struct {
+type LogAction struct {
 	log       string
 	level     logging.LogLevel
 	discord   bool
+	status    bool
 	verbosity int
 	args      []interface{}
 	id        *int
 }
 
-func (a *logAction) Execute(macro *common.Macro) error {
+func (a *LogAction) Execute(macro *common.Macro) error {
+	if a.status {
+		macro.Status(a.log)
+	}
 	msg := fmt.Sprintf(a.log, execArgs(macro, a.args)...)
 	if err := macro.Logger.Log(a.verbosity, a.level, msg); err != nil {
-		return err
+		return errors.Wrap(err, "failed to log")
 	}
 	if a.discord {
 		var screenshot *image.RGBA
@@ -51,31 +56,32 @@ func (a *logAction) Execute(macro *common.Macro) error {
 			a.id = &id
 		}
 	}
+	return nil
 }
 
-func (a *logAction) Discord(macro *common.Macro) common.Action {
+func (a *LogAction) Status() *LogAction {
+	a.status = true
+	return a
+}
+
+func (a *LogAction) Discord() *LogAction {
 	a.discord = true
 	return a
 }
 
-func (a *logAction) V(verbosity int) *logAction {
+func (a *LogAction) V(verbosity int) *LogAction {
 	a.verbosity = verbosity
-	return &logAction{verbosity: verbosity, level: a.level, log: a.log}
+	return &LogAction{verbosity: verbosity, level: a.level, log: a.log}
 }
 
-func Error(log string, args ...interface{}) common.Action {
-	return &logAction{level: logging.Error, log: log, args: args}
+func Error(log string, args ...interface{}) *LogAction {
+	return &LogAction{level: logging.Error, log: log, args: args}
 }
 
-type statusAction struct {
-	msg  string
-	args []interface{}
+func Info(log string, args ...interface{}) *LogAction {
+	return &LogAction{level: logging.Info, log: log, args: args}
 }
 
-func (a *statusAction) Execute(deps *common.Macro) error {
-	return nil
-}
-
-func Status(status string, args ...interface{}) common.Action {
-	return &statusAction{msg: status, args: args}
+func Warning(log string, args ...interface{}) *LogAction {
+	return &LogAction{level: logging.Warning, log: log, args: args}
 }

@@ -7,6 +7,10 @@ import (
 
 type Actions []Action
 
+func (a Actions) Register(kind RoutineKind) {
+	Routines[kind] = a
+}
+
 type ActionResults struct {
 	EditedScreenshot  *image.RGBA
 	ImageSearchPoints []revimg.Point
@@ -16,3 +20,5 @@ type ActionResults struct {
 type Action interface {
 	Execute(macro *Macro) error
 }
+
+var Routines = make(map[RoutineKind]Actions)

@@ -68,7 +68,18 @@ type Manager struct {
 }
 
 func (m *Manager) freeWindow(id string) {
-
+	if _, ok := m.reservedIds[id]; ok {
+		return
+	}
+	for _, screen := range m.reservedWindows {
+		for i, win := range screen {
+			if win != nil {
+				if *win == id {
+					screen[i] = nil
+				}
+			}
+		}
+	}
 }
 
 func (m *Manager) windowFrame(id string) revimg.Frame {
@@ -76,6 +87,7 @@ func (m *Manager) windowFrame(id string) revimg.Frame {
 }
 
 func (m *Manager) reserveWindow(settings config.WindowSettings) error {
+
 	m.Lock()
 	defer m.Unlock()
 	screens, err := m.backend.DisplayFrames()
@@ -163,6 +175,7 @@ func (m *Manager) reserveWindow(settings config.WindowSettings) error {
 	}
 
 	m.windowFrames[settings.ID] = revimg.Frame{X: x, Y: y, Width: w, Height: screen.Height / 2}
+	m.reservedIds[settings.ID] = true
 	return nil
 }
 

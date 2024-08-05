@@ -26,6 +26,28 @@ func (a *subroutineAction) Execute(macro *common.Macro) error {
 	return nil
 }
 
-func Subroutine(actions ...common.Action) common.Action {
+func Subroutine(args ...interface{}) common.Action {
+	if len(args) == 1 {
+		panic("invalid arguments")
+	}
+	if actions, ok := args[0].(common.Actions); ok {
+		return &subroutineAction{actions: actions}
+	}
+	var actions []common.Action
+	for _, arg := range args {
+		actions = append(actions, arg.(common.Action))
+	}
 	return &subroutineAction{actions: actions}
+}
+
+type redirectAction struct {
+	routine common.RoutineKind
+}
+
+func (a *redirectAction) Execute(macro *common.Macro) error {
+	return &common.RedirectExecution{Routine: a.routine}
+}
+
+func Redirect(kind common.RoutineKind) common.Action {
+	return &redirectAction{routine: kind}
 }

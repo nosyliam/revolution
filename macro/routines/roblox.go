@@ -2,33 +2,61 @@ package routines
 
 import (
 	. "github.com/nosyliam/revolution/pkg/common"
-	"github.com/nosyliam/revolution/pkg/control"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 )
 
-const CheckRobloxRoutineKind RoutineKind = "CheckRoblox"
+const (
+	OpenRobloxRoutineKind RoutineKind = "OpenRoblox"
+)
 
 func closeWindow(macro *Macro) error {
-	return macro.Window.Close()
+	if err := macro.Window.Close(); err != nil {
+		return err
+	}
+
+	macro.Window = nil
+	return nil
 }
 
-var CheckRobloxRoutine = Actions{
+func openWindow(macro *Macro) error {
+	return nil
+}
+
+var OpenRobloxRoutine = Actions{
 	Condition(
 		If(NotNil(Window)),
-		Status("Attempting to close Roblox"),
+		Info("Attempting to close Roblox").Status().Discord(),
 		Loop(
 			For(5),
 			Condition(
 				If(ExecError(closeWindow)),
-				Error("Failed to close Roblox! Attempt %d", Index(0)),
+				Error("Failed to close Roblox: %s! Attempt %d", LastError, Index(0)).Status().Discord(),
+				Sleep(5).Seconds(),
 				Else(),
 				Break(),
 			),
 		),
 	),
-	Status("Opening Roblox"),
+	Info("Opening Roblox").Status().Discord(),
+	Loop(
+		For(10),
+		Condition(
+			If(ExecError(openWindow)),
+			Error("Failed to open Roblox: %s! Attempt %d", LastError, Index(0)).Status().Discord(),
+			Sleep(5).Seconds(),
+			Else(),
+			Break(),
+		),
+	),
+	Condition(
+		If(Nil(Window)),
+		Error("Waiting 60 seconds before retrying").Status().Discord(),
+		Sleep(60).Seconds(),
+		Restart(),
+	),
+	Redirect(MainRoutineKind),
 }
 
 func init() {
-	control.Register(CheckRobloxRoutineKind, CheckRobloxRoutine)
+	OpenRobloxRoutine.Register(OpenRobloxRoutineKind)
 }

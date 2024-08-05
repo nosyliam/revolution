@@ -1,5 +1,7 @@
 package config
 
+import "github.com/nosyliam/revolution/pkg/common"
+
 type UnwindLoop struct {
 	Depth    int
 	Continue bool
@@ -12,6 +14,8 @@ type LoopState struct {
 
 type MacroState struct {
 	LoopState *LoopState
+	LastError error
+	Stack     []common.RoutineKind
 
 	state *State
 }

@@ -25,6 +25,10 @@ func Window(macro *common.Macro) interface{} {
 	return macro.Window
 }
 
+func LastError(macro *common.Macro) interface{} {
+	return macro.State.LastError
+}
+
 func True(*common.Macro) bool {
 	return true
 }
