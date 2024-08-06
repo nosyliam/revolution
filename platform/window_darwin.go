@@ -262,6 +262,10 @@ func (w *windowBackend) Screenshot(id int) (*image.RGBA, error) {
 	img.Pix = data
 	img.Stride = int(stride)
 
+	/*f, _ := os.Create("test.png")
+	png.Encode(f, &img)
+	f.Close()*/
+
 	C.free(unsafe.Pointer(screen.data))
 	C.free(unsafe.Pointer(screen))
 	return &img, nil

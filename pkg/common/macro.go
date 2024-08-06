@@ -31,6 +31,7 @@ type Macro struct {
 	Backend    Backend
 	Results    *ActionResults
 	Settings   *config.Settings
+	AccountDb  *config.AccountDatabase
 	Logger     *logging.Logger
 	Window     *window.Window
 	WinManager *window.Manager

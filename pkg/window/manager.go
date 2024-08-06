@@ -3,19 +3,17 @@ package window
 import (
 	"fmt"
 	"github.com/nosyliam/revolution/bitmaps"
-	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
 	"image"
+	"strings"
 	"sync"
 )
 
 type Window struct {
 	id         int
-	screen     int
-	settings   *config.WindowSettings
-	frame      revimg.Frame
+	config     *config.WindowConfig
 	backend    Backend
 	screenshot *image.RGBA
 	mgr        *Manager
@@ -33,7 +31,7 @@ func (w *Window) FindImage(bitmapName string, options *revimg.SearchOptions) ([]
 func (w *Window) Fix() error {
 	_, err := w.backend.GetFrame(w.id)
 	if errors.Is(err, WindowNotFoundErr) {
-		w.mgr.freeWindow(w.settings.ID)
+		w.mgr.freeWindow(w.config.ID)
 		return err
 	} else if err != nil {
 		return err
@@ -68,7 +66,7 @@ type Manager struct {
 }
 
 func (m *Manager) freeWindow(id string) {
-	if _, ok := m.reservedIds[id]; ok {
+	if _, ok := m.reservedIds[id]; !ok {
 		return
 	}
 	for _, screen := range m.reservedWindows {
@@ -80,29 +78,39 @@ func (m *Manager) freeWindow(id string) {
 			}
 		}
 	}
+	delete(m.reservedIds, id)
+	delete(m.windowFrames, id)
 }
 
 func (m *Manager) windowFrame(id string) revimg.Frame {
 	return m.windowFrames[id]
 }
 
-func (m *Manager) reserveWindow(settings config.WindowSettings) error {
-
+func (m *Manager) reserveWindow(settings *config.WindowConfig) (*config.WindowConfig, error) {
 	m.Lock()
 	defer m.Unlock()
 	screens, err := m.backend.DisplayFrames()
 	if err != nil {
-		return errors.Wrap(err, "failed to get screen data")
+		return nil, errors.Wrap(err, "failed to get screen data")
 	}
+
+	// If there's no window configuration associated with the macro instance, attempt to find an available spot
+	if settings == nil {
+		for i := 0; i < len(screens); i++ {
+
+		}
+		settings = &config.WindowConfig{}
+	}
+
 	if len(screens) < settings.Screen {
-		return errors.New(fmt.Sprintf("The configuration for this window exists on screen %d. Only %d screen(s) are available.",
+		return nil, errors.New(fmt.Sprintf("The configuration for this window exists on screen %d. Only %d screen(s) are available.",
 			settings.Screen, len(screens)))
 	}
 	m.frames = screens
 
 	screen := screens[settings.Screen]
 	if screen.Scale > 1 {
-		return errors.New(fmt.Sprintf("Retina displays are not supported. Attach a monitor or install DeskPad to add a virtual monitor."))
+		return nil, errors.New(fmt.Sprintf("Retina displays are not supported. Attach a monitor or install DeskPad to add a virtual monitor."))
 	}
 
 	if len(screens) > len(m.reservedWindows) {
@@ -117,40 +125,40 @@ func (m *Manager) reserveWindow(settings config.WindowSettings) error {
 	switch settings.Alignment {
 	case config.TopLeftWindowAlignment:
 		if reservations[0] != nil {
-			return errors.New(fmt.Sprintf("The top left corner of screen %d is reserved.", settings.Screen))
+			return nil, errors.New(fmt.Sprintf("The top left corner of screen %d is reserved.", settings.Screen))
 		}
 		if settings.FullWidth && reservations[1] != nil {
-			return errors.New(fmt.Sprintf("The top right corner of screen %d is reserved.", settings.Screen))
+			return nil, errors.New(fmt.Sprintf("The top right corner of screen %d is reserved.", settings.Screen))
 		} else {
 			reservations[1] = &id
 		}
 		reservations[0] = &id
 	case config.TopRightWindowAlignment:
 		if reservations[1] != nil {
-			return errors.New(fmt.Sprintf("The top right corner of screen %d is reserved.", settings.Screen))
+			return nil, errors.New(fmt.Sprintf("The top right corner of screen %d is reserved.", settings.Screen))
 		}
 		if settings.FullWidth && reservations[0] != nil {
-			return errors.New(fmt.Sprintf("The top left corner of screen %d is reserved.", settings.Screen))
+			return nil, errors.New(fmt.Sprintf("The top left corner of screen %d is reserved.", settings.Screen))
 		} else {
 			reservations[0] = &id
 		}
 		reservations[1] = &id
 	case config.BottomLeftWindowAlignment:
 		if reservations[2] != nil {
-			return errors.New(fmt.Sprintf("The bottom left corner of screen %d is reserved.", settings.Screen))
+			return nil, errors.New(fmt.Sprintf("The bottom left corner of screen %d is reserved.", settings.Screen))
 		}
 		if settings.FullWidth && reservations[3] != nil {
-			return errors.New(fmt.Sprintf("The bottom right corner of screen %d is reserved.", settings.Screen))
+			return nil, errors.New(fmt.Sprintf("The bottom right corner of screen %d is reserved.", settings.Screen))
 		} else {
 			reservations[3] = &id
 		}
 		reservations[2] = &id
 	case config.BottomRightWindowAlignment:
 		if reservations[3] != nil {
-			return errors.New(fmt.Sprintf("The bottom right corner of screen %d is reserved.", settings.Screen))
+			return nil, errors.New(fmt.Sprintf("The bottom right corner of screen %d is reserved.", settings.Screen))
 		}
 		if settings.FullWidth && reservations[2] != nil {
-			return errors.New(fmt.Sprintf("The bottom left corner of screen %d is reserved.", settings.Screen))
+			return nil, errors.New(fmt.Sprintf("The bottom left corner of screen %d is reserved.", settings.Screen))
 		} else {
 			reservations[2] = &id
 		}
@@ -176,11 +184,62 @@ func (m *Manager) reserveWindow(settings config.WindowSettings) error {
 
 	m.windowFrames[settings.ID] = revimg.Frame{X: x, Y: y, Width: w, Height: screen.Height / 2}
 	m.reservedIds[settings.ID] = true
-	return nil
+	return settings, nil
 }
 
-func (m *Manager) OpenWindow(macro *common.Macro) (*Window, error) {
-	return nil, nil
+func (m *Manager) OpenWindow(settings *config.Settings, db *config.AccountDatabase, ignoreLink bool) (*Window, error) {
+	var joinOptions = JoinOptions{}
+	var windowConfig *config.WindowConfig
+	if settings.AccountName != nil {
+		account := db.Get(*settings.AccountName)
+		if account == nil {
+			return nil, errors.New(fmt.Sprintf("Account %s not found", *settings.AccountName))
+		}
+		if url, err := account.GenerateJoinUrl(ignoreLink); err != nil {
+			return nil, errors.Wrap(err, "Failed to generate join url")
+		} else {
+			joinOptions = JoinOptions{Url: url}
+		}
+		if account.WindowConfigID != nil {
+			if windowConfig = settings.WindowConfig(*account.WindowConfigID); windowConfig == nil {
+				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *account.WindowConfigID))
+			}
+		}
+	} else {
+		if settings.WindowConfigID != nil {
+			if windowConfig = settings.WindowConfig(*settings.WindowConfigID); windowConfig == nil {
+				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *settings.WindowConfigID))
+			}
+		}
+		if !ignoreLink && settings.PrivateServerLink != nil {
+			parts := strings.Split(*settings.PrivateServerLink, "=")
+			if len(parts) != 2 {
+				return nil, errors.New("Invalid private server link format")
+			}
+			joinOptions = JoinOptions{LinkCode: parts[1]}
+		}
+	}
+	if windowConfig != nil {
+		if _, ok := m.reservedIds[windowConfig.ID]; ok {
+			return nil, errors.New(fmt.Sprintf("Window config ID \"%s\" is already in use", windowConfig.ID))
+		}
+	}
+	var err error
+	windowConfig, err = m.reserveWindow(windowConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to reserve window")
+	}
+	id, err := m.backend.OpenWindow(joinOptions)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to open window")
+	}
+
+	return &Window{
+		id:      id,
+		config:  windowConfig,
+		backend: m.backend,
+		mgr:     m,
+	}, nil
 }
 
 func NewWindowManager(backend Backend) *Manager {

@@ -180,6 +180,14 @@ func Nil(obj interface{}) PredicateFunc {
 	return func(macro *common.Macro) bool { return fn(macro) == nil }
 }
 
+func True(args ...interface{}) PredicateFunc {
+	return equalityCompareType(eqEqCompareOp, []interface{}{true, args[0]})
+}
+
+func False(args ...interface{}) PredicateFunc {
+	return equalityCompareType(eqEqCompareOp, []interface{}{false, args[0]})
+}
+
 func execError(exec interface{}, err bool) PredicateFunc {
 	var exc func(macro *common.Macro) error
 	switch fn := exec.(type) {

@@ -9,7 +9,7 @@ import (
 
 const ClockTime = 50 * time.Millisecond
 
-type InterruptMap map[common.RoutineKind]int
+type interruptMap map[common.RoutineKind]int
 
 type interval struct {
 	priority    int
@@ -28,19 +28,20 @@ type interval struct {
 // Delayed: Executed at routine-specific points (i.e. gather interrupt).
 // Interval interrupts may be registered as delayed interrupts.
 //
-// Interval: Executed at time-based intervals (i.e. every hour), based on a cron or time since last execution.
-// Examples of interval interrupts include planters, bug runs and wealth clock.
+// Interval: Executed at time-based intervals (i.e. every hour), based on the time since last execution.
+// Examples of interval interrupts include planters, bug runs and wealth clock. Interval interrupts are
+// only executed during the start of the main loop (after the hive backboard check) and are assigned a specific priority
 type Scheduler struct {
 	macro     *common.Macro
 	close     chan struct{}
 	redirect  chan<- *common.RedirectExecution
-	delayed   InterruptMap
-	interval  InterruptMap
+	delayed   interruptMap
+	interval  interruptMap
 	intervals []*interval
 }
 
 func (s *Scheduler) Execute(interruptType common.InterruptType) error {
-	var interrupts InterruptMap
+	var interrupts interruptMap
 	switch interruptType {
 	case common.DelayedInterrupt:
 		interrupts = s.delayed
@@ -63,7 +64,7 @@ func (s *Scheduler) Close() {
 
 func (s *Scheduler) Tick() {
 	// If we're not opening the window or unwinding a redirect, check the Roblox window
-	if opening := s.macro.State.Stack[0] == routines.OpenRobloxRoutineKind; !opening && len(s.redirect) == 0 {
+	if opening := s.macro.State.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && len(s.redirect) == 0 {
 		if s.macro.Window == nil {
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 		}
@@ -101,15 +102,17 @@ func NewScheduler(macro *common.Macro, redirect chan<- *common.RedirectExecution
 	return &Scheduler{
 		macro:    macro,
 		redirect: redirect,
+		delayed:  interruptMap{},
+		interval: interruptMap{},
 	}
 }
 
-type immediateInterruptAction struct{}
+type intervalInterruptAction struct{}
 
-func (a *immediateInterruptAction) Execute(macro *common.Macro) error {
+func (a *intervalInterruptAction) Execute(macro *common.Macro) error {
 
 }
 
 func IntervalInterrupt() common.Action {
-	return &immediateInterruptAction{}
+	return &intervalInterruptAction{}
 }

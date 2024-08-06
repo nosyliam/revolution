@@ -58,7 +58,7 @@ type EventBus interface {
 }
 
 type Scheduler interface {
-	Execute(macro *Macro, interruptType InterruptType) error
+	Execute(interruptType InterruptType) error
 }
 
 type Event interface {

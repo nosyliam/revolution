@@ -1,6 +1,6 @@
 package config
 
-import "github.com/nosyliam/revolution/pkg/common"
+import "github.com/pkg/errors"
 
 type UnwindLoop struct {
 	Depth    int
@@ -15,7 +15,12 @@ type LoopState struct {
 type MacroState struct {
 	LoopState *LoopState
 	LastError error
-	Stack     []common.RoutineKind
+	Stack     []string
+
+	PrivateServerAttempts int
+	UsePublicServer       bool
+
+	ClaimedHive *int
 
 	state *State
 }
@@ -26,7 +31,8 @@ func (m *MacroState) Save() error {
 
 type State struct {
 	configFile
-	Macros map[string]*MacroState `json:"macros"`
+	ActiveAccount *string                `json:"activeAccount"`
+	Macros        map[string]*MacroState `json:"macros"`
 }
 
 func (s *State) State(name string) *MacroState {
@@ -38,6 +44,10 @@ func (s *State) State(name string) *MacroState {
 	return state
 }
 
-func NewState() *State {
-	return &State{configFile: configFile{path: "state.yaml", format: YAML}, Macros: make(map[string]*MacroState)}
+func NewState() (*State, error) {
+	state := &State{configFile: configFile{path: "state.yaml", format: YAML}, Macros: make(map[string]*MacroState)}
+	if err := state.load(); err != nil {
+		return nil, errors.Wrap(err, "Failed to load macro state")
+	}
+	return state, nil
 }

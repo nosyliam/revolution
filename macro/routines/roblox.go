@@ -22,6 +22,14 @@ func openWindow(macro *Macro) error {
 	return nil
 }
 
+func fallbackServerEnabled(macro *Macro) interface{} {
+	return macro.Settings.FallbackToPublicServer
+}
+
+func privateServerAttempts(macro *Macro) interface{} {
+	return macro.State.PrivateServerAttempts
+}
+
 var OpenRobloxRoutine = Actions{
 	Condition(
 		If(NotNil(Window)),
@@ -44,16 +52,32 @@ var OpenRobloxRoutine = Actions{
 			If(ExecError(openWindow)),
 			Error("Failed to open Roblox: %s! Attempt %d", LastError, Index(0)).Status().Discord(),
 			Sleep(5).Seconds(),
+			Condition(
+				If(And(Equal(privateServerAttempts, 5), True(fallbackServerEnabled))),
+				Logic(func(macro *Macro) {
+					macro.State.UsePublicServer = true
+				}),
+				If(Equal(privateServerAttempts, 5)),
+				Break(),
+				Else(),
+				Logic(func(macro *Macro) {
+					macro.State.PrivateServerAttempts++
+				}),
+			),
 			Else(),
 			Break(),
 		),
 	),
 	Condition(
 		If(Nil(Window)),
-		Error("Waiting 60 seconds before retrying").Status().Discord(),
-		Sleep(60).Seconds(),
+		Error("Waiting 30 seconds before retrying").Status().Discord(),
+		Sleep(30).Seconds(),
 		Restart(),
 	),
+	Logic(func(macro *Macro) {
+		macro.State.PrivateServerAttempts = 0
+		macro.State.UsePublicServer = false
+	}),
 	Redirect(MainRoutineKind),
 }
 

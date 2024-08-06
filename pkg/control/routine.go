@@ -104,7 +104,7 @@ func ExecuteRoutine(
 		err:      err,
 		redirect: redirect,
 	}
-	macro.State.Stack = []common.RoutineKind{"Main"}
+	macro.State.Stack = []string{"Main"}
 	var execSub func(routine *Routine, macro *common.Macro) common.SubroutineExecutor
 	var exec func(routine *Routine, macro *common.Macro) common.RoutineExecutor
 	execSub = func(routine *Routine, macro *common.Macro) common.SubroutineExecutor {
@@ -128,7 +128,7 @@ func ExecuteRoutine(
 			if !ok {
 				panic(fmt.Sprintf("unknown subroutine %s", string(kind)))
 			}
-			macro.State.Stack = append([]common.RoutineKind{kind}, macro.State.Stack...)
+			macro.State.Stack = append([]string{string(kind)}, macro.State.Stack...)
 			subMacro := macro.Copy()
 			subMacro.Logger = subMacro.Logger.Child(string(kind))
 			subMacro.Results = &common.ActionResults{}

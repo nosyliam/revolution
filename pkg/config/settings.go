@@ -1,5 +1,7 @@
 package config
 
+import "github.com/pkg/errors"
+
 type WindowAlignment string
 
 const (
@@ -15,7 +17,7 @@ type DiscordSettings struct {
 	PingID     int64  `yaml:"pingID"`
 }
 
-type WindowSettings struct {
+type WindowConfig struct {
 	ID        string          `yaml:"id"`
 	Alignment WindowAlignment `yaml:"alignment"`
 	FullWidth bool            `yaml:"fullWidth"`
@@ -24,16 +26,30 @@ type WindowSettings struct {
 
 // Settings defines the configuration for an individual preset
 type Settings struct {
-	Name           string           `yaml:"name"`
-	WindowConfigID *string          `yaml:"windowId"`
-	LogVerbosity   int              `yaml:"logVerbosity"`
-	Discord        *DiscordSettings `yaml:"discord"`
+	Name         string           `yaml:"name"`
+	AccountName  *string          `yaml:"accountName"`
+	LogVerbosity int              `yaml:"logVerbosity"`
+	Discord      *DiscordSettings `yaml:"discord"`
+
+	WindowConfigID         *string `yaml:"windowConfigId"`
+	PrivateServerLink      *string `yaml:"privateServerLink"`
+	FallbackToPublicServer bool    `yaml:"fallbackToPublicServer"`
 
 	config *Config
 }
 
+func (s *Settings) WindowConfig(id string) *WindowConfig {
+	for _, window := range s.config.Windows {
+		if window.ID == id {
+			return window
+		}
+	}
+	return nil
+}
+
 func (s *Settings) Default() {
 	s.Discord = &DiscordSettings{}
+	s.FallbackToPublicServer = true
 }
 
 func (s *Settings) Save() error {
@@ -42,8 +58,8 @@ func (s *Settings) Save() error {
 
 type Config struct {
 	configFile
-	Presets []*Settings       `yaml:"presets"`
-	Windows []*WindowSettings `yaml:"windows"`
+	Presets []*Settings     `yaml:"presets"`
+	Windows []*WindowConfig `yaml:"windows"`
 }
 
 func (c *Config) NewPreset(name string) *Settings {
@@ -53,6 +69,10 @@ func (c *Config) NewPreset(name string) *Settings {
 	return preset
 }
 
-func NewConfig() *Config {
-	return &Config{configFile: configFile{path: "settings.yaml", format: YAML}}
+func NewConfig() (*Config, error) {
+	config := &Config{configFile: configFile{path: "settings.yaml", format: YAML}}
+	if err := config.load(); err != nil {
+		return nil, errors.Wrap(err, "Failed to load macro config")
+	}
+	return config, nil
 }

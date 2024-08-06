@@ -9,26 +9,28 @@ import (
 )
 
 type Interface struct {
-	EventBus common.EventBus
-	Backend  common.Backend
-	Settings *config.Settings
-	State    *config.MacroState
-	Logger   *logging.Logger
-	Name     string
+	EventBus  common.EventBus
+	Backend   common.Backend
+	Settings  *config.Settings
+	AccountDb *config.AccountDatabase
+	State     *config.MacroState
+	Logger    *logging.Logger
+	Name      string
 
-	pause   chan struct{}
-	stop    chan struct{}
-	restart chan struct{}
+	pause    chan struct{}
+	stop     chan struct{}
+	redirect chan *common.RedirectExecution
 }
 
 func (i *Interface) Start() {
 	macro := &common.Macro{
-		EventBus: i.EventBus,
-		Backend:  i.Backend,
-		Settings: i.Settings,
-		Logger:   i.Logger,
-		State:    i.State,
-		Results:  &common.ActionResults{},
+		EventBus:  i.EventBus,
+		Backend:   i.Backend,
+		Settings:  i.Settings,
+		AccountDb: i.AccountDb,
+		Logger:    i.Logger,
+		State:     i.State,
+		Results:   &common.ActionResults{},
 	}
 
 	var unpause chan struct{}
@@ -60,7 +62,7 @@ func (i *Interface) Start() {
 	}()
 
 	main := common.Routines[routines.MainRoutineKind]
-	control.ExecuteRoutine(macro, main, stop, pause, status, err, i.restart)
+	control.ExecuteRoutine(macro, main, stop, pause, status, err, i.redirect)
 }
 
 func (i *Interface) SendError(err string) {

@@ -1,5 +1,6 @@
 package config
 
 type Server struct {
-	id int
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }

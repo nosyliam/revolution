@@ -16,10 +16,6 @@ const (
 	YAML
 )
 
-type defaulter interface {
-	Default()
-}
-
 type configFile struct {
 	file   *os.File
 	path   string
@@ -53,7 +49,7 @@ func (c *configFile) Save() error {
 	return nil
 }
 
-func (c *configFile) load(def defaulter) error {
+func (c *configFile) load() error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return errors.Wrap(err, "failed to get working directory")
@@ -62,7 +58,6 @@ func (c *configFile) load(def defaulter) error {
 	path := filepath.Join(cwd, c.path)
 	c.file, err = os.OpenFile(path, os.O_RDWR, 0755)
 	if os.IsNotExist(err) {
-		def.Default()
 		c.file, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
 		if err != nil {
 			return errors.Wrap(err, "failed to create file")

@@ -28,11 +28,3 @@ func Window(macro *common.Macro) interface{} {
 func LastError(macro *common.Macro) interface{} {
 	return macro.State.LastError
 }
-
-func True(*common.Macro) bool {
-	return true
-}
-
-func False(*common.Macro) bool {
-	return false
-}
