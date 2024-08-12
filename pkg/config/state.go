@@ -21,8 +21,7 @@ type MacroState struct {
 	UsePublicServer       bool
 
 	ClaimedHive *int
-
-	state *State
+	state       *State
 }
 
 func (m *MacroState) Save() error {
@@ -31,8 +30,8 @@ func (m *MacroState) Save() error {
 
 type State struct {
 	configFile
-	ActiveAccount *string                `json:"activeAccount"`
-	Macros        map[string]*MacroState `json:"macros"`
+	ActiveAccount *string                `yaml:"activeAccount"`
+	Macros        map[string]*MacroState `yaml:"macros"`
 }
 
 func (s *State) State(name string) *MacroState {

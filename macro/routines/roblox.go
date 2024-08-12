@@ -22,11 +22,11 @@ func openWindow(macro *Macro) error {
 	return nil
 }
 
-func fallbackServerEnabled(macro *Macro) interface{} {
+func fallbackServerEnabled(macro *Macro) bool {
 	return macro.Settings.FallbackToPublicServer
 }
 
-func privateServerAttempts(macro *Macro) interface{} {
+func privateServerAttempts(macro *Macro) int {
 	return macro.State.PrivateServerAttempts
 }
 

@@ -282,12 +282,14 @@ func (w *windowBackend) GetFrame(id int) (*revimg.Frame, error) {
 		return nil, errors.New("failed to get window frame")
 	}
 
-	return &revimg.Frame{
+	frame := &revimg.Frame{
 		Width:  int(C.int(cFrame.width)),
 		Height: int(C.int(cFrame.height)),
 		X:      int(C.int(cFrame.x)),
 		Y:      int(C.int(cFrame.y)),
-	}, nil
+	}
+	C.free(unsafe.Pointer(cFrame))
+	return frame, nil
 }
 
 func (w *windowBackend) SetFrame(id int, frame revimg.Frame) error {
@@ -320,4 +322,13 @@ func (w *windowBackend) DisplayFrames() ([]revimg.ScreenFrame, error) {
 	}
 	C.free(unsafe.Pointer(frames))
 	return goFrames, nil
+}
+
+func (w *windowBackend) DisplayCount() (int, error) {
+	res := (C.int)(C.get_display_count())
+	if count := int(res); count == -1 {
+		return 0, errors.New("failed to read display information")
+	} else {
+		return count, nil
+	}
 }

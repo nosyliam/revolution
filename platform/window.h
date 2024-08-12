@@ -76,6 +76,18 @@ typedef struct Window {
 	CGWindowID     id;
 } Window;
 
+int get_display_count() {
+	CGDirectDisplayID displays[32];
+	uint32_t count;
+
+    if (CGGetActiveDisplayList(32, displays, &count) != kCGErrorSuccess)
+    {
+        return -1;
+    }
+
+    return count;
+}
+
 Frames* get_display_frames() {
 	CGDirectDisplayID displays[32];
 	uint32_t count;

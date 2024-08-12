@@ -26,6 +26,10 @@ type Frame struct {
 	Height int
 }
 
+func (f *Frame) Equals(other Frame) bool {
+	return f.X == other.X && f.Y == other.Y && f.Width == other.Width && f.Height == other.Height
+}
+
 type ScreenFrame struct {
 	Frame
 	Scale float32

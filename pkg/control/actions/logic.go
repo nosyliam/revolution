@@ -19,6 +19,8 @@ func Logic(logic interface{}) common.Action {
 		return &logicAction{func(*common.Macro) error { fn(); return nil }}
 	case func() error:
 		return &logicAction{func(*common.Macro) error { return fn() }}
+	case func(macro *common.Macro):
+		return &logicAction{func(macro *common.Macro) error { fn(macro); return nil }}
 	case func(macro *common.Macro) error:
 		return &logicAction{fn}
 	default:

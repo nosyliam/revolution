@@ -9,6 +9,7 @@ const MainRoutineKind RoutineKind = "Main"
 
 var MainRoutine = Actions{
 	Info("Hello world"),
+	Sleep(1).Seconds(),
 }
 
 func init() {

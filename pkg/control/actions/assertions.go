@@ -27,15 +27,19 @@ func intCompareType(op intCompareOpType, args []interface{}) PredicateFunc {
 	}
 	switch args[0].(type) {
 	case int:
+		return intCompare[int](op, args)
 	case func(*common.Macro) int:
 		return intCompare[int](op, args)
 	case uint:
+		return intCompare[uint](op, args)
 	case func(*common.Macro) uint:
 		return intCompare[uint](op, args)
 	case float32:
+		return intCompare[float32](op, args)
 	case func(*common.Macro) float32:
 		return intCompare[float32](op, args)
 	case float64:
+		return intCompare[float64](op, args)
 	case func(*common.Macro) float64:
 		return intCompare[float64](op, args)
 	}
@@ -89,24 +93,31 @@ func equalityCompareType(op eqCompareOpType, args []interface{}) PredicateFunc {
 	}
 	switch args[0].(type) {
 	case bool:
+		return equalityCompare[bool](op, args)
 	case func(*common.Macro) bool:
 		return equalityCompare[bool](op, args)
 	case string:
+		return equalityCompare[string](op, args)
 	case func(*common.Macro) string:
 		return equalityCompare[string](op, args)
 	case int:
+		return equalityCompare[int](op, args)
 	case func(*common.Macro) int:
 		return equalityCompare[int](op, args)
 	case uint:
+		return equalityCompare[uint](op, args)
 	case func(*common.Macro) uint:
 		return equalityCompare[uint](op, args)
 	case float32:
+		return equalityCompare[float32](op, args)
 	case func(*common.Macro) float32:
 		return equalityCompare[float32](op, args)
 	case float64:
+		return equalityCompare[float64](op, args)
 	case func(*common.Macro) float64:
 		return equalityCompare[float64](op, args)
 	case *any:
+		return equalityCompare[*any](op, args)
 	case func(*common.Macro) *any:
 		return equalityCompare[*any](op, args)
 	}
@@ -203,10 +214,10 @@ func execError(exec interface{}, err bool) PredicateFunc {
 	return func(macro *common.Macro) bool {
 		if err {
 			res := exc(macro)
-			return exc(macro) == nil
+			return res == nil
 		} else {
 			res := exc(macro)
-			return exc(macro) != nil
+			return res != nil
 		}
 	}
 }

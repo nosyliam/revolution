@@ -26,4 +26,5 @@ type Backend interface {
 	GetFrame(id int) (*revimg.Frame, error)
 	SetFrame(id int, frame revimg.Frame) error
 	DisplayFrames() ([]revimg.ScreenFrame, error)
+	DisplayCount() (int, error)
 }

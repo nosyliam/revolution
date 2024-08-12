@@ -5,10 +5,19 @@ import "github.com/pkg/errors"
 type WindowAlignment string
 
 const (
-	TopLeftWindowAlignment     WindowAlignment = "top-left"
+	FullScreenWindowAlignment  WindowAlignment = "fullscreen"
+	TopLeftWindowAlignment                     = "top-left"
 	TopRightWindowAlignment                    = "top-right"
 	BottomLeftWindowAlignment                  = "bottom-left"
 	BottomRightWindowAlignment                 = "bottom-right"
+)
+
+type WindowSize string
+
+const (
+	QuarterWindowSize WindowSize = "quarter"
+	HalfWindowSize    WindowSize = "half"
+	FullWindowSize    WindowSize = "full"
 )
 
 type DiscordSettings struct {
@@ -31,9 +40,10 @@ type Settings struct {
 	LogVerbosity int              `yaml:"logVerbosity"`
 	Discord      *DiscordSettings `yaml:"discord"`
 
-	WindowConfigID         *string `yaml:"windowConfigId"`
-	PrivateServerLink      *string `yaml:"privateServerLink"`
-	FallbackToPublicServer bool    `yaml:"fallbackToPublicServer"`
+	WindowConfigID         *string     `yaml:"windowConfigId"`
+	DefaultWindowSize      *WindowSize `yaml:"windowSize"`
+	PrivateServerLink      *string     `yaml:"privateServerLink"`
+	FallbackToPublicServer bool        `yaml:"fallbackToPublicServer"`
 
 	config *Config
 }
@@ -63,7 +73,7 @@ type Config struct {
 }
 
 func (c *Config) NewPreset(name string) *Settings {
-	preset := &Settings{config: c}
+	preset := &Settings{Name: name, config: c}
 	preset.Default()
 	c.Presets = append(c.Presets, preset)
 	return preset
@@ -73,6 +83,9 @@ func NewConfig() (*Config, error) {
 	config := &Config{configFile: configFile{path: "settings.yaml", format: YAML}}
 	if err := config.load(); err != nil {
 		return nil, errors.Wrap(err, "Failed to load macro config")
+	}
+	if len(config.Presets) == 0 {
+		config.NewPreset("default")
 	}
 	return config, nil
 }

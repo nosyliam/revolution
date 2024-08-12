@@ -38,6 +38,7 @@ type Scheduler struct {
 	delayed   interruptMap
 	interval  interruptMap
 	intervals []*interval
+	tick      int
 }
 
 func (s *Scheduler) Execute(interruptType common.InterruptType) error {
@@ -63,6 +64,9 @@ func (s *Scheduler) Close() {
 }
 
 func (s *Scheduler) Tick() {
+	defer func() {
+		s.tick++
+	}()
 	// If we're not opening the window or unwinding a redirect, check the Roblox window
 	if opening := s.macro.State.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && len(s.redirect) == 0 {
 		if s.macro.Window == nil {
@@ -110,7 +114,7 @@ func NewScheduler(macro *common.Macro, redirect chan<- *common.RedirectExecution
 type intervalInterruptAction struct{}
 
 func (a *intervalInterruptAction) Execute(macro *common.Macro) error {
-
+	return nil
 }
 
 func IntervalInterrupt() common.Action {
