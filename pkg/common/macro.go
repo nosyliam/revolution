@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/window"
@@ -12,6 +13,8 @@ var (
 	TerminateSignal = errors.New("terminate") // Terminates the routine
 	RetrySignal     = errors.New("retry")     // Retry the current action
 	StepBackSignal  = errors.New("step back") // Step back to the last action
+
+	AppContext context.Context
 )
 
 type RedirectExecution struct {

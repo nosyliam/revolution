@@ -284,13 +284,13 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 	return settings, nil
 }
 
-func (m *Manager) OpenWindow(settings *config.Settings, db *config.AccountDatabase, ignoreLink bool) (*Window, error) {
+func (m *Manager) OpenWindow(accountName *string, settings *config.Settings, db *config.AccountDatabase, ignoreLink bool) (*Window, error) {
 	var joinOptions = JoinOptions{}
 	var windowConfig *config.WindowConfig
-	if settings.AccountName != nil {
-		account := db.Get(*settings.AccountName)
+	if accountName != nil {
+		account := db.Get(*accountName)
 		if account == nil {
-			return nil, errors.New(fmt.Sprintf("Account %s not found", *settings.AccountName))
+			return nil, errors.New(fmt.Sprintf("Account %s not found", *accountName))
 		}
 		if url, err := account.GenerateJoinUrl(ignoreLink); err != nil {
 			return nil, errors.Wrap(err, "Failed to generate join url")
@@ -303,13 +303,13 @@ func (m *Manager) OpenWindow(settings *config.Settings, db *config.AccountDataba
 			}
 		}
 	} else {
-		if settings.WindowConfigID != nil {
-			if windowConfig = settings.WindowConfig(*settings.WindowConfigID); windowConfig == nil {
-				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *settings.WindowConfigID))
+		if settings.Window.WindowConfigID != nil {
+			if windowConfig = settings.WindowConfig(*settings.Window.WindowConfigID); windowConfig == nil {
+				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *settings.Window.WindowConfigID))
 			}
 		}
-		if !ignoreLink && settings.PrivateServerLink != nil {
-			parts := strings.Split(*settings.PrivateServerLink, "=")
+		if !ignoreLink && settings.Window.PrivateServerLink != nil {
+			parts := strings.Split(*settings.Window.PrivateServerLink, "=")
 			if len(parts) != 2 {
 				return nil, errors.New("Invalid private server link format")
 			}
@@ -325,7 +325,7 @@ func (m *Manager) OpenWindow(settings *config.Settings, db *config.AccountDataba
 	if err = m.adjustDisplays(); err != nil {
 		return nil, errors.Wrap(err, "failed to adjust displays")
 	}
-	windowConfig, err = m.reserveWindow(windowConfig, settings.DefaultWindowSize)
+	windowConfig, err = m.reserveWindow(windowConfig, settings.Window.DefaultWindowSize)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to reserve window")
 	}

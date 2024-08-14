@@ -23,7 +23,7 @@ func openWindow(macro *Macro) error {
 }
 
 func fallbackServerEnabled(macro *Macro) bool {
-	return macro.Settings.FallbackToPublicServer
+	return macro.Settings.Window.FallbackToPublicServer
 }
 
 func privateServerAttempts(macro *Macro) int {

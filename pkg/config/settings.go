@@ -21,45 +21,58 @@ const (
 )
 
 type DiscordSettings struct {
+	configObject
 	Enabled    bool   `yaml:"enabled"`
 	WebhookUrl string `yaml:"webhookUrl"`
 	PingID     int64  `yaml:"pingID"`
 }
 
 type WindowConfig struct {
+	configObject
 	ID        string          `yaml:"id"`
 	Alignment WindowAlignment `yaml:"alignment"`
 	FullWidth bool            `yaml:"fullWidth"`
 	Screen    int             `yaml:"screen"`
 }
 
-// Settings defines the configuration for an individual preset
-type Settings struct {
-	Name         string           `yaml:"name"`
-	AccountName  *string          `yaml:"accountName"`
-	LogVerbosity int              `yaml:"logVerbosity"`
-	Discord      *DiscordSettings `yaml:"discord"`
+func (w *WindowConfig) Key() string {
+	return w.ID
+}
 
+type WindowSettings struct {
 	WindowConfigID         *string     `yaml:"windowConfigId"`
 	DefaultWindowSize      *WindowSize `yaml:"windowSize"`
 	PrivateServerLink      *string     `yaml:"privateServerLink"`
 	FallbackToPublicServer bool        `yaml:"fallbackToPublicServer"`
+}
+
+func (c *WindowSettings) Default() {
+	c.FallbackToPublicServer = false
+}
+
+// Settings defines the configuration for an individual preset
+type Settings struct {
+	configObject
+	Name         string           `yaml:"name"`
+	AccountName  *string          `yaml:"accountName"`
+	LogVerbosity int              `yaml:"logVerbosity"`
+	Discord      *DiscordSettings `yaml:"discord"`
+	Window       *WindowSettings  `yaml:"window"`
 
 	config *Config
 }
 
+func (c *Settings) Key() string {
+	return c.Name
+}
+
 func (s *Settings) WindowConfig(id string) *WindowConfig {
-	for _, window := range s.config.Windows {
+	for _, window := range s.config.Windows.data {
 		if window.ID == id {
 			return window
 		}
 	}
 	return nil
-}
-
-func (s *Settings) Default() {
-	s.Discord = &DiscordSettings{}
-	s.FallbackToPublicServer = true
 }
 
 func (s *Settings) Save() error {
@@ -68,13 +81,14 @@ func (s *Settings) Save() error {
 
 type Config struct {
 	configFile
-	Presets []*Settings     `yaml:"presets"`
-	Windows []*WindowConfig `yaml:"windows"`
+	configObject
+	Presets *configList[*Settings]     `yaml:"presets"`
+	Windows *configList[*WindowConfig] `yaml:"windows"`
 }
 
 func (c *Config) NewPreset(name string) *Settings {
 	preset := &Settings{Name: name, config: c}
-	preset.Default()
+	preset.Initialize(name)
 	c.Presets = append(c.Presets, preset)
 	return preset
 }
