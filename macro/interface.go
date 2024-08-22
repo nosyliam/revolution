@@ -37,13 +37,10 @@ func (i *Interface) Start() {
 	stop := make(chan struct{}, 1)
 	pause := make(chan (<-chan struct{}), 1)
 	err := make(chan string, 1)
-	status := make(chan string, 1)
 
 	go func() {
 		for {
 			select {
-			case statStr := <-status:
-				i.SendStatus(statStr)
 			case errStr := <-err:
 				i.SendError(errStr)
 				i.Pause()
@@ -62,15 +59,11 @@ func (i *Interface) Start() {
 	}()
 
 	main := common.Routines[routines.MainRoutineKind]
-	control.ExecuteRoutine(macro, main, stop, pause, status, err, i.redirect)
+	control.ExecuteRoutine(macro, main, stop, pause, make(chan<- string), err, i.redirect)
 }
 
 func (i *Interface) SendError(err string) {
 	// TODO: send error to UI
-}
-
-func (i *Interface) SendStatus(status string) {
-	// TODO: send status to UI
 }
 
 func (i *Interface) Stop() {

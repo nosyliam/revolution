@@ -1,6 +1,8 @@
 package config
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+)
 
 type UnwindLoop struct {
 	Depth    int
@@ -13,6 +15,9 @@ type LoopState struct {
 }
 
 type MacroState struct {
+	AccountName string `yaml:"accountName"`
+	Status      string `state:"status"`
+
 	LoopState *LoopState
 	LastError error
 	Stack     []string
@@ -21,32 +26,33 @@ type MacroState struct {
 	UsePublicServer       bool
 
 	ClaimedHive *int
-	state       *State
 }
 
-func (m *MacroState) Save() error {
-	return m.state.Save()
+func (m *MacroState) Key() string {
+	return m.AccountName
 }
 
 type State struct {
-	configFile
-	ActiveAccount *string                `yaml:"activeAccount"`
-	Macros        map[string]*MacroState `yaml:"macros"`
+	ActiveAccount *string          `yaml:"activeAccount"`
+	Macros        List[MacroState] `yaml:"macros"`
 }
 
 func (s *State) State(name string) *MacroState {
-	if state, ok := s.Macros[name]; ok {
-		return state
+	/*for _, macro := range s.Macros.data {
+		if macro.AccountName == name {
+			return macro
+		}
 	}
-	state := &MacroState{state: s}
-	s.Macros[name] = state
-	return state
+	if err := s.AppendPath(fmt.Sprintf("macros[%s]", name)); err != nil {
+		panic(err)
+	}*/
+	return s.State(name)
 }
 
-func NewState() (*State, error) {
-	state := &State{configFile: configFile{path: "state.yaml", format: YAML}, Macros: make(map[string]*MacroState)}
+func NewState() (*Object[State], error) {
+	state := File[State]{path: "state.yaml", format: YAML}
 	if err := state.load(); err != nil {
 		return nil, errors.Wrap(err, "Failed to load macro state")
 	}
-	return state, nil
+	return state.Object(), nil
 }

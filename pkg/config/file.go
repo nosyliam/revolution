@@ -16,23 +16,28 @@ const (
 	YAML
 )
 
-type configFile struct {
+type Savable interface {
+	Save() error
+}
+
+type File[T any] struct {
 	file   *os.File
 	path   string
 	format Format
+	obj    *T
 }
 
-func (c *configFile) Save() error {
+func (f *File[T]) Save() error {
 	var data []byte
 	var err error
-	switch c.format {
+	switch f.format {
 	case JSON:
-		data, err = json.Marshal(c)
+		data, err = json.Marshal(f)
 		if err != nil {
 			return errors.Wrap(err, "failed to marshal")
 		}
 	case YAML:
-		data, err = yaml.Marshal(c)
+		data, err = yaml.Marshal(f)
 		if err != nil {
 			return errors.Wrap(err, "failed to marshal")
 		}
@@ -40,25 +45,25 @@ func (c *configFile) Save() error {
 		panic("unknown format")
 	}
 
-	_ = c.file.Truncate(0)
-	_, _ = c.file.Seek(0, 0)
-	_, err = c.file.Write(data)
+	_ = f.file.Truncate(0)
+	_, _ = f.file.Seek(0, 0)
+	_, err = f.file.Write(data)
 	if err != nil {
 		return errors.Wrap(err, "failed to write")
 	}
 	return nil
 }
 
-func (c *configFile) load() error {
+func (f *File[T]) load() error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return errors.Wrap(err, "failed to get working directory")
 	}
 
-	path := filepath.Join(cwd, c.path)
-	c.file, err = os.OpenFile(path, os.O_RDWR, 0755)
+	path := filepath.Join(cwd, f.path)
+	f.file, err = os.OpenFile(path, os.O_RDWR, 0755)
 	if os.IsNotExist(err) {
-		c.file, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
+		f.file, err = os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
 		if err != nil {
 			return errors.Wrap(err, "failed to create file")
 		}
@@ -66,19 +71,20 @@ func (c *configFile) load() error {
 		return errors.Wrap(err, "failed to open file")
 	}
 
-	data, err := io.ReadAll(c.file)
+	data, err := io.ReadAll(f.file)
 	if err != nil {
 		return errors.Wrap(err, "failed to read")
 	}
 
-	switch c.format {
+	var obj T
+	switch f.format {
 	case JSON:
-		err = json.Unmarshal(data, c)
+		err = json.Unmarshal(data, &obj)
 		if err != nil {
 			return errors.Wrap(err, "failed to parse")
 		}
 	case YAML:
-		err = yaml.Unmarshal(data, c)
+		err = yaml.Unmarshal(data, &obj)
 		if err != nil {
 			return errors.Wrap(err, "failed to parse")
 		}
@@ -86,11 +92,18 @@ func (c *configFile) load() error {
 		panic("unknown format")
 	}
 
+	f.obj = &obj
 	return nil
 }
 
-func (c *configFile) Close() {
-	if c.file != nil {
-		_ = c.file.Close()
+func (f *File[T]) Object() *Object[T] {
+	obj := &Object[T]{obj: f.obj}
+	obj.Initialize("", f)
+	return obj
+}
+
+func (f *File[T]) Close() {
+	if f.file != nil {
+		_ = f.file.Close()
 	}
 }

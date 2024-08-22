@@ -8,34 +8,48 @@ import (
 	"strconv"
 )
 
-type Defaulter interface {
-	Default()
+type Reactive interface {
+	Initialize(path string, file Savable)
+	Set(chain chain, index int, value interface{}) error
+	Get(chain chain, index int) (interface{}, error)
+	Append(chain chain, index int) error
+	Delete(chain chain, index int) error
 }
 
-type Object interface {
-	Initialize(path string)
-	Set(chain []string, index int, value interface{}) error
-	Get(chain []string, index int) (interface{}, error)
-}
-
-type KeyedObject interface {
-	Object
-	Key() string
+type Runtime interface {
+	Emit(path string, value interface{})
 }
 
 type config struct {
-	path string
+	path    string
+	file    Savable
+	runtime Runtime
 }
 
-func (c *config) setField(field reflect.Value, chain []string, index int, value interface{}) error {
-	if obj, ok := field.Interface().(Object); ok {
-		if len(chain) == 1 {
-			return errors.New("config field path not found")
-		}
+type link struct {
+	val      string
+	brackets bool
+}
+
+type chain []link
+
+func (c *config) errPath(err string) error {
+	var path = c.path
+	if path == "" {
+		path = "root"
+	}
+	return errors.New(fmt.Sprintf("%s: %s", path, err))
+}
+
+func (c *config) setField(field reflect.Value, chain chain, index int, value interface{}) error {
+	if obj, ok := field.Interface().(Reactive); ok {
 		if index+1 == len(chain) {
-			return errors.New("cannot get an object value")
+			return errors.New("cannot set an object value")
 		}
 		return obj.Set(chain, index+1, value)
+	}
+	if len(chain)-1 != index {
+		return c.errPath("cannot index a primitive value")
 	}
 	switch field.Kind() {
 	case reflect.Int:
@@ -50,15 +64,15 @@ func (c *config) setField(field reflect.Value, chain []string, index int, value 
 	return nil
 }
 
-func (c *config) getField(field reflect.Value, chain []string, index int) (interface{}, error) {
-	if obj, ok := field.Interface().(Object); ok {
-		if len(chain) == 1 {
-			return nil, errors.New("config field path not found")
-		}
+func (c *config) getField(field reflect.Value, chain chain, index int) (interface{}, error) {
+	if obj, ok := field.Interface().(Reactive); ok {
 		if index+1 == len(chain) {
-			return nil, errors.New("cannot get an object value")
+			return nil, c.errPath("cannot get an object value")
 		}
 		return obj.Get(chain, index+1)
+	}
+	if len(chain)-1 != index {
+		return nil, c.errPath("cannot index a primitive value")
 	}
 	switch field.Kind() {
 	case reflect.Int:
@@ -72,122 +86,347 @@ func (c *config) getField(field reflect.Value, chain []string, index int) (inter
 	}
 }
 
-type configList[T Object] struct {
+type List[T any] struct {
 	config
-	data []T
+	prim  []T
+	obj   []*Object[T]
+	index map[string]*Object[T]
+	key   string
 }
 
-func (c *configList[T]) MarshalYAML() (interface{}, error) {
-	return c.data, nil
+func (c *List[T]) MarshalYAML() (interface{}, error) {
+	if c.prim != nil {
+		return c.prim, nil
+	} else {
+		return c.obj, nil
+	}
 }
 
-func (c *configList[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var temp []T
+func (c *List[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var zero [0]T
+	tt := reflect.TypeOf(zero).Elem()
+	if tt.Kind() != reflect.Struct {
+		var temp []T
+		if err := unmarshal(&temp); err != nil {
+			return err
+		}
+		c.prim = temp
+		return nil
+	}
 
+	var temp []*T
 	if err := unmarshal(&temp); err != nil {
 		return err
 	}
+	var objs []*Object[T]
+	for _, v := range temp {
+		objs = append(objs, &Object[T]{obj: v})
+	}
+	c.obj = objs
 
-	c.data = temp
+	for i := 0; i < tt.NumField(); i++ {
+		field := tt.Field(i)
+		if key := field.Tag.Get("key"); key == "true" {
+			c.key = key
+			c.index = make(map[string]*Object[T])
+			for _, obj := range c.obj {
+				objKey := reflect.ValueOf(obj).FieldByName(key).String()
+				if _, ok := c.index[objKey]; ok {
+					return c.errPath(fmt.Sprintf("duplicate key: %s", objKey))
+				}
+				c.index[objKey] = obj
+			}
+		}
+	}
+
 	return nil
 }
 
-func (c *configList[T]) Set(chain []string, index int, value interface{}) error {
-	idx, err := strconv.Atoi(chain[index])
-	if err != nil || (idx < 0 || idx > len(c.data)) {
-		return errors.New("invalid index")
+func (c *List[T]) Initialize(path string, file Savable) {
+	c.path = path
+	if c.obj != nil {
+		for n, obj := range c.obj {
+			if c.key != "" {
+				key := reflect.ValueOf(obj).FieldByName(c.key).String()
+				obj.Initialize(fmt.Sprintf("%s[%s]", path, key), file)
+			} else {
+				obj.Initialize(fmt.Sprintf("%s[%d]", path, n), file)
+			}
+		}
+	}
+}
+
+func (c *List[T]) Set(chain chain, index int, value interface{}) error {
+	if len(chain) == index {
+		return c.errPath("a key must be provided")
+	}
+	if !chain[index].brackets {
+		return c.errPath("list values must be indexed with brackets")
+	}
+	if c.index != nil {
+		if val, ok := c.index[chain[index].val]; ok {
+			return c.setField(reflect.ValueOf(val), chain, index, value)
+		} else {
+			return c.errPath(fmt.Sprintf("invalid key \"%s\"", chain[index].val))
+		}
+	}
+	idx, err := strconv.Atoi(chain[index].val)
+	var count int
+	var slice interface{}
+	if c.prim != nil {
+		count = len(c.prim)
+		slice = c.prim
+	} else {
+		count = len(c.obj)
+		slice = c.obj
+	}
+	if err != nil || (idx < 0 || idx > count) {
+		return c.errPath("invalid index")
 	}
 
-	field := reflect.ValueOf(c.data).Field(idx)
+	field := reflect.ValueOf(slice).Index(idx)
 	return c.setField(field, chain, index, value)
 }
 
-func (c *configList[T]) Get(chain []string, index int) (interface{}, error) {
-	idx, err := strconv.Atoi(chain[index])
-	if err != nil || (idx < 0 || idx > len(c.data)) {
-		return nil, errors.New("invalid index")
+func (c *List[T]) Get(chain chain, index int) (interface{}, error) {
+	if len(chain) == index {
+		return nil, c.errPath("a key must be provided")
+	}
+	if !chain[index].brackets {
+		return nil, c.errPath("list values must be indexed with brackets")
+	}
+	if c.index != nil {
+		if val, ok := c.index[chain[index].val]; ok {
+			return c.getField(reflect.ValueOf(val), chain, index)
+		} else {
+			return nil, c.errPath(fmt.Sprintf("invalid key \"%s\"", chain[index].val))
+		}
+	}
+	var count int
+	var slice interface{}
+	if c.prim != nil {
+		count = len(c.prim)
+		slice = c.prim
+	} else {
+		count = len(c.obj)
+		slice = c.obj
+	}
+	idx, err := strconv.Atoi(chain[index].val)
+	if err != nil || (idx < 0 || idx > count) {
+		return nil, c.errPath("invalid integer index")
 	}
 
-	field := reflect.ValueOf(c.data).Field(idx)
-	return c.getField(field, chain, index), nil
+	field := reflect.ValueOf(slice).Index(idx)
+	return c.getField(field, chain, index)
 }
 
-func (c configList[T]) Append(val T) {
-	c.data = append(c.data, val)
+func (c *List[T]) Append(chain chain, index int) error {
+	if !chain[index].brackets {
+		return errors.New("list values must be indexed with brackets")
+	}
+	if len(chain) != index-1 && c.prim == nil {
+		if val, ok := c.index[chain[index].val]; ok {
+			return val.Append(chain, index+1)
+		} else {
+			return c.errPath(fmt.Sprintf("invalid key \"%s\"", chain[index].val))
+		}
+	}
+	if len(chain) == index-1 && c.index == nil {
+		return c.errPath("a key must not be given when appending to a keyless list")
+	}
+
+	if c.prim != nil {
+		var zero T
+		c.prim = append(c.prim, zero)
+		return nil
+	}
+
+	var val = new(T)
+	cfo := &Object[T]{obj: val}
+	if c.key != "" {
+		key := chain[index].val
+		if _, ok := c.index[key]; ok {
+			return c.errPath(fmt.Sprintf("key \"%s\" already exists", key))
+		}
+		ref := reflect.ValueOf(val)
+		ref.FieldByName(c.key).SetString(key)
+		cfo.Initialize(fmt.Sprintf("%s[%s]", c.path, chain[index].val), c.file)
+		c.index[key] = cfo
+	} else {
+		cfo.Initialize(fmt.Sprintf("%s[%d]", c.path, len(c.obj)), c.file)
+	}
+
+	return nil
 }
 
-type indexedConfigList[T KeyedObject] struct {
-	configList[T]
-	index map[string]T
+func (c *List[T]) Delete(chain chain, index int) error {
+	return nil
 }
 
-type configObject struct {
+func (c *List[T]) Concrete() []T {
+	if c.prim != nil {
+		return c.prim
+	} else {
+		var concrete []T
+		for _, obj := range c.obj {
+			concrete = append(concrete, *obj.obj)
+		}
+		return concrete // optimize?
+	}
+}
+
+type Object[T any] struct {
 	config
+	obj *T
 }
 
-func (c *configObject) Initialize(path string) {
+func (c *Object[T]) MarshalYAML() (interface{}, error) {
+	return c.obj, nil
+}
+
+func (c *Object[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var obj = new(T)
+	if err := unmarshal(obj); err != nil {
+		return err
+	}
+	c.obj = obj
+	return nil
+}
+
+func (c *Object[T]) Initialize(path string, file Savable) {
 	c.path = path
-	t := reflect.TypeOf(c)
-	val := reflect.ValueOf(c).Elem()
+	if c.obj == nil {
+		c.obj = new(T)
+		t := reflect.TypeOf(c.obj).Elem()
+		val := reflect.ValueOf(c.obj).Elem()
+		for i := 0; i < val.NumField(); i++ {
+			field := val.Field(i)
+			meta := t.Field(i)
+			def := meta.Tag.Get("default")
+			if def == "" {
+				continue
+			}
+			switch field.Kind() {
+			case reflect.Int:
+				if num, err := strconv.Atoi(def); err == nil {
+					field.SetInt(int64(num))
+				} else {
+					panic("invalid number default")
+				}
+			case reflect.Bool:
+				switch def {
+				case "true":
+					field.SetBool(true)
+				case "false":
+					field.SetBool(false)
+				default:
+					panic("invalid boolean default")
+				}
+			case reflect.String:
+				field.SetString(def)
+			}
+		}
+	}
+	t := reflect.TypeOf(c.obj).Elem()
+	val := reflect.ValueOf(c.obj).Elem()
 
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
-
-		if field.Kind() == reflect.Ptr && field.IsNil() {
-			obj := reflect.New(field.Type().Elem())
+		if field.Kind() == reflect.Ptr && meta.Type.Elem().Kind() == reflect.Struct && field.IsNil() {
+			obj := reflect.New(meta.Type.Elem())
 			ifc := obj.Interface()
-			if def, ok := ifc.(Defaulter); ok {
-				def.Default()
-			}
-			if cfg, ok := ifc.(Object); ok {
-				cfg.Initialize(fmt.Sprintf("%s.%s", path, meta.Name))
+			if cfg, ok := ifc.(Reactive); ok {
+				cfg.Initialize(fmt.Sprintf("%s.%s", path, meta.Name), file)
 			}
 			field.Set(obj)
 		}
 	}
 }
 
-func (c *configObject) Set(chain []string, index int, value interface{}) error {
-	t := reflect.TypeOf(c)
-	val := reflect.ValueOf(c).Elem()
+func (c *Object[T]) Set(chain chain, index int, value interface{}) error {
+	t := reflect.TypeOf(c.obj).Elem()
+	val := reflect.ValueOf(c.obj).Elem()
 
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
-		if meta.Tag.Get("yaml") == chain[index] && field.IsValid() && field.CanSet() {
+		if (meta.Tag.Get("yaml") == chain[index].val || meta.Tag.Get("state") == chain[index].val) && field.CanSet() {
 			return c.setField(field, chain, index, value)
 		}
 	}
 
-	return errors.New("field path not found")
+	return c.errPath("field path not found")
 }
 
-func (c *configObject) Get(chain []string, index int) (interface{}, error) {
-	t := reflect.TypeOf(c)
-	val := reflect.ValueOf(c).Elem()
+func (c *Object[T]) Get(chain chain, index int) (interface{}, error) {
+	t := reflect.TypeOf(c.obj).Elem()
+	val := reflect.ValueOf(c.obj).Elem()
 
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
-		if meta.Tag.Get("yaml") == chain[index] && field.IsValid() && field.CanSet() {
+		fmt.Println(meta.Tag.Get("yaml"))
+		if meta.Tag.Get("yaml") == chain[index].val || meta.Tag.Get("state") == chain[index].val {
 			return c.getField(field, chain, index)
 		}
 	}
 
-	return nil, errors.New("field path not found")
+	return nil, c.errPath("field path not found")
 }
 
-func (c *configObject) compilePath(path string) ([]string, error) {
-	re := regexp.MustCompile(`([^\.\[\]]+)`)
-	matches := re.FindAllString(path, -1)
+func (c *Object[T]) Append(chain chain, index int) error {
+	if len(chain) == index {
+		return c.errPath("cannot append to an object")
+	}
+	t := reflect.TypeOf(c.obj).Elem()
+	val := reflect.ValueOf(c.obj).Elem()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		meta := t.Field(i)
+		if meta.Tag.Get("yaml") == chain[index].val || meta.Tag.Get("state") == chain[index].val {
+			if obj, ok := field.Interface().(Reactive); ok {
+				if index+1 == len(chain) {
+					return errors.New("cannot set an object value")
+				}
+				return obj.Append(chain, index+1)
+			}
+		}
+	}
+
+	return c.errPath("field path not found")
+}
+
+func (c *Object[T]) Delete(chain chain, index int) error {
+	return nil
+}
+
+func (c *Object[T]) Concrete() *T {
+	return c.obj
+}
+
+func (c *Object[T]) compilePath(path string) (chain, error) {
+	var chains chain
+	regex := regexp.MustCompile(`(\w+)|\[(.*?)\]`)
+	matches := regex.FindAllStringSubmatch(path, -1)
 	if len(matches) == 0 {
 		return nil, errors.New("invalid path")
 	}
-	return matches, nil
+
+	for _, match := range matches {
+		if match[1] != "" {
+			chains = append(chains, link{match[1], false})
+		}
+		if match[2] != "" {
+			chains = append(chains, link{match[2], true})
+		}
+	}
+
+	return chains, nil
 }
 
-func (c *configObject) SetPath(path string, value interface{}) error {
+func (c *Object[T]) SetPath(path string, value interface{}) error {
 	chain, err := c.compilePath(path)
 	if err != nil {
 		return err
@@ -195,10 +434,26 @@ func (c *configObject) SetPath(path string, value interface{}) error {
 	return c.Set(chain, 0, value)
 }
 
-func (c *configObject) GetPath(path string, value interface{}) (interface{}, error) {
+func (c *Object[T]) GetPath(path string) (interface{}, error) {
 	chain, err := c.compilePath(path)
 	if err != nil {
 		return nil, err
 	}
 	return c.Get(chain, 0)
+}
+
+func (c *Object[T]) AppendPath(path string) error {
+	/*chain, err := c.compilePath(path)
+	if err != nil {
+		return nil
+	}*/
+	return nil
+}
+
+func (c *Object[T]) DeletePath(path string) error {
+	/*chain, err := c.compilePath(path)
+	if err != nil {
+		return nil
+	}*/
+	return nil
 }
