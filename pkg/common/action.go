@@ -14,7 +14,6 @@ func (a Actions) Register(kind RoutineKind) {
 type ActionResults struct {
 	EditedScreenshot  *image.RGBA
 	ImageSearchPoints []revimg.Point
-	RetryCount        int
 }
 
 type Action interface {

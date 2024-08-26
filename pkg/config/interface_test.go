@@ -2,8 +2,17 @@ package config
 
 import (
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 	"testing"
 )
+
+type mockFile struct {
+	Savable
+}
+
+var _mockFile = &mockFile{}
+
+func (m *mockFile) Save() error { return nil }
 
 func TestConfigObject_SetPrimitive(t *testing.T) {
 	type object struct {
@@ -11,7 +20,7 @@ func TestConfigObject_SetPrimitive(t *testing.T) {
 	}
 
 	var obj = Object[object]{}
-	obj.Initialize("")
+	obj.Initialize("Root", _mockFile)
 	assert.NoError(t, obj.SetPath("val", "test"))
 	val, err := obj.GetPath("val")
 	assert.NoError(t, err)
@@ -25,8 +34,8 @@ func TestConfigObject_SetNestedObjectPrimitive(t *testing.T) {
 	}
 
 	type nested struct {
-		Val string `yaml:"val"`
-		Obj *Object[nested2]
+		Val string           `yaml:"val"`
+		Obj *Object[nested2] `state:"val2"`
 	}
 
 	type object struct {
@@ -35,9 +44,167 @@ func TestConfigObject_SetNestedObjectPrimitive(t *testing.T) {
 	}
 
 	var obj = Object[object]{}
-	obj.Initialize("")
+	obj.Initialize("", _mockFile)
 	assert.NoError(t, obj.SetPath("obj.val", "test"))
 	val, err := obj.GetPath("obj.val")
 	assert.NoError(t, err)
 	assert.Equal(t, val, "test")
+	assert.NoError(t, obj.SetPath("obj.val2.val3", true))
+	val, err = obj.GetPath("obj.val2.val3")
+	assert.NoError(t, err)
+	assert.Equal(t, val, true)
+}
+
+func TestConfigObject_Append(t *testing.T) {
+	type nested struct {
+		Val string `yaml:"val" default:"test"`
+		Int int    `yaml:"int" default:"12"`
+	}
+
+	type keyed struct {
+		ID  string `yaml:"id" key:"true"`
+		Val string `yaml:"val" default:"test2"`
+	}
+
+	type object struct {
+		Val  string        `yaml:"val"`
+		Objs *List[nested] `yaml:"objs"`
+		Prim *List[int]    `yaml:"prim"`
+		Key  *List[keyed]  `yaml:"key"`
+	}
+
+	var obj = Object[object]{}
+	obj.Initialize("Root", _mockFile)
+	assert.NoError(t, obj.AppendPath("objs"))
+	val, err := obj.GetPath("objs[0].val")
+	assert.NoError(t, err)
+	assert.Equal(t, val, "test")
+	val, err = obj.GetPath("objs[0].int")
+	assert.NoError(t, err)
+	assert.Equal(t, val, 12)
+
+	// Test keyed append
+	assert.NoError(t, obj.AppendPath("key[test]"))
+	assert.Equal(t, obj.LengthPath("key"), 1)
+	val, err = obj.GetPath("key[test].id")
+	assert.NoError(t, err)
+	assert.Equal(t, val, "test")
+	val, err = obj.GetPath("key[test].val")
+	assert.NoError(t, err)
+	assert.Equal(t, val, "test2")
+	assert.Error(t, obj.SetPath("key[test].id", "val"))
+	assert.NoError(t, obj.SetPath("key[test].val", "test3"))
+	val, err = obj.GetPath("key[test].val")
+	assert.NoError(t, err)
+	assert.Equal(t, val, "test3")
+
+	// Test primitive list
+	assert.NoError(t, obj.AppendPath("prim"))
+	val, err = obj.GetPath("prim[0]")
+	assert.NoError(t, err)
+	assert.Equal(t, val, 0)
+	assert.NoError(t, obj.SetPath("prim[0]", 5))
+	val, err = obj.GetPath("prim[0]")
+	assert.NoError(t, err)
+	assert.Equal(t, val, 5)
+}
+
+func TestConfigObject_Concrete(t *testing.T) {
+	type X string
+	type keyed struct {
+		ID  string `yaml:"id" key:"true"`
+		Val string `yaml:"val" default:"test"`
+	}
+
+	type nested struct {
+		Val   string       `yaml:"val"`
+		Alias X            `yaml:"alias" default:"test"`
+		Items *List[int]   `yaml:"items"`
+		Keys  *List[keyed] `yaml:"keys"`
+	}
+
+	type object struct {
+		Val string          `yaml:"val"`
+		Obj *Object[nested] `yaml:"obj"`
+	}
+
+	var obj = Object[object]{}
+	obj.Initialize("Root", _mockFile)
+	assert.NotNil(t, Concrete[string](&obj, "val"))
+	assert.NotNil(t, Concrete[nested](&obj, "obj"))
+	assert.NotNil(t, Concrete[X](&obj, "obj.alias"))
+	assert.Equal(t, *Concrete[X](&obj, "obj.alias"), X("test"))
+	assert.NoError(t, obj.AppendPath("obj.items"))
+	assert.NotNil(t, Concrete[int](&obj, "obj.items[0]"))
+	assert.Equal(t, *Concrete[int](&obj, "obj.items[0]"), 0)
+	assert.NoError(t, obj.AppendPath("obj.keys[test]"))
+	assert.NotNil(t, Concrete[string](&obj, "obj.keys[test].id"))
+	assert.Equal(t, *Concrete[string](&obj, "obj.keys[test].id"), "test")
+	assert.Equal(t, *Concrete[string](&obj, "obj.keys[test].val"), "test")
+}
+
+func TestConfigObject_Serialization(t *testing.T) {
+	type nested struct {
+		Val string `yaml:"val" default:"test"`
+		Int int    `yaml:"int" default:"12"`
+	}
+
+	type keyed struct {
+		ID  string          `yaml:"id" key:"true"`
+		Val string          `yaml:"val" default:"test2"`
+		Obj *Object[nested] `yaml:"obj"`
+	}
+
+	type TestObject struct {
+		Val  string        `yaml:"val,omitempty"`
+		Objs *List[nested] `yaml:"objs"`
+		Prim *List[int]    `yaml:"prim"`
+		Key  *List[keyed]  `yaml:"key"`
+	}
+
+	var obj = Object[TestObject]{}
+	obj.Initialize("Root", _mockFile)
+	assert.NoError(t, obj.AppendPath("objs"))
+	assert.NoError(t, obj.AppendPath("prim"))
+	assert.NoError(t, obj.AppendPath("key[test]"))
+
+	data, err := yaml.Marshal(&obj)
+	assert.NoError(t, err)
+	var res = `objs:
+    - val: test
+      int: 12
+prim:
+    - 0
+key:
+    - id: test
+      val: test2
+      obj:
+        val: test
+        int: 12
+`
+	assert.Equal(t, string(data), res)
+
+	var newObj TestObject
+	var mutated = `objs:
+    - val: test
+      int: 12
+    - val: x
+      int: 5
+prim:
+    - 0
+    - 3
+key:
+    - id: test2
+      val: test3
+      obj:
+        val: test2
+        int: 5
+`
+	assert.NoError(t, yaml.Unmarshal([]byte(mutated), &newObj))
+	obj = Object[TestObject]{obj: &newObj}
+	obj.Initialize("Root", _mockFile)
+	data, err = yaml.Marshal(&newObj)
+	assert.NoError(t, err)
+	assert.Equal(t, string(data), mutated)
+
 }

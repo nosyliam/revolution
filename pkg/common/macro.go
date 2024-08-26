@@ -33,12 +33,13 @@ type Macro struct {
 	EventBus   EventBus
 	Backend    Backend
 	Results    *ActionResults
-	Settings   *config.Settings
-	AccountDb  *config.AccountDatabase
+	State      config.Reactive
+	Settings   config.Reactive
+	Database   config.Reactive
 	Logger     *logging.Logger
 	Window     *window.Window
 	WinManager *window.Manager
-	State      *config.MacroState
+	Scratch    *config.Scratch
 
 	Routine    RoutineExecutor
 	Subroutine SubroutineExecutor

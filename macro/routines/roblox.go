@@ -33,36 +33,32 @@ func privateServerAttempts(macro *Macro) int {
 var OpenRobloxRoutine = Actions{
 	Condition(
 		If(NotNil(Window)),
-		Info("Attempting to close Roblox").Status().Discord(),
+		Info("Attempting to close Roblox")(Status, Discord),
 		Loop(
 			For(5),
 			Condition(
 				If(ExecError(closeWindow)),
-				Error("Failed to close Roblox: %s! Attempt %d", LastError, Index(0)).Status().Discord(),
+				Error("Failed to close Roblox: %s! Attempt %d", LastError, Index(0))(Status, Discord),
 				Sleep(5).Seconds(),
 				Else(),
 				Break(),
 			),
 		),
 	),
-	Info("Opening Roblox").Status().Discord(),
+	Info("Opening Roblox")(Status, Discord),
 	Loop(
 		For(10),
 		Condition(
 			If(ExecError(openWindow)),
-			Error("Failed to open Roblox: %s! Attempt %d", LastError, Index(0)).Status().Discord(),
+			Error("Failed to open Roblox: %s! Attempt %d", LastError, Index(0))(Status, Discord),
 			Sleep(5).Seconds(),
 			Condition(
-				If(And(Equal(privateServerAttempts, 5), True(fallbackServerEnabled))),
-				Logic(func(macro *Macro) {
-					macro.State.UsePublicServer = true
-				}),
+				If(And(Equal(V(RetryCount), 5), True(fallbackServerEnabled))),
+				Set(UsePublicServer, true),
 				If(Equal(privateServerAttempts, 5)),
 				Break(),
 				Else(),
-				Logic(func(macro *Macro) {
-					macro.State.PrivateServerAttempts++
-				}),
+				Increment(RetryCount),
 			),
 			Else(),
 			Break(),
@@ -70,14 +66,12 @@ var OpenRobloxRoutine = Actions{
 	),
 	Condition(
 		If(Nil(Window)),
-		Error("Waiting 30 seconds before retrying").Status().Discord(),
+		Error("Waiting 30 seconds before retrying")(Status, Discord),
 		Sleep(30).Seconds(),
 		Restart(),
 	),
-	Logic(func(macro *Macro) {
-		macro.State.PrivateServerAttempts = 0
-		macro.State.UsePublicServer = false
-	}),
+	Reset(RetryCount),
+	Reset(UsePublicServer),
 	Redirect(MainRoutineKind),
 }
 

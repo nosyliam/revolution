@@ -21,6 +21,7 @@ type Savable interface {
 }
 
 type File[T any] struct {
+	name   string
 	file   *os.File
 	path   string
 	format Format
@@ -98,7 +99,7 @@ func (f *File[T]) load() error {
 
 func (f *File[T]) Object() *Object[T] {
 	obj := &Object[T]{obj: f.obj}
-	obj.Initialize("", f)
+	obj.Initialize(f.name, f)
 	return obj
 }
 

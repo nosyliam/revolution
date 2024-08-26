@@ -160,7 +160,7 @@ type loopAction struct {
 }
 
 func (a *loopAction) Execute(macro *common.Macro) error {
-	state := macro.State.LoopState
+	state := macro.Scratch.LoopState
 	defer func() {
 		state.Index = state.Index[1:]
 	}()
@@ -213,7 +213,7 @@ type forLoop struct {
 
 func (l *forLoop) Predicate() PredicateFunc {
 	return func(macro *common.Macro) bool {
-		if macro.State.LoopState.Index[0] < l.end {
+		if macro.Scratch.LoopState.Index[0] < l.end {
 			return true
 		}
 
@@ -224,16 +224,16 @@ func (l *forLoop) Predicate() PredicateFunc {
 func (l *forLoop) Step() func(*common.Macro) {
 	return func(macro *common.Macro) {
 		if l.step != 0 {
-			macro.State.LoopState.Index[0] += l.step
+			macro.Scratch.LoopState.Index[0] += l.step
 		} else {
-			macro.State.LoopState.Index[0]++
+			macro.Scratch.LoopState.Index[0]++
 		}
 	}
 }
 
 func (l *forLoop) Start() func(*common.Macro) {
 	return func(macro *common.Macro) {
-		macro.State.LoopState.Index[0] = l.start
+		macro.Scratch.LoopState.Index[0] = l.start
 	}
 }
 
@@ -274,7 +274,7 @@ type continueAction struct {
 }
 
 func (a *continueAction) Execute(macro *common.Macro) error {
-	macro.State.LoopState.Unwind = &config.UnwindLoop{Depth: a.depth, Continue: true}
+	macro.Scratch.LoopState.Unwind = &config.UnwindLoop{Depth: a.depth, Continue: true}
 	return nil
 }
 
@@ -294,7 +294,7 @@ type breakAction struct {
 }
 
 func (a *breakAction) Execute(macro *common.Macro) error {
-	macro.State.LoopState.Unwind = &config.UnwindLoop{Depth: a.depth}
+	macro.Scratch.LoopState.Unwind = &config.UnwindLoop{Depth: a.depth}
 	return nil
 }
 

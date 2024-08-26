@@ -8,6 +8,14 @@ import (
 	"image"
 )
 
+type LogModifier int
+
+const (
+	Status LogModifier = iota
+	Discord
+	Screenshot
+)
+
 func execArgs(macro *common.Macro, args []interface{}) []interface{} {
 	var res []interface{}
 	for _, arg := range args {
@@ -74,14 +82,32 @@ func (a *LogAction) V(verbosity int) *LogAction {
 	return &LogAction{verbosity: verbosity, level: a.level, log: a.log}
 }
 
-func Error(log string, args ...interface{}) *LogAction {
-	return &LogAction{level: logging.Error, log: log, args: args}
+func (a *LogAction) applyLogModifiers(modifiers []LogModifier) *LogAction {
+	for _, modifier := range modifiers {
+		switch modifier {
+		case Status:
+			a.status = true
+		case Discord:
+			a.discord = true
+		}
+	}
+	return a
 }
 
-func Info(log string, args ...interface{}) *LogAction {
-	return &LogAction{level: logging.Info, log: log, args: args}
+func Error(log string, args ...interface{}) func(...LogModifier) *LogAction {
+	return func(mods ...LogModifier) *LogAction {
+		return (&LogAction{level: logging.Error, log: log, args: args}).applyLogModifiers(mods)
+	}
 }
 
-func Warning(log string, args ...interface{}) *LogAction {
-	return &LogAction{level: logging.Warning, log: log, args: args}
+func Info(log string, args ...interface{}) func(...LogModifier) *LogAction {
+	return func(mods ...LogModifier) *LogAction {
+		return (&LogAction{level: logging.Info, log: log, args: args}).applyLogModifiers(mods)
+	}
+}
+
+func Warning(log string, args ...interface{}) func(...LogModifier) *LogAction {
+	return func(mods ...LogModifier) *LogAction {
+		return (&LogAction{level: logging.Warning, log: log, args: args}).applyLogModifiers(mods)
+	}
 }

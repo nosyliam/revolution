@@ -3,7 +3,7 @@ package window
 import (
 	"fmt"
 	"github.com/nosyliam/revolution/bitmaps"
-	"github.com/nosyliam/revolution/pkg/config"
+	. "github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
 	"image"
@@ -13,7 +13,7 @@ import (
 
 type Window struct {
 	id         int
-	config     *config.WindowConfig
+	config     *WindowConfig
 	backend    Backend
 	screenshot *image.RGBA
 	mgr        *Manager
@@ -78,7 +78,12 @@ func (w *Window) Close() error {
 type windowArray [4]*string
 
 func (a windowArray) Available(spots ...int) bool {
-	return false
+	for _, spot := range spots {
+		if a[spot] != nil {
+			return false
+		}
+	}
+	return true
 }
 
 type Manager struct {
@@ -144,7 +149,7 @@ func (m *Manager) windowFrame(id string) revimg.Frame {
 	return m.windowFrames[id]
 }
 
-func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config.WindowSize) (*config.WindowConfig, error) {
+func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowConfig, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -155,26 +160,25 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 
 	// If there's no window configuration associated with the macro instance, attempt to find an available spot
 	if settings == nil {
-		var sz = config.FullWindowSize
-		if defaultSz != nil {
-			sz = *defaultSz
+		if sz == "" {
+			sz = FullWindowSize
 		}
 		for _, screen := range m.reservedWindows {
 			switch true {
-			case screen.Available(0, 1, 2, 3) && sz == config.FullWindowSize:
-				settings = &config.WindowConfig{Alignment: config.FullScreenWindowAlignment}
-			case screen.Available(0, 1) && sz == config.HalfWindowSize:
-				settings = &config.WindowConfig{Alignment: config.TopLeftWindowAlignment, FullWidth: true}
-			case screen.Available(2, 3) && sz == config.HalfWindowSize:
-				settings = &config.WindowConfig{Alignment: config.BottomLeftWindowAlignment, FullWidth: true}
+			case screen.Available(0, 1, 2, 3) && sz == FullWindowSize:
+				settings = &WindowConfig{Alignment: FullScreenWindowAlignment}
+			case screen.Available(0, 1) && sz == HalfWindowSize:
+				settings = &WindowConfig{Alignment: TopLeftWindowAlignment, FullWidth: true}
+			case screen.Available(2, 3) && sz == HalfWindowSize:
+				settings = &WindowConfig{Alignment: BottomLeftWindowAlignment, FullWidth: true}
 			case screen.Available(0):
-				settings = &config.WindowConfig{Alignment: config.TopLeftWindowAlignment}
+				settings = &WindowConfig{Alignment: TopLeftWindowAlignment}
 			case screen.Available(1):
-				settings = &config.WindowConfig{Alignment: config.TopRightWindowAlignment}
+				settings = &WindowConfig{Alignment: TopRightWindowAlignment}
 			case screen.Available(2):
-				settings = &config.WindowConfig{Alignment: config.BottomLeftWindowAlignment}
+				settings = &WindowConfig{Alignment: BottomLeftWindowAlignment}
 			case screen.Available(3):
-				settings = &config.WindowConfig{Alignment: config.BottomRightWindowAlignment}
+				settings = &WindowConfig{Alignment: BottomRightWindowAlignment}
 			}
 			if settings != nil {
 				break
@@ -208,7 +212,7 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 
 	// Validate and reserve the position/size
 	switch settings.Alignment {
-	case config.FullScreenWindowAlignment:
+	case FullScreenWindowAlignment:
 		if reservations[0] != nil {
 			return nil, errors.New(fmt.Sprintf("The top left corner of screen %d is reserved.", settings.Screen))
 		}
@@ -221,7 +225,7 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 		if reservations[3] != nil {
 			return nil, errors.New(fmt.Sprintf("The bottom right corner of screen %d is reserved.", settings.Screen))
 		}
-	case config.TopLeftWindowAlignment:
+	case TopLeftWindowAlignment:
 		if reservations[0] != nil {
 			return nil, errors.New(fmt.Sprintf("The top left corner of screen %d is reserved.", settings.Screen))
 		}
@@ -231,7 +235,7 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 			reservations[1] = &id
 		}
 		reservations[0] = &id
-	case config.TopRightWindowAlignment:
+	case TopRightWindowAlignment:
 		if reservations[1] != nil {
 			return nil, errors.New(fmt.Sprintf("The top right corner of screen %d is reserved.", settings.Screen))
 		}
@@ -241,7 +245,7 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 			reservations[0] = &id
 		}
 		reservations[1] = &id
-	case config.BottomLeftWindowAlignment:
+	case BottomLeftWindowAlignment:
 		if reservations[2] != nil {
 			return nil, errors.New(fmt.Sprintf("The bottom left corner of screen %d is reserved.", settings.Screen))
 		}
@@ -251,7 +255,7 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 			reservations[3] = &id
 		}
 		reservations[2] = &id
-	case config.BottomRightWindowAlignment:
+	case BottomRightWindowAlignment:
 		if reservations[3] != nil {
 			return nil, errors.New(fmt.Sprintf("The bottom right corner of screen %d is reserved.", settings.Screen))
 		}
@@ -273,10 +277,10 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 	if !settings.FullWidth {
 		w = screen.Width / 2
 	}
-	if settings.Alignment == config.BottomLeftWindowAlignment || settings.Alignment == config.BottomRightWindowAlignment {
+	if settings.Alignment == BottomLeftWindowAlignment || settings.Alignment == BottomRightWindowAlignment {
 		y = screen.Height / 2
 	}
-	if (settings.Alignment == config.TopRightWindowAlignment || settings.Alignment == config.BottomRightWindowAlignment) && settings.FullWidth == false {
+	if (settings.Alignment == TopRightWindowAlignment || settings.Alignment == BottomRightWindowAlignment) && settings.FullWidth == false {
 		x += screen.Width / 2
 	}
 
@@ -284,11 +288,11 @@ func (m *Manager) reserveWindow(settings *config.WindowConfig, defaultSz *config
 	return settings, nil
 }
 
-func (m *Manager) OpenWindow(accountName *string, settings *config.Settings, db *config.AccountDatabase, ignoreLink bool) (*Window, error) {
+func (m *Manager) OpenWindow(accountName *string, db, settings Reactive, ignoreLink bool) (*Window, error) {
 	var joinOptions = JoinOptions{}
-	var windowConfig *config.WindowConfig
+	var windowConfig *WindowConfig
 	if accountName != nil {
-		account := db.Get(*accountName)
+		account := Concrete[Account](db, "accounts[%s]", accountName)
 		if account == nil {
 			return nil, errors.New(fmt.Sprintf("Account %s not found", *accountName))
 		}
@@ -297,19 +301,20 @@ func (m *Manager) OpenWindow(accountName *string, settings *config.Settings, db 
 		} else {
 			joinOptions = JoinOptions{Url: url}
 		}
-		if account.WindowConfigID != nil {
-			if windowConfig = settings.WindowConfig(*account.WindowConfigID); windowConfig == nil {
-				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *account.WindowConfigID))
+		if account.WindowConfigID != "" {
+			windowConfig = Concrete[WindowConfig](settings, "windows[%s]", account.WindowConfigID)
+			if windowConfig == nil {
+				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", account.WindowConfigID))
 			}
 		}
 	} else {
-		if settings.Window.WindowConfigID != nil {
-			if windowConfig = settings.WindowConfig(*settings.Window.WindowConfigID); windowConfig == nil {
-				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *settings.Window.WindowConfigID))
+		if id := Concrete[string](settings, "window.windowConfigId"); *id != "" {
+			if windowConfig = Concrete[WindowConfig](settings, "windows[%s]", *id); windowConfig == nil {
+				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *id))
 			}
 		}
-		if !ignoreLink && settings.Window.PrivateServerLink != nil {
-			parts := strings.Split(*settings.Window.PrivateServerLink, "=")
+		if privateLink := Concrete[string](settings, "window.privateServerLink"); *privateLink != "" && !ignoreLink {
+			parts := strings.Split(*privateLink, "=")
 			if len(parts) != 2 {
 				return nil, errors.New("Invalid private server link format")
 			}
@@ -325,7 +330,7 @@ func (m *Manager) OpenWindow(accountName *string, settings *config.Settings, db 
 	if err = m.adjustDisplays(); err != nil {
 		return nil, errors.Wrap(err, "failed to adjust displays")
 	}
-	windowConfig, err = m.reserveWindow(windowConfig, settings.Window.DefaultWindowSize)
+	windowConfig, err = m.reserveWindow(windowConfig, *Concrete[WindowSize](settings, "window.defaultWindowSize"))
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to reserve window")
 	}
