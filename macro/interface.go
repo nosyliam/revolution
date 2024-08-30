@@ -9,13 +9,13 @@ import (
 )
 
 type Interface struct {
-	EventBus  common.EventBus
-	Backend   common.Backend
-	Settings  *config.Settings
-	AccountDb *config.AccountDatabase
-	State     *config.MacroState
-	Logger    *logging.Logger
-	Name      string
+	EventBus common.EventBus
+	Backend  common.Backend
+	Settings config.Reactive
+	Database config.Reactive
+	State    config.Reactive
+	Logger   *logging.Logger
+	Name     string
 
 	pause    chan struct{}
 	stop     chan struct{}
@@ -24,13 +24,13 @@ type Interface struct {
 
 func (i *Interface) Start() {
 	macro := &common.Macro{
-		EventBus:  i.EventBus,
-		Backend:   i.Backend,
-		Settings:  i.Settings,
-		AccountDb: i.AccountDb,
-		Logger:    i.Logger,
-		State:     i.State,
-		Results:   &common.ActionResults{},
+		EventBus: i.EventBus,
+		Backend:  i.Backend,
+		Settings: i.Settings,
+		Database: i.Database,
+		Logger:   i.Logger,
+		State:    i.State,
+		Results:  &common.ActionResults{},
 	}
 
 	var unpause chan struct{}

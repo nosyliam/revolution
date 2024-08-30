@@ -27,7 +27,7 @@ type DiscordSettings struct {
 }
 
 type WindowConfig struct {
-	ID        string          `yaml:"id" key:"true"`
+	ID        string          `yaml:"id" key:"true" lock:"default"`
 	Alignment WindowAlignment `yaml:"alignment" default:"top-left"`
 	FullWidth bool            `yaml:"fullWidth" default:"true"`
 	Screen    int             `yaml:"screen"`
@@ -42,7 +42,7 @@ type WindowSettings struct {
 
 // Settings defines the configuration for an individual preset
 type Settings struct {
-	Name         string                   `yaml:"name" key:"true"`
+	Name         string                   `yaml:"name" key:"true" lock:"default"`
 	LogVerbosity int                      `yaml:"logVerbosity"`
 	Discord      *Object[DiscordSettings] `yaml:"discord"`
 	Windows      *Object[WindowSettings]  `yaml:"windows"`
@@ -53,7 +53,7 @@ type Config struct {
 	Windows *List[WindowConfig] `yaml:"windows"`
 }
 
-func NewConfig() (Reactive, error) {
+func NewConfig(runtime Runtime) (Reactive, error) {
 	settings := File[Config]{path: "settings.yaml", format: YAML}
 	if err := settings.load(); err != nil {
 		return nil, errors.Wrap(err, "Failed to load macro settings")

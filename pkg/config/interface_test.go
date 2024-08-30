@@ -1,18 +1,20 @@
 package config
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 	"testing"
 )
 
 type mockFile struct {
-	Savable
+	runtime *Runtime
 }
 
-var _mockFile = &mockFile{}
+var _mockFile = &mockFile{runtime: &Runtime{}}
 
-func (m *mockFile) Save() error { return nil }
+func (m *mockFile) Runtime() *Runtime { return m.runtime }
+func (m *mockFile) Save() error       { return nil }
 
 func TestConfigObject_SetPrimitive(t *testing.T) {
 	type object struct {
@@ -55,7 +57,7 @@ func TestConfigObject_SetNestedObjectPrimitive(t *testing.T) {
 	assert.Equal(t, val, true)
 }
 
-func TestConfigObject_Append(t *testing.T) {
+func TestConfigObject_List(t *testing.T) {
 	type nested struct {
 		Val string `yaml:"val" default:"test"`
 		Int int    `yaml:"int" default:"12"`
@@ -107,6 +109,12 @@ func TestConfigObject_Append(t *testing.T) {
 	val, err = obj.GetPath("prim[0]")
 	assert.NoError(t, err)
 	assert.Equal(t, val, 5)
+
+	// Test deletion
+	assert.NoError(t, obj.DeletePath("prim[0]"))
+	assert.Equal(t, 0, obj.LengthPath("prim"))
+	assert.NoError(t, obj.DeletePath("key[test]"))
+	assert.Equal(t, 0, obj.LengthPath("prim"))
 }
 
 func TestConfigObject_Concrete(t *testing.T) {
@@ -137,10 +145,12 @@ func TestConfigObject_Concrete(t *testing.T) {
 	assert.NoError(t, obj.AppendPath("obj.items"))
 	assert.NotNil(t, Concrete[int](&obj, "obj.items[0]"))
 	assert.Equal(t, *Concrete[int](&obj, "obj.items[0]"), 0)
+	assert.NoError(t, obj.DeletePath("obj.items[0]"))
 	assert.NoError(t, obj.AppendPath("obj.keys[test]"))
 	assert.NotNil(t, Concrete[string](&obj, "obj.keys[test].id"))
 	assert.Equal(t, *Concrete[string](&obj, "obj.keys[test].id"), "test")
 	assert.Equal(t, *Concrete[string](&obj, "obj.keys[test].val"), "test")
+	assert.NoError(t, obj.DeletePath("obj.keys[test]"))
 }
 
 func TestConfigObject_Serialization(t *testing.T) {
@@ -155,14 +165,14 @@ func TestConfigObject_Serialization(t *testing.T) {
 		Obj *Object[nested] `yaml:"obj"`
 	}
 
-	type TestObject struct {
+	type test struct {
 		Val  string        `yaml:"val,omitempty"`
 		Objs *List[nested] `yaml:"objs"`
 		Prim *List[int]    `yaml:"prim"`
 		Key  *List[keyed]  `yaml:"key"`
 	}
 
-	var obj = Object[TestObject]{}
+	var obj = Object[test]{}
 	obj.Initialize("Root", _mockFile)
 	assert.NoError(t, obj.AppendPath("objs"))
 	assert.NoError(t, obj.AppendPath("prim"))
@@ -182,9 +192,9 @@ key:
         val: test
         int: 12
 `
-	assert.Equal(t, string(data), res)
+	assert.Equal(t, res, string(data))
 
-	var newObj TestObject
+	var newObj test
 	var mutated = `objs:
     - val: test
       int: 12
@@ -201,10 +211,47 @@ key:
         int: 5
 `
 	assert.NoError(t, yaml.Unmarshal([]byte(mutated), &newObj))
-	obj = Object[TestObject]{obj: &newObj}
+	obj = Object[test]{obj: &newObj}
 	obj.Initialize("Root", _mockFile)
 	data, err = yaml.Marshal(&newObj)
 	assert.NoError(t, err)
 	assert.Equal(t, string(data), mutated)
 
+}
+
+func TestConfigObject_Runtime(t *testing.T) {
+	type nested struct {
+		Val string `yaml:"val" default:"test"`
+		Int int    `yaml:"int" default:"12"`
+	}
+
+	type keyed struct {
+		ID  string          `yaml:"id" key:"true"`
+		Val string          `yaml:"val" default:"test2"`
+		Obj *Object[nested] `yaml:"obj"`
+	}
+
+	type test struct {
+		Val  string          `yaml:"val,omitempty" default:"test"`
+		Nest *Object[nested] `yaml:"nest"`
+		Objs *List[nested]   `yaml:"objs"`
+		Prim *List[int]      `yaml:"prim"`
+		Key  *List[keyed]    `yaml:"key"`
+	}
+	var obj = Object[test]{}
+	obj.Initialize("Root", _mockFile)
+	assert.Len(t, _mockFile.runtime.events, 3)
+	assert.Equal(t, _mockFile.runtime.events[0].value, "test")
+	_mockFile.runtime.events = nil
+	assert.NoError(t, obj.AppendPath("objs"))
+	assert.Equal(t, _mockFile.runtime.events[0].op, "append")
+	_mockFile.runtime.events = nil
+	assert.NoError(t, obj.AppendPath("key[test]"))
+	fmt.Println(_mockFile.runtime.events)
+	assert.Len(t, _mockFile.runtime.events, 5)
+	assert.Equal(t, _mockFile.runtime.events[0].op, "append")
+	_mockFile.runtime.events = nil
+	assert.NoError(t, obj.AppendPath("prim"))
+	assert.Len(t, _mockFile.runtime.events, 1)
+	fmt.Println(_mockFile.runtime.events)
 }

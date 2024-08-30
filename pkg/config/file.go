@@ -18,14 +18,20 @@ const (
 
 type Savable interface {
 	Save() error
+	Runtime() *Runtime
 }
 
 type File[T any] struct {
-	name   string
-	file   *os.File
-	path   string
-	format Format
-	obj    *T
+	name    string
+	path    string
+	file    *os.File
+	runtime *Runtime
+	format  Format
+	obj     *T
+}
+
+func (f *File[T]) Runtime() *Runtime {
+	return f.runtime
 }
 
 func (f *File[T]) Save() error {

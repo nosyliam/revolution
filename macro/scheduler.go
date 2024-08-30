@@ -68,19 +68,17 @@ func (s *Scheduler) Tick() {
 		s.tick++
 	}()
 	// If we're not opening the window or unwinding a redirect, check the Roblox window
-	if opening := s.macro.State.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && len(s.redirect) == 0 {
+	if opening := s.macro.Scratch.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && len(s.redirect) == 0 {
 		if s.macro.Window == nil {
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 		}
 		if err := s.macro.Window.Fix(); err != nil {
-			s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to close and re-open", LastError).
-				Status().Discord())
+			s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to close and re-open", LastError)(Status, Discord))
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}
 		if err := s.macro.Window.Screenshot(); err != nil {
-			s.macro.Action(Error("Failed to screenshot Roblox: %s! Attempting to close and re-open", LastError).
-				Status().Discord())
+			s.macro.Action(Error("Failed to screenshot Roblox: %s! Attempting to close and re-open", LastError)(Status, Discord))
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}

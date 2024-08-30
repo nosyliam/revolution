@@ -1,21 +1,26 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
+var AppContext context.Context
+
 type Reactive interface {
-	Initialize(path string, file Savable)
+	Initialize(path string, file Savable) error
 	Set(chain chain, index int, value interface{}) error
 	Get(chain chain, index int) (interface{}, error)
 	GetConcrete(chain chain, index int) (interface{}, error)
 	Append(chain chain, index int) error
 	Delete(chain chain, index int) error
 	Length(chain chain, index int) int
+	File() Savable
 }
 
 type reactiveList interface {
@@ -28,14 +33,13 @@ type reactiveObject interface {
 	object() interface{}
 }
 
-type Runtime interface {
-	Emit(path string, value interface{})
+type config struct {
+	path string
+	file Savable
 }
 
-type config struct {
-	path    string
-	file    Savable
-	runtime Runtime
+func (c *config) File() Savable {
+	return c.file
 }
 
 type link struct {
@@ -49,7 +53,7 @@ func (c *config) errPath(err string) error {
 	return errors.New(fmt.Sprintf("%s: %s", c.path, err))
 }
 
-func (c *config) errPanic(err string) error {
+func (c *config) errPanic(err string) {
 	panic(fmt.Sprintf("%s: %s", c.path, err))
 }
 
@@ -63,13 +67,22 @@ func (c *config) setField(field reflect.Value, chain chain, index int, value int
 	if len(chain)-1 != index {
 		return c.errPath("cannot index a primitive value")
 	}
+	var path string
+	if chain[index].brackets {
+		path = fmt.Sprintf("%s[%s]", c.path, chain[index].val)
+	} else {
+		path = fmt.Sprintf("%s.%s", c.path, chain[index].val)
+	}
 	switch field.Kind() {
 	case reflect.Int:
 		field.SetInt(int64(value.(int)))
+		c.file.Runtime().Set(path, value.(int))
 	case reflect.Bool:
 		field.SetBool(value.(bool))
+		c.file.Runtime().Set(path, value.(bool))
 	case reflect.String:
 		field.SetString(value.(string))
+		c.file.Runtime().Set(path, value.(string))
 	default:
 		return errors.New("unsupported value")
 	}
@@ -172,7 +185,8 @@ func (c *List[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func (c *List[T]) Initialize(path string, file Savable) {
+func (c *List[T]) Initialize(path string, file Savable) error {
+	c.file = file
 	if c.prim == nil && c.obj == nil {
 		var zero [0]T
 		tt := reflect.TypeOf(zero).Elem()
@@ -195,13 +209,14 @@ func (c *List[T]) Initialize(path string, file Savable) {
 	if c.obj != nil {
 		for n, obj := range c.obj {
 			if c.key != "" {
-				key := reflect.ValueOf(obj).FieldByName(c.key).String()
-				obj.Initialize(fmt.Sprintf("%s[%s]", path, key), file)
+				key := reflect.ValueOf(*obj.obj).FieldByName(c.key).String()
+				_ = obj.Initialize(fmt.Sprintf("%s[%s]", path, key), file)
 			} else {
-				obj.Initialize(fmt.Sprintf("%s[%d]", path, n), file)
+				_ = obj.Initialize(fmt.Sprintf("%s[%d]", path, n), file)
 			}
 		}
 	}
+	return nil
 }
 
 func (c *List[T]) Set(chain chain, index int, value interface{}) error {
@@ -293,7 +308,7 @@ func (c *List[T]) GetConcrete(chain chain, index int) (interface{}, error) {
 		if val, ok := c.index[chain[index].val]; ok {
 			return c.getField(reflect.ValueOf(val), chain, index)
 		} else {
-			return nil, c.errPath(fmt.Sprintf("invalid key \"%s\"", chain[index].val))
+			return nil, nil
 		}
 	}
 	idx, err := strconv.Atoi(chain[index].val)
@@ -306,10 +321,13 @@ func (c *List[T]) GetConcrete(chain chain, index int) (interface{}, error) {
 }
 
 func (c *List[T]) Append(chain chain, index int) error {
-	if c.index != nil && !chain[index].brackets {
-		return errors.New("list values must be indexed with brackets")
+	if c.index != nil && len(chain) == index {
+		return c.errPath("a primary key is required")
 	}
-	if len(chain)-1 != index && c.prim == nil && c.index != nil {
+	if c.index != nil && !chain[index].brackets {
+		return c.errPath("list values must be indexed with brackets")
+	}
+	if len(chain)-1 != index && c.index != nil {
 		if val, ok := c.index[chain[index].val]; ok {
 			return val.Append(chain, index+1)
 		} else {
@@ -323,6 +341,7 @@ func (c *List[T]) Append(chain chain, index int) error {
 	if c.prim != nil {
 		var zero T
 		c.prim = append(c.prim, zero)
+		c.file.Runtime().Set(fmt.Sprintf("%s[%d]", c.path, len(c.obj)), zero)
 		return nil
 	}
 
@@ -332,12 +351,17 @@ func (c *List[T]) Append(chain chain, index int) error {
 		if _, ok := c.index[key]; ok {
 			return c.errPath(fmt.Sprintf("key \"%s\" already exists", key))
 		}
-		cfo.Initialize(fmt.Sprintf("%s[%s]", c.path, chain[index].val), c.file)
+		path := fmt.Sprintf("%s[%s]", c.path, chain[index].val)
+		c.file.Runtime().Append(path)
+		_ = cfo.Initialize(path, c.file)
 		ref := reflect.ValueOf(cfo.obj)
 		ref.Elem().FieldByName(c.key).SetString(key)
+		c.file.Runtime().Set(fmt.Sprintf("%s[%s].%s", c.path, key, c.keySz), key)
 		c.index[key] = cfo
 	} else {
-		cfo.Initialize(fmt.Sprintf("%s[%d]", c.path, len(c.obj)), c.file)
+		path := fmt.Sprintf("%s[%d]", c.path, len(c.obj))
+		c.file.Runtime().Append(path)
+		_ = cfo.Initialize(path, c.file)
 	}
 	c.obj = append(c.obj, cfo)
 
@@ -345,6 +369,57 @@ func (c *List[T]) Append(chain chain, index int) error {
 }
 
 func (c *List[T]) Delete(chain chain, index int) error {
+	if c.index != nil && len(chain) == index {
+		return c.errPath("a primary key is required")
+	}
+	if !chain[index].brackets {
+		return errors.New("list values must be indexed with brackets")
+	}
+	var count, idx = 0, -1
+	if len(chain)-1 != index && c.index != nil {
+		if val, ok := c.index[chain[index].val]; ok {
+			return val.Delete(chain, index+1)
+		} else {
+			return c.errPath(fmt.Sprintf("invalid key \"%s\"", chain[index].val))
+		}
+	} else if c.index != nil {
+		for i, obj := range c.obj {
+			if reflect.ValueOf(obj.obj).Elem().FieldByName(c.key).String() == chain[index].val {
+				idx = i
+			}
+		}
+		if idx == -1 {
+			return c.errPath(fmt.Sprintf("invalid key \"%s\"", chain[index].val))
+		}
+	}
+	if idx == -1 {
+		if c.prim != nil {
+			count = len(c.prim)
+		} else {
+			count = len(c.obj)
+		}
+		var err error
+		idx, err = strconv.Atoi(chain[index].val)
+		if err != nil || (idx < 0 || idx >= count) {
+			return c.errPath("invalid integer index")
+		}
+	}
+	delete(c.index, chain[index].val)
+	if c.prim != nil {
+		for i, _ := range c.prim {
+			fmt.Println(i, idx)
+			if i == idx {
+				c.prim = append(c.prim[:i], c.prim[i+1:]...)
+			}
+		}
+	} else {
+		for i, _ := range c.obj {
+			if i == idx {
+				c.obj = append(c.obj[:i], c.obj[i+1:]...)
+			}
+		}
+	}
+	c.file.Runtime().Delete(fmt.Sprintf("%s[%s]", c.path, chain[index].val))
 	return nil
 }
 
@@ -404,8 +479,9 @@ func (c *Object[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func (c *Object[T]) Initialize(path string, file Savable) {
+func (c *Object[T]) Initialize(path string, file Savable) error {
 	c.path = path
+	c.file = file
 	if c.obj == nil {
 		c.obj = new(T)
 		t := reflect.TypeOf(c.obj).Elem()
@@ -444,15 +520,30 @@ func (c *Object[T]) Initialize(path string, file Savable) {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
+		fieldPath := fmt.Sprintf("%s.%s", path, getFieldTag(meta.Tag))
 		if field.Kind() == reflect.Ptr && meta.Type.Elem().Kind() == reflect.Struct && field.IsNil() {
 			obj := reflect.New(meta.Type.Elem())
-			ifc := obj.Interface()
-			if cfg, ok := ifc.(Reactive); ok {
-				cfg.Initialize(fmt.Sprintf("%s.%s", path, meta.Name), file)
-			}
 			field.Set(obj)
+			if cfg, ok := field.Interface().(Reactive); ok {
+				_ = cfg.Initialize(fieldPath, file)
+			}
+		} else if field.Kind() == reflect.Ptr && meta.Type.Elem().Kind() == reflect.Struct {
+			if cfg, ok := field.Interface().(Reactive); ok {
+				_ = cfg.Initialize(fieldPath, file)
+			}
+		} else {
+			if meta.Tag.Get("key") == "true" {
+				continue
+			}
+			file.Runtime().Set(fieldPath, field.Interface())
 		}
 	}
+	if strings.Count(c.path, ".") == 0 {
+		if err := c.file.Save(); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed to save %s to disk: %v", c.path, err))
+		}
+	}
+	return nil
 }
 
 func (c *Object[T]) Set(chain chain, index int, value interface{}) error {
@@ -477,7 +568,7 @@ func (c *Object[T]) Get(chain chain, index int) (interface{}, error) {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
-		if meta.Tag.Get("yaml") == chain[index].val || meta.Tag.Get("state") == chain[index].val {
+		if getFieldTag(meta.Tag) == chain[index].val {
 			return c.getField(field, chain, index)
 		}
 	}
@@ -492,7 +583,7 @@ func (c *Object[T]) GetConcrete(chain chain, index int) (interface{}, error) {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
-		if meta.Tag.Get("yaml") == chain[index].val || meta.Tag.Get("state") == chain[index].val {
+		if getFieldTag(meta.Tag) == chain[index].val {
 			return c.getConcreteField(field, chain, index)
 		}
 	}
@@ -510,15 +601,12 @@ func (c *Object[T]) Append(chain chain, index int) error {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
-		if meta.Tag.Get("yaml") == chain[index].val || meta.Tag.Get("state") == chain[index].val {
+		if getFieldTag(meta.Tag) == chain[index].val {
 			switch obj := field.Interface().(type) {
-			case reactiveObject:
-				if index+1 == len(chain) {
-					return errors.New("cannot set an object value")
-				}
+			case Reactive:
 				return obj.Append(chain, index+1)
-			case reactiveList:
-				return obj.Append(chain, index+1)
+			default:
+				return c.errPath("cannot append to a primitive value")
 			}
 		}
 	}
@@ -527,7 +615,26 @@ func (c *Object[T]) Append(chain chain, index int) error {
 }
 
 func (c *Object[T]) Delete(chain chain, index int) error {
-	return nil
+	if len(chain) == index {
+		return c.errPath("cannot delete from an object")
+	}
+	t := reflect.TypeOf(c.obj).Elem()
+	val := reflect.ValueOf(c.obj).Elem()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		meta := t.Field(i)
+		if getFieldTag(meta.Tag) == chain[index].val {
+			switch obj := field.Interface().(type) {
+			case Reactive:
+				return obj.Delete(chain, index+1)
+			default:
+				return c.errPath("cannot delete from a primitive value")
+			}
+		}
+	}
+
+	return c.errPath(fmt.Sprintf("field %s not found", chain[index].val))
 }
 
 func (c *Object[T]) Length(chain chain, index int) int {
@@ -540,15 +647,12 @@ func (c *Object[T]) Length(chain chain, index int) int {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
-		if meta.Tag.Get("yaml") == chain[index].val || meta.Tag.Get("state") == chain[index].val {
+		if getFieldTag(meta.Tag) == chain[index].val {
 			switch obj := field.Interface().(type) {
-			case reactiveObject:
-				if index+1 == len(chain) {
-					c.errPanic("cannot set an object value")
-				}
+			case Reactive:
 				return obj.Length(chain, index+1)
-			case reactiveList:
-				return obj.Length(chain, index+1)
+			default:
+				c.errPanic("cannot append to a primitive value")
 			}
 		}
 	}
@@ -594,11 +698,11 @@ func (c *Object[T]) AppendPath(path string) error {
 }
 
 func (c *Object[T]) DeletePath(path string) error {
-	/*chain, err := c.compilePath(path)
+	chain, err := compilePath(path)
 	if err != nil {
 		return nil
-	}*/
-	return nil
+	}
+	return c.Delete(chain, 0)
 }
 
 func (c *Object[T]) LengthPath(path string) int {
@@ -629,6 +733,34 @@ func compilePath(path string) (chain, error) {
 	return chains, nil
 }
 
+func getFieldTag(tag reflect.StructTag) string {
+	var field string
+	if field = tag.Get("yaml"); field != "" {
+		if strings.Count(field, ",") > 0 {
+			field = strings.Split(field, ",")[0]
+		}
+	} else {
+		field = tag.Get("state")
+	}
+	return field
+}
+
+func getRoot(path string) string {
+	return strings.Split(path, ".")[0]
+}
+
+func getPath(path string) string {
+	return strings.Join(strings.Split(path, "."), ".")
+}
+
+func mustCompilePath(path string) chain {
+	chain, err := compilePath(path)
+	if err != nil {
+		panic(fmt.Sprintf("failed to compile path: %v", path))
+	}
+	return chain
+}
+
 func Concrete[T any](object Reactive, path string, args ...interface{}) *T {
 	path = fmt.Sprintf(path, args...)
 	chain, err := compilePath(path)
@@ -642,8 +774,9 @@ func Concrete[T any](object Reactive, path string, args ...interface{}) *T {
 			return &val
 		} else if valPtr, ok := obj.(*T); ok {
 			return valPtr
-		} else {
+		} else if obj != nil {
 			panic(fmt.Sprintf("invalid concrete object type: %s", path))
 		}
+		return nil
 	}
 }
