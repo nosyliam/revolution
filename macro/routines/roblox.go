@@ -23,11 +23,11 @@ func openWindow(macro *Macro) error {
 }
 
 func fallbackServerEnabled(macro *Macro) bool {
-	return macro.Settings.Window.FallbackToPublicServer
+	return false
 }
 
 func privateServerAttempts(macro *Macro) int {
-	return macro.State.PrivateServerAttempts
+	return 0
 }
 
 var OpenRobloxRoutine = Actions{
@@ -53,7 +53,7 @@ var OpenRobloxRoutine = Actions{
 			Error("Failed to open Roblox: %s! Attempt %d", LastError, Index(0))(Status, Discord),
 			Sleep(5).Seconds(),
 			Condition(
-				If(And(Equal(V(RetryCount), 5), True(fallbackServerEnabled))),
+				If(And(Equal(V[int](RetryCount), 5), True(fallbackServerEnabled))),
 				Set(UsePublicServer, true),
 				If(Equal(privateServerAttempts, 5)),
 				Break(),

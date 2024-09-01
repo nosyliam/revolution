@@ -53,8 +53,8 @@ type Config struct {
 	Windows *List[WindowConfig] `yaml:"windows"`
 }
 
-func NewConfig(runtime Runtime) (Reactive, error) {
-	settings := File[Config]{path: "settings.yaml", format: YAML}
+func NewConfig(runtime *Runtime) (Reactive, error) {
+	settings := File[Config]{path: "settings.yaml", format: YAML, runtime: runtime}
 	if err := settings.load(); err != nil {
 		return nil, errors.Wrap(err, "Failed to load macro settings")
 	}

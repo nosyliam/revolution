@@ -34,7 +34,7 @@ func (l *logWriter) Write(level LogLevel, line string) error {
 type Logger struct {
 	stack     []string
 	verbosity int
-	settings  *config.Settings
+	settings  config.Reactive
 }
 
 func (s *Logger) Child(name string) *Logger {
@@ -50,6 +50,6 @@ func (s *Logger) LogDiscord(level LogLevel, message string, id *int, screenshot 
 	return 0, nil
 }
 
-func NewLogger(name string, settings *config.Settings) *Logger {
+func NewLogger(name string, settings config.Reactive) *Logger {
 	return &Logger{stack: []string{name}, settings: settings}
 }

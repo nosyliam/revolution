@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/control"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/nosyliam/revolution/platform"
@@ -20,24 +19,12 @@ var assets embed.FS
 func main() {
 	windowManager := window.NewWindowManager(platform.WindowBackend)
 	eventBus := control.NewEventBus(platform.ControlBackend)
-	mConfig, err := config.NewConfig()
-	if err != nil {
-		dialog.Message(errors.Wrap(err, "Failed to load configuration").Error()).Error()
-		return
-	}
-
-	mState, err := config.NewState()
-	if err != nil {
-		dialog.Message(errors.Wrap(err, "Failed to load state").Error()).Error()
-		return
-	}
-
-	app := NewMacro(mConfig, mState, windowManager, eventBus)
+	app := NewMacro(windowManager, eventBus)
 
 	if err := wails.Run(&options.App{
 		Title:         "Revolution Macro",
-		Width:         500,
-		Height:        350,
+		Width:         600,
+		Height:        300,
 		DisableResize: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
@@ -48,7 +35,7 @@ func main() {
 			app,
 		},
 		Mac: &mac.Options{
-			TitleBar:             mac.TitleBarHiddenInset(),
+			TitleBar:             mac.TitleBarDefault(),
 			WebviewIsTransparent: true,
 			WindowIsTranslucent:  true,
 		},

@@ -73,18 +73,10 @@ func (d *AccountDatabase) Get(name string) *Account {
 	return nil
 }
 
-func NewAccountDatabase() (*AccountDatabase, error) {
-	/*
-		db := &AccountDatabase{configFile: configFile{path: "accounts.json", format: JSON}}
-		if err := db.load(); err != nil {
-			return nil, errors.Wrap(err, "Failed to load account database")
-		}
-		db.accountMap = make(map[string]*Account)
-		for _, account := range db.Accounts {
-			db.accountMap[account.Name] = account
-			account.db = db
-		}
-
-	*/
-	return nil, nil
+func NewAccountDatabase(runtime *Runtime) (Reactive, error) {
+	db := File[State]{path: "state.yaml", format: YAML, runtime: runtime}
+	if err := db.load(); err != nil {
+		return nil, errors.Wrap(err, "Failed to load macro state")
+	}
+	return db.Object(), nil
 }

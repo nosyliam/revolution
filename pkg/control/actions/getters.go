@@ -15,9 +15,9 @@ func S(path string) interface{} {
 	return nil
 }
 
-func V(name VariableName) func(macro *common.Macro) interface{} {
-	return func(macro *common.Macro) interface{} {
-		return macro.Scratch.Get(string(name))
+func V[T any](name VariableName) func(macro *common.Macro) T {
+	return func(macro *common.Macro) T {
+		return macro.Scratch.Get(string(name)).(T)
 	}
 }
 

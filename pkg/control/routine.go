@@ -70,7 +70,7 @@ func (r *Routine) Execute() {
 				r.macro.Routine(r.redirectLoc.Routine)
 				break
 			}
-			if r.macro.State.LoopState.Unwind != nil {
+			if r.macro.Scratch.LoopState.Unwind != nil {
 				if r.depth == 0 {
 					panic("invalid loop state: not in a loop")
 				}
@@ -104,7 +104,7 @@ func ExecuteRoutine(
 		err:      err,
 		redirect: redirect,
 	}
-	macro.State.Stack = []string{"Main"}
+	macro.Scratch.Stack = []string{"Main"}
 	var execSub func(routine *Routine, macro *common.Macro) common.SubroutineExecutor
 	var exec func(routine *Routine, macro *common.Macro) common.RoutineExecutor
 	execSub = func(routine *Routine, macro *common.Macro) common.SubroutineExecutor {
@@ -128,7 +128,7 @@ func ExecuteRoutine(
 			if !ok {
 				panic(fmt.Sprintf("unknown subroutine %s", string(kind)))
 			}
-			macro.State.Stack = append([]string{string(kind)}, macro.State.Stack...)
+			macro.Scratch.Stack = append([]string{string(kind)}, macro.Scratch.Stack...)
 			subMacro := macro.Copy()
 			subMacro.Logger = subMacro.Logger.Child(string(kind))
 			subMacro.Results = &common.ActionResults{}
@@ -140,7 +140,7 @@ func ExecuteRoutine(
 			subRoutine := &Routine{macro: subMacro, actions: subActions, depth: routine.depth + 1, parent: routine}
 			subRoutine.Copy(routine)
 			subRoutine.Execute()
-			macro.State.Stack = macro.State.Stack[1:]
+			macro.Scratch.Stack = macro.Scratch.Stack[1:]
 		}
 	}
 	macro.Routine = exec(routine, macro)

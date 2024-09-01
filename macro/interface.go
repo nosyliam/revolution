@@ -86,8 +86,8 @@ func (i *Interface) RegisterEventListeners() {
 
 func NewInterface(
 	name string,
-	state *config.State,
-	settings *config.Settings,
+	state config.Reactive,
+	settings config.Reactive,
 	eventBus common.EventBus,
 	backend common.Backend,
 ) *Interface {
@@ -96,7 +96,7 @@ func NewInterface(
 		Backend:  backend,
 		Settings: settings,
 		Logger:   logging.NewLogger(name, settings),
-		State:    state.State(name),
+		State:    state,
 		Name:     name,
 
 		pause:    make(chan struct{}),

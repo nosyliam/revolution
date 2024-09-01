@@ -352,7 +352,7 @@ func (c *List[T]) Append(chain chain, index int) error {
 			return c.errPath(fmt.Sprintf("key \"%s\" already exists", key))
 		}
 		path := fmt.Sprintf("%s[%s]", c.path, chain[index].val)
-		c.file.Runtime().Append(path)
+		c.file.Runtime().Append(path, false)
 		_ = cfo.Initialize(path, c.file)
 		ref := reflect.ValueOf(cfo.obj)
 		ref.Elem().FieldByName(c.key).SetString(key)
@@ -360,7 +360,7 @@ func (c *List[T]) Append(chain chain, index int) error {
 		c.index[key] = cfo
 	} else {
 		path := fmt.Sprintf("%s[%d]", c.path, len(c.obj))
-		c.file.Runtime().Append(path)
+		c.file.Runtime().Append(path, false)
 		_ = cfo.Initialize(path, c.file)
 	}
 	c.obj = append(c.obj, cfo)

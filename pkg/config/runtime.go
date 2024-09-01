@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/sqweek/dialog"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"os"
 	"time"
 )
 
@@ -40,12 +39,12 @@ func (r *Runtime) Set(path string, value interface{}) {
 	runtime.EventsEmit(AppContext, "set", path, value)
 }
 
-func (r *Runtime) Append(path string) {
+func (r *Runtime) Append(path string, primitive bool) {
 	if !r.ready {
 		r.events = append(r.events, event{path: path, op: "append"})
 		return
 	}
-	runtime.EventsEmit(AppContext, "append", path)
+	runtime.EventsEmit(AppContext, "append", path, primitive)
 }
 
 func (r *Runtime) Delete(path string) {
@@ -110,12 +109,14 @@ func NewRuntime(ctx context.Context) *Runtime {
 		}
 		ready <- struct{}{}
 	})
-	select {
-	case <-ready:
-		break
-	case <-time.After(time.Second * 5):
-		dialog.Message("UI failed to start! Please contact Liam for assistance").Error()
-		os.Exit(1)
-	}
+	go func() {
+		select {
+		case <-ready:
+			break
+		case <-time.After(time.Second * 5):
+			//dialog.Message("UI failed to start! Please contact Liam for assistance").Error()
+			//os.Exit(1)
+		}
+	}()
 	return app
 }
