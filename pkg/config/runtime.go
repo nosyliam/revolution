@@ -14,16 +14,22 @@ type event struct {
 }
 
 type Runtime struct {
-	ready  bool
-	roots  map[string]Reactive
-	events []event
+	ready       bool
+	roots       map[string]Reactive
+	events      []event
+	errorActive bool
 }
 
 func (r *Runtime) handleError(op string, err error) bool {
 	if err == nil {
 		return true
 	}
+	if r.errorActive {
+		return false
+	}
+	r.errorActive = true
 	dialog.Message(fmt.Sprintf("%s operation failed: %v", op, err)).Error()
+	r.errorActive = false
 	return false
 }
 
@@ -56,7 +62,7 @@ func (r *Runtime) Delete(path string) {
 }
 
 func (r *Runtime) Listen() {
-	_ = runtime.EventsOn(AppContext, "set", func(data ...interface{}) {
+	_ = runtime.EventsOn(AppContext, "set_client", func(data ...interface{}) {
 		path := data[0].(string)
 		if r.handleError(
 			"Set",
@@ -65,7 +71,7 @@ func (r *Runtime) Listen() {
 			r.handleError("Save", r.roots[getRoot(path)].File().Save())
 		}
 	})
-	_ = runtime.EventsOn(AppContext, "append", func(data ...interface{}) {
+	_ = runtime.EventsOn(AppContext, "append_client", func(data ...interface{}) {
 		path := data[0].(string)
 		if r.handleError(
 			"Append",
@@ -74,7 +80,7 @@ func (r *Runtime) Listen() {
 			r.handleError("Save", r.roots[getRoot(path)].File().Save())
 		}
 	})
-	_ = runtime.EventsOn(AppContext, "delete", func(data ...interface{}) {
+	_ = runtime.EventsOn(AppContext, "delete_client", func(data ...interface{}) {
 		path := data[0].(string)
 		if r.handleError(
 			"Delete",
@@ -105,16 +111,18 @@ func NewRuntime(ctx context.Context) *Runtime {
 	runtime.EventsOnce(ctx, "ready", func(...interface{}) {
 		app.ready = true
 		for len(app.roots) != 3 {
-			<-time.After(1 * time.Millisecond)
+			fmt.Println(len(app.roots))
+			<-time.After(100 * time.Millisecond)
 		}
 		ready <- struct{}{}
 	})
 	go func() {
 		select {
 		case <-ready:
-			break
-		case <-time.After(time.Second * 5):
-			//dialog.Message("UI failed to start! Please contact Liam for assistance").Error()
+			app.Start()
+			return
+		case <-time.After(time.Second * 10):
+			dialog.Message("UI failed to start! Please contact the developer for assistance").Error()
 			//os.Exit(1)
 		}
 	}()

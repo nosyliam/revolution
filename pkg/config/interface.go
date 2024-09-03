@@ -75,8 +75,15 @@ func (c *config) setField(field reflect.Value, chain chain, index int, value int
 	}
 	switch field.Kind() {
 	case reflect.Int:
-		field.SetInt(int64(value.(int)))
-		c.file.Runtime().Set(path, value.(int))
+		var val int
+		switch v := value.(type) {
+		case int:
+			val = v
+		case float64:
+			val = int(v)
+		}
+		field.SetInt(int64(val))
+		c.file.Runtime().Set(path, val)
 	case reflect.Bool:
 		field.SetBool(value.(bool))
 		c.file.Runtime().Set(path, value.(bool))
@@ -750,7 +757,7 @@ func getRoot(path string) string {
 }
 
 func getPath(path string) string {
-	return strings.Join(strings.Split(path, "."), ".")
+	return strings.Join(strings.Split(path, ".")[1:], ".")
 }
 
 func mustCompilePath(path string) chain {

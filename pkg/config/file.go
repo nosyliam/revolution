@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io"
@@ -39,12 +40,12 @@ func (f *File[T]) Save() error {
 	var err error
 	switch f.format {
 	case JSON:
-		data, err = json.Marshal(f)
+		data, err = json.Marshal(f.obj)
 		if err != nil {
 			return errors.Wrap(err, "failed to marshal")
 		}
 	case YAML:
-		data, err = yaml.Marshal(f)
+		data, err = yaml.Marshal(f.obj)
 		if err != nil {
 			return errors.Wrap(err, "failed to marshal")
 		}
@@ -55,6 +56,7 @@ func (f *File[T]) Save() error {
 	_ = f.file.Truncate(0)
 	_, _ = f.file.Seek(0, 0)
 	_, err = f.file.Write(data)
+	fmt.Println("save", string(data))
 	if err != nil {
 		return errors.Wrap(err, "failed to write")
 	}
@@ -106,6 +108,7 @@ func (f *File[T]) load() error {
 func (f *File[T]) Object() *Object[T] {
 	obj := &Object[T]{obj: f.obj}
 	obj.Initialize(f.name, f)
+	f.runtime.AddRoot(f.name, obj)
 	return obj
 }
 

@@ -1,6 +1,8 @@
 package config
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+)
 
 type WindowAlignment string
 
@@ -49,12 +51,13 @@ type Settings struct {
 }
 
 type Config struct {
+	Test    int                 `yaml:"test"`
 	Presets *List[Settings]     `yaml:"presets"`
 	Windows *List[WindowConfig] `yaml:"windows"`
 }
 
 func NewConfig(runtime *Runtime) (Reactive, error) {
-	settings := File[Config]{path: "settings.yaml", format: YAML, runtime: runtime}
+	settings := File[Config]{name: "settings", path: "settings.yaml", format: YAML, runtime: runtime}
 	if err := settings.load(); err != nil {
 		return nil, errors.Wrap(err, "Failed to load macro settings")
 	}

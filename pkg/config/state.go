@@ -25,7 +25,7 @@ type State struct {
 }
 
 func NewState(runtime *Runtime) (Reactive, error) {
-	state := File[State]{path: "state.yaml", format: YAML, runtime: runtime}
+	state := File[State]{name: "state", path: "state.yaml", format: YAML, runtime: runtime}
 	if err := state.load(); err != nil {
 		return nil, errors.Wrap(err, "Failed to load macro state")
 	}

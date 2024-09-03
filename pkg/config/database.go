@@ -73,8 +73,8 @@ func (d *AccountDatabase) Get(name string) *Account {
 	return nil
 }
 
-func NewAccountDatabase(runtime *Runtime) (Reactive, error) {
-	db := File[State]{path: "state.yaml", format: YAML, runtime: runtime}
+func NewDatabase(runtime *Runtime) (Reactive, error) {
+	db := File[State]{name: "database", path: "accounts.yaml", format: YAML, runtime: runtime}
 	if err := db.load(); err != nil {
 		return nil, errors.Wrap(err, "Failed to load macro state")
 	}

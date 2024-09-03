@@ -51,6 +51,11 @@ func (m *Macro) startup(ctx context.Context) {
 		dialog.Message(errors.Wrap(err, "Failed to load state").Error()).Error()
 		os.Exit(1)
 	}
+	m.database, err = config.NewDatabase(m.runtime)
+	if err != nil {
+		dialog.Message(errors.Wrap(err, "Failed to load account database").Error()).Error()
+		os.Exit(1)
+	}
 }
 
 func (m *Macro) LoadSettings(preset string) *config.Settings {

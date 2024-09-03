@@ -88,6 +88,7 @@ func NewInterface(
 	name string,
 	state config.Reactive,
 	settings config.Reactive,
+	database config.Reactive,
 	eventBus common.EventBus,
 	backend common.Backend,
 ) *Interface {
@@ -95,6 +96,7 @@ func NewInterface(
 		EventBus: eventBus,
 		Backend:  backend,
 		Settings: settings,
+		Database: database,
 		Logger:   logging.NewLogger(name, settings),
 		State:    state,
 		Name:     name,

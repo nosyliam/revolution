@@ -24,7 +24,7 @@ func main() {
 	if err := wails.Run(&options.App{
 		Title:         "Revolution Macro",
 		Width:         600,
-		Height:        300,
+		Height:        400,
 		DisableResize: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
@@ -35,7 +35,14 @@ func main() {
 			app,
 		},
 		Mac: &mac.Options{
-			TitleBar:             mac.TitleBarDefault(),
+			TitleBar: &mac.TitleBar{
+				TitlebarAppearsTransparent: false,
+				HideTitle:                  false,
+				HideTitleBar:               false,
+				FullSizeContent:            true,
+				UseToolbar:                 false,
+				HideToolbarSeparator:       true,
+			},
 			WebviewIsTransparent: true,
 			WindowIsTranslucent:  true,
 		},
