@@ -1,22 +1,26 @@
 import "@mantine/core/styles.css";
-import {Box, Button, MantineProvider, Text} from "@mantine/core";
+import {Flex, MantineProvider, Tabs} from "@mantine/core";
 import {theme} from "./theme";
 import {Path, RuntimeContext} from "./hooks/useRuntime";
 import {useContext, useEffect} from "react";
+import State from "./control/command/State";
+import Macro from "./control/Macro";
+import {useViewportSize} from "@mantine/hooks";
 
 function App() {
+    const viewport = useViewportSize()
     const runtime = useContext(RuntimeContext)
-    const settings = runtime.Object(new Path("settings"))
-    const test = settings.Value<number>("test", 0)
-
     useEffect(runtime.Ready)
 
     return (
         <MantineProvider>
-            <Box id="App">
-                <Text size="xl">Value: { test }</Text>
-                <Button onClick={() => settings.Set<number>("test", test + 1)}>Click me</Button>
-            </Box>
+            <Flex
+                direction="column"
+                style={{height: viewport.height}}
+            >
+                <Macro/>
+                <State/>
+            </Flex>
         </MantineProvider>
     )
 }

@@ -217,11 +217,17 @@ func (c *List[T]) Initialize(path string, file Savable) error {
 		for n, obj := range c.obj {
 			if c.key != "" {
 				key := reflect.ValueOf(*obj.obj).FieldByName(c.key).String()
-				_ = obj.Initialize(fmt.Sprintf("%s[%s]", path, key), file)
+				listPath := fmt.Sprintf("%s[%s]", path, key)
+				c.file.Runtime().Append(listPath, false, true)
+				_ = obj.Initialize(listPath, file)
 			} else {
+				listPath := fmt.Sprintf("%s[%d]", path, n)
+				c.file.Runtime().Append(listPath, true, false)
 				_ = obj.Initialize(fmt.Sprintf("%s[%d]", path, n), file)
 			}
 		}
+	} else if c.prim != nil {
+		c.file.Runtime().Append(fmt.Sprintf("%s[0]", path), true, false)
 	}
 	return nil
 }
@@ -348,7 +354,8 @@ func (c *List[T]) Append(chain chain, index int) error {
 	if c.prim != nil {
 		var zero T
 		c.prim = append(c.prim, zero)
-		c.file.Runtime().Set(fmt.Sprintf("%s[%d]", c.path, len(c.obj)), zero)
+		path := fmt.Sprintf("%s[%d]", c.path, len(c.obj))
+		c.file.Runtime().Set(path, zero)
 		return nil
 	}
 
@@ -359,7 +366,7 @@ func (c *List[T]) Append(chain chain, index int) error {
 			return c.errPath(fmt.Sprintf("key \"%s\" already exists", key))
 		}
 		path := fmt.Sprintf("%s[%s]", c.path, chain[index].val)
-		c.file.Runtime().Append(path, false)
+		c.file.Runtime().Append(path, false, true)
 		_ = cfo.Initialize(path, c.file)
 		ref := reflect.ValueOf(cfo.obj)
 		ref.Elem().FieldByName(c.key).SetString(key)
@@ -367,7 +374,7 @@ func (c *List[T]) Append(chain chain, index int) error {
 		c.index[key] = cfo
 	} else {
 		path := fmt.Sprintf("%s[%d]", c.path, len(c.obj))
-		c.file.Runtime().Append(path, false)
+		c.file.Runtime().Append(path, false, false)
 		_ = cfo.Initialize(path, c.file)
 	}
 	c.obj = append(c.obj, cfo)

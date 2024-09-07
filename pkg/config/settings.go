@@ -50,10 +50,15 @@ type Settings struct {
 	Windows      *Object[WindowSettings]  `yaml:"windows"`
 }
 
+type Tools struct {
+	JellyTool *Object[JellyTool] `yaml:"jellyTool"`
+}
+
 type Config struct {
 	Test    int                 `yaml:"test"`
 	Presets *List[Settings]     `yaml:"presets"`
 	Windows *List[WindowConfig] `yaml:"windows"`
+	Tools   *Object[Tools]      `yaml:"tools"`
 }
 
 func NewConfig(runtime *Runtime) (Reactive, error) {

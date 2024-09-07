@@ -9,8 +9,9 @@ import (
 )
 
 type event struct {
-	path, op string
-	value    interface{}
+	path, op         string
+	primitive, keyed bool
+	value            interface{}
 }
 
 type Runtime struct {
@@ -45,12 +46,12 @@ func (r *Runtime) Set(path string, value interface{}) {
 	runtime.EventsEmit(AppContext, "set", path, value)
 }
 
-func (r *Runtime) Append(path string, primitive bool) {
+func (r *Runtime) Append(path string, primitive bool, keyed bool) {
 	if !r.ready {
-		r.events = append(r.events, event{path: path, op: "append"})
+		r.events = append(r.events, event{path: path, op: "append", primitive: primitive, keyed: keyed})
 		return
 	}
-	runtime.EventsEmit(AppContext, "append", path, primitive)
+	runtime.EventsEmit(AppContext, "append", path, primitive, keyed)
 }
 
 func (r *Runtime) Delete(path string) {
@@ -98,7 +99,7 @@ func (r *Runtime) Start() {
 		case "set":
 			runtime.EventsEmit(AppContext, "set", evt.path, evt.value)
 		case "append":
-			runtime.EventsEmit(AppContext, "append", evt.path)
+			runtime.EventsEmit(AppContext, "append", evt.path, evt.primitive, evt.keyed)
 		}
 	}
 	r.events = nil
