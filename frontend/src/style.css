@@ -20,3 +20,8 @@ body {
     height: 100vh;
     text-align: center;
 }
+
+* {
+    -webkit-user-select: none;
+    user-select: none;
+}

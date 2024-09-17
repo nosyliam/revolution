@@ -1,6 +1,4 @@
 import baby from './baby.png';
-import basic from './basic.png';
-import bear from './bear.png';
 import bomber from './bomber.png';
 import brave from './brave.png';
 import bubble from './bubble.png';
@@ -8,29 +6,22 @@ import bucko from './bucko.png';
 import bumble from './bumble.png';
 import buoyant from './buoyant.png';
 import carp from './carp.png';
-import cobalt from './cobalt.png';
 import commander from './commander.png';
 import cool from './cool.png';
-import crim from './crim.png';
 import demo from './demo.png';
 import demon from './demon.png';
 import diamond from './diamond.png';
-import digital from './digital.png';
 import exhausted from './exhausted.png';
-import festive from './festive.png';
 import fire from './fire.png';
 import frosty from './frosty.png';
 import fuzzy from './fuzzy.png';
-import gummy from './gummy.png';
 import hasty from './hasty.png';
 import honey from './honey.png';
 import lion from './lion.png';
 import looker from './looker.png';
 import music from './music.png';
 import ninja from './ninja.png';
-import photon from './photon.png';
 import precise from './precise.png';
-import puppy from './puppy.png';
 import rad from './rad.png';
 import rage from './rage.png';
 import rascal from './rascal.png';
@@ -39,45 +30,42 @@ import shocked from './shocked.png';
 import shy from './shy.png';
 import spicy from './spicy.png';
 import stubborn from './stubborn.png';
-import tabby from './tabby.png';
 import tad from './tad.png';
-import vicious from './vicious.png';
-import windy from './windy.png';
+import vector from './vector.png'
 
 export const Bees: {[key: string]: [string, string]} = {
-    "baby": ["Baby Bee", baby],
-    "basic": ["Basic Bee", basic],
     "bomber": ["Bomber Bee", bomber],
     "brave": ["Brave Bee", brave],
+    "bumble": ["Bumble Bee", bumble],
+    "cool": ["Cool Bee", cool],
+    "hasty": ["Hasty Bee", hasty],
+    "looker": ["Looker Bee", looker],
+    "rad": ["Rad Bee", rad],
+    "rascal": ["Rascal Bee", rascal],
+    "stubborn": ["Stubborn Bee", stubborn],
     "bubble": ["Bubble Bee", bubble],
     "bucko": ["Bucko Bee", bucko],
-    "bumble": ["Bumble Bee", bumble],
-    "buoyant": ["Buoyant Bee", buoyant],
-    "carp": ["Carp Bee", carp],
     "commander": ["Commander Bee", commander],
-    "cool": ["Cool Bee", cool],
     "demo": ["Demo Bee", demo],
-    "demon": ["Demon Bee", demon],
-    "diamond": ["Diamond Bee", diamond],
     "exhausted": ["Exhausted Bee", exhausted],
     "fire": ["Fire Bee", fire],
     "frosty": ["Frosty Bee", frosty],
-    "fuzzy": ["Fuzzy Bee", fuzzy],
-    "gummy": ["Gummy Bee", gummy],
-    "hasty": ["Hasty Bee", hasty],
     "honey": ["Honey Bee", honey],
-    "lion": ["Lion Bee", lion],
-    "looker": ["Looker Bee", looker],
-    "music": ["Music Bee", music],
-    "ninja": ["Ninja Bee", ninja],
-    "precise": ["Precise Bee", precise],
-    "rad": ["Rad Bee", rad],
     "rage": ["Rage Bee", rage],
-    "rascal": ["Rascal Bee", rascal],
     "riley": ["Riley Bee", riley],
     "shocked": ["Shocked Bee", shocked],
+    "baby": ["Baby Bee", baby],
+    "carp": ["Carp Bee", carp],
+    "demon": ["Demon Bee", demon],
+    "diamond": ["Diamond Bee", diamond],
+    "lion": ["Lion Bee", lion],
+    "music": ["Music Bee", music],
+    "ninja": ["Ninja Bee", ninja],
     "shy": ["Shy Bee", shy],
+    "buoyant": ["Buoyant Bee", buoyant],
+    "fuzzy": ["Fuzzy Bee", fuzzy],
+    "precise": ["Precise Bee", precise],
     "spicy": ["Spicy Bee", spicy],
-    "stubborn": ["Stubborn Bee", stubborn],
     "tad": ["Tad Bee", tad],
+    "vector": ["Vector Bee", vector]
 }

@@ -1,6 +1,10 @@
 import React, {createContext, useEffect, useState} from "react";
 import {EventsEmit, EventsOn} from "../../wailsjs/runtime";
 
+interface BaseEvent {
+    id?: number
+}
+
 interface SetEvent {
     op: "set"
     value: Value
@@ -10,13 +14,31 @@ interface AppendEvent {
     op: "append"
     primitive: boolean
     keyed: boolean
+    value?: Value
 }
 
 interface DeleteEvent {
     op: "delete"
 }
 
-type Event = SetEvent | AppendEvent | DeleteEvent
+interface HistoricalEvent {
+    op: "set" | "append" | "delete"
+    path: Path
+    id: number
+    timeout: number
+    reverted?: boolean
+    index?: string | number
+    previousValue?: ListValue
+}
+
+interface RollbackEvent {
+    op: "rollback"
+    record: HistoricalEvent
+}
+
+type EmittedEvent = SetEvent | AppendEvent | DeleteEvent
+type Event = (RollbackEvent | EmittedEvent) & BaseEvent
+
 type Value = number | string | boolean
 
 interface KeyedObject {
@@ -26,9 +48,11 @@ interface KeyedObject {
 
 type ListValue = KeyedObject | Object | Value
 
+type Dispatch<T> = React.Dispatch<React.SetStateAction<T>>
+
 interface Field {
     value: Value
-    dispatch?: React.Dispatch<React.SetStateAction<Value>>
+    dispatch?: Dispatch<Value>
 }
 
 interface Reactive {
@@ -72,6 +96,11 @@ export class Path extends String {
         return this
     }
 
+    public finalize(): Path {
+        this.index = this.components.length - 1
+        return this
+    }
+
     public increment(): Path {
         this.index += 1
         return this
@@ -82,7 +111,6 @@ export class Path extends String {
         return this
     }
 
-
     public get value(): string {
         return this.components[this.index].val
     }
@@ -91,10 +119,9 @@ export class Path extends String {
         return this.components.length == this.index
     }
 
-    public get nextFinal(): boolean {
+    public get peekFinal(): boolean {
         return this.components.length - 1 == this.index
     }
-
 
     public extend(path: string, brackets?: boolean): Path {
         return new Path(brackets ? `${this}[${path}]` : `${this}.${path}`, [...this.components, {
@@ -108,8 +135,8 @@ export class Object implements Reactive {
     private readonly path: Path;
     private readonly runtime: Runtime;
 
-    private objects: {[field: string]: Reactive} = {};
-    private values: {[field: string]: Field} = {};
+    private objects: { [field: string]: Reactive } = {};
+    private values: { [field: string]: Field } = {};
 
     constructor(path: Path, runtime: Runtime) {
         this.runtime = runtime
@@ -117,24 +144,18 @@ export class Object implements Reactive {
     }
 
     public Value<T extends Value>(field: string, defaultValue: T): T {
-        let def: T = defaultValue
-        if (this.values[field]) {
-            def = this.values[field].value as T
-            console.log("found value", String(this.path), def)
-        } else {
-            console.log("setting value", String(this.path), def)
-        }
-        const [value, dispatch] = useState<Value>(def)
-        this.values[field] = {value: def, dispatch: dispatch}
+        let def: Field = this.values[field] ? {value: this.values[field].value} : {value: defaultValue}
+        const [value, dispatch] = useState<Value>(def.value)
+        this.values[field] = {...def, dispatch: dispatch}
         return value as T
     }
 
     public Set<T extends Value>(field: string, value: T) {
+        const previousValue = this.values[field]?.value
         let data: Field = this.values[field] || {value: value}
-        if (data.dispatch)
-            data.dispatch(value)
+        data.dispatch && data.dispatch(value)
         this.values[field] = {...data, value: value}
-        this.runtime.Emit(this.Field(field), {op: "set", value: value})
+        this.runtime.Emit(this.Field(field), {op: "set", value: value}, previousValue)
     }
 
     public List<T extends ListValue>(field: string): List<T> {
@@ -146,10 +167,18 @@ export class Object implements Reactive {
 
     public Receive(path: Path, event: Event): void {
         switch (event.op) {
+            case "rollback":
+                if (!path.peekFinal) {
+                    this.objects[path.value].Receive(path.increment(), event)
+                    return
+                }
+                const value = this.values[path.value]
+                value.value = event.record.previousValue! as Value
+                value.dispatch && value.dispatch(value.value)
+                break
             case "set":
-                if (!path.nextFinal) {
+                if (!path.peekFinal) {
                     if (!this.objects[path.value]) {
-                        console.log("creating object", String(path), path.value)
                         this.objects[path.value] = new Object(this.path.extend(path.value), this.runtime)
                     }
                     this.objects[path.value].Receive(path.increment(), event)
@@ -157,32 +186,25 @@ export class Object implements Reactive {
                     let field: Field | undefined
                     if ((field = this.values[path.value]) != undefined) {
                         field.value = event.value
-                        if (field.dispatch) {
-                            console.log("dispatching received", String(path), event.value)
-                            field.dispatch(event.value)
-                        }
+                        field.dispatch && field.dispatch(event.value)
                     } else {
                         this.values[path.value] = {value: event.value}
                     }
                 }
                 break
             case "append":
-                path.increment()
-                console.log("appending", String(path), String(this.path), path.final, path.nextFinal)
-                if (path.nextFinal) {
+                if (path.increment().peekFinal) {
                     path.decrement()
                     if (!this.objects[path.value])
                         this.objects[path.value] = new List(this.path.extend(path.value), this.runtime)
                     let list = this.objects[path.value] as List<any>
                     list.primitive = event.primitive
                     list.keyed = event.keyed
-                    console.log("set list", String(path), String(this.path), path.value)
-                    path.increment()
+                } else {
+                    path.decrement()
                 }
-                this.objects[path.decrement().value].Receive(path.increment(), event)
-                break
             case "delete":
-                this.objects[path.increment().value].Receive(path, event)
+                this.objects[path.value].Receive(path.increment(), event)
         }
     }
 
@@ -205,8 +227,8 @@ export class List<T extends ListValue> implements Reactive {
     private readonly path: Path;
     private readonly runtime: Runtime;
 
-    private dispatch?: React.Dispatch<React.SetStateAction<T[]>>
-    private values: T[] = []
+    private dispatch?: Dispatch<T[]>
+    private values: Array<T> = []
 
     public primitive: boolean | undefined = undefined;
     public keyed: boolean = false;
@@ -216,20 +238,23 @@ export class List<T extends ListValue> implements Reactive {
         this.runtime = runtime;
     }
 
-    private index(path: Path): number {
+    private index(path: Path | string): number {
+        if (typeof path == 'string') {
+            path = new Path(path)
+        }
         let index: number;
         if (this.keyed) {
-            index = (this.values as KeyedObject[]).findIndex((v) => v.key == path.value)
+            index = (this.values as KeyedObject[]).findIndex((v) => v.key == (path as Path).value)
         } else {
-            index = Number(path.value)
+            index = Number((path as Path).value)
         }
         return index
     }
 
     public Values(): T[] {
-        const [values, dispatch] = useState<T[]>([])
-        this.dispatch = dispatch
+        const [values, dispatch] = useState<T[]>(this.values)
         useEffect(() => {
+            this.dispatch = dispatch
             return () => {
                 this.dispatch = undefined
             }
@@ -237,23 +262,62 @@ export class List<T extends ListValue> implements Reactive {
         return values as T[]
     }
 
+    public Append(key?: string, value?: Value) {
+        let object: ListValue | undefined = value
+        if (this.primitive) {
+            this.values = [...this.values, value! as T]
+        } else if (this.keyed) {
+            object =  {key: key!, object: new Object(this.Key(key!), this.runtime)}
+            this.values = [...this.values, object as T]
+        } else {
+            object = new Object(this.Key(key!), this.runtime)
+            this.values = [...this.values, object as T]
+        }
+        this.dispatch && this.dispatch(this.values)
+        this.runtime.Emit(this.Key(key || this.values.length - 1), {
+            op: "append",
+            primitive: this.primitive!,
+            keyed: this.keyed!,
+            value: value
+        }, object)
+    }
+
     public Delete(key: string | number) {
-        this.runtime.Emit(this.Key(key), {op: "delete"})
+        const index = this.index(String(key))
+        const value = this.values[index]
+        this.Receive(this.Key(key).finalize(), {op: "delete"})
+        this.runtime.Emit(this.Key(key), {op: "delete"}, value, index)
     }
 
     Receive(path: Path, event: Event): void {
         const index = this.index(path)
+        if (!path.peekFinal) {
+            if (this.keyed) {
+                (this.values[index] as KeyedObject).object.Receive(path, event)
+            } else {
+                (this.values[index] as Object).Receive(path, event)
+            }
+            return
+        }
+
         switch (event.op) {
-            case "set":
-                if (this.primitive) {
-                    (this.values[index] as Value) = event.value
-                } else if (this.keyed) {
-                    console.log("sending2", String(path), event, this.values, this.keyed);
-                    (this.values[index] as KeyedObject).object.Receive(path.increment(), event)
-                } else {
-                    console.log("sending", String(path), event, this.values, this.keyed);
-                    (this.values[index] as Object).Receive(path.increment(), event)
+            case "rollback":
+                switch (event.record.op) {
+                    case "set":
+                        (this.values[index] as ListValue) = event.record.previousValue!
+                        this.dispatch && this.dispatch(this.values)
+                        break
+                    case "delete":
+                        this.values = [...this.values.slice(0, index), event.record.previousValue! as T, ...this.values.slice(index)]
+                        this.dispatch && this.dispatch(this.values)
+                        break
+                    case "append":
+                        this.Receive(event.record.path, {op: "delete"})
                 }
+                break
+            case "set":
+                (this.values[index] as Value) = event.value
+                this.dispatch && this.dispatch([...this.values])
                 break;
             case "append":
                 if (this.keyed) {
@@ -261,17 +325,19 @@ export class List<T extends ListValue> implements Reactive {
                         key: path.value,
                         object: new Object(path, this.runtime)
                     }]
-                    console.log("updated values", path, [...this.values])
                 } else if (!this.primitive) {
                     (this.values as Object[]) = [...(this.values as Object[]), new Object(path, this.runtime)]
                 }
-                console.log("appended", this.keyed, this.values)
-                if (this.dispatch)
-                    this.dispatch(this.values)
+                this.dispatch && this.dispatch(this.values)
+                break;
             case "delete":
-                this.values = [...this.values.splice(index)]
-                if (this.dispatch)
-                    this.dispatch([...this.values.splice(index)])
+                const values = []
+                // @ts-ignore
+                for (const entry of this.values.toSpliced(index, 1).entries()) {
+                    entry[1] && values.push(entry[1])
+                }
+                this.values = values
+                this.dispatch && this.dispatch(this.values)
         }
     }
 
@@ -287,22 +353,33 @@ export class List<T extends ListValue> implements Reactive {
 
 export class Runtime {
     static RootNames: string[] = ["settings", "state", "database"]
-    private roots: {[name: string]: Reactive} = {};
+    private roots: { [name: string]: Reactive } = {};
+    private events: { [id: number]: HistoricalEvent } = {};
+    private counter: number = 0;
+
+    private disconnected: boolean = false;
+    private dispatchDisconnected?: Dispatch<boolean>;
 
     constructor() {
         for (const root of Runtime.RootNames) {
             this.roots[root] = new Object(new Path(root), this)
         }
-        EventsOn("set", (path: string, value: Value) => this.Receive(new Path(path), {
+        EventsOn("set", (path: string, id: number, value: Value) => this.Receive(new Path(path), {
+            id: id,
             op: "set",
             value: value
         }))
-        EventsOn("append", (path: string, primitive: boolean, keyed: boolean) => this.Receive(new Path(path), {
+        EventsOn("append", (path: string, id: number, primitive: boolean, keyed: boolean) => this.Receive(new Path(path), {
+            id: id,
             op: "append",
             primitive: primitive,
             keyed: keyed
         }))
-        EventsOn("delete", (path: string, value: Value) => this.Receive(new Path(path), {op: "delete"}))
+        EventsOn("delete", (path: string, id: number) => this.Receive(new Path(path), {
+            id: id,
+            op: "delete"
+        }))
+        EventsOn("rollback", (id: number) => this.rollbackEvent(id))
         // @ts-ignore
         window.dataRuntime = this
         // @ts-ignore
@@ -310,11 +387,62 @@ export class Runtime {
     }
 
     Receive(path: Path, event: Event): void {
+        if (this.disconnected) {
+            this.disconnected = false
+            this.dispatchDisconnected!(false)
+        }
+        let history: HistoricalEvent
+        if (Boolean(history = this.events[event.id!])) {
+            clearTimeout(history.timeout)
+            return
+        }
         this.roots[path.value].Receive(path.increment(), event)
     }
 
-    public Emit(path: Path, event: Event) {
-        EventsEmit(`${event.op}_client`, String(path), ...(event.op == 'set' ? [event.value] : []))
+    private rollbackEvent(id: number) {
+        // Rollback all events that occurred preceding the event which was rolled back
+        const events = globalThis.Object.values(this.events)
+            .filter((e) => e.id >= id)
+            .sort((a, b) => b.id - a.id)
+        for (const event of events) {
+            if (event.reverted)
+                continue
+            clearTimeout(event.timeout)
+            this.Receive(event.path, {
+                id: -1,
+                op: "rollback",
+                record: event
+            })
+            event.reverted = true
+        }
+        if (this.disconnected) {
+            this.disconnected = false
+            this.dispatchDisconnected!(false)
+        }
+    }
+
+    public Emit(path: Path, event: EmittedEvent, previousValue?: ListValue, index?: string | number) {
+        const id = this.counter++
+        const timeout = setTimeout(() => {
+            this.disconnected = true
+            this.dispatchDisconnected!(true)
+        }, 1000)
+        this.events[id] = {
+            op: event.op,
+            id: id,
+            timeout: timeout,
+            index: index,
+            path: path,
+            previousValue: previousValue,
+        }
+        const args = event.op == 'set' || event.op == 'append' ? [event.value == undefined ? '' : event.value] : []
+        EventsEmit(`${event.op}_client`, String(path), ...args, id)
+    }
+
+    public Disconnected(): boolean {
+        const [disconnected, setDisconnected] = useState(this.disconnected)
+        this.dispatchDisconnected = setDisconnected
+        return disconnected
     }
 
     public Ready() {
@@ -323,11 +451,11 @@ export class Runtime {
 
     public Object(path: Path | string): Object {
         if (typeof path == 'string') {
-            path = new Path(path as string)
+            path = new Path(path)
         }
         path.reset()
         return this.roots[path.value].Object(path.increment())
     }
 }
 
-export const RuntimeContext = createContext<Runtime>(new Runtime())
+export const RuntimeContext = createContext(new Runtime())
