@@ -28,6 +28,14 @@ type Scratch struct {
 	variables map[string]*variable
 }
 
+func (s *Scratch) PrintStack() string {
+	var result string
+	for i := len(s.Stack) - 1; i >= 0; i-- {
+		result += s.Stack[i] + "->"
+	}
+	return result
+}
+
 func (s *Scratch) Set(name string, value interface{}) {
 	switch val := value.(type) {
 	case int:

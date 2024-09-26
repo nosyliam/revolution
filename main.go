@@ -2,8 +2,6 @@ package main
 
 import (
 	"embed"
-	"github.com/nosyliam/revolution/pkg/control"
-	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/nosyliam/revolution/platform"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
@@ -17,9 +15,7 @@ import (
 var assets embed.FS
 
 func main() {
-	windowManager := window.NewWindowManager(platform.WindowBackend)
-	eventBus := control.NewEventBus(platform.ControlBackend)
-	app := NewMacro(windowManager, eventBus)
+	app := NewMacro(platform.WindowBackend, platform.ControlBackend)
 
 	if err := wails.Run(&options.App{
 		Title:         "Revolution Macro",

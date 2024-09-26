@@ -30,12 +30,13 @@ type (
 )
 
 type Macro struct {
+	Account    string
 	EventBus   EventBus
 	Backend    Backend
 	Results    *ActionResults
-	State      config.Reactive
-	Settings   config.Reactive
-	Database   config.Reactive
+	State      *config.Object[config.State]
+	Settings   *config.Object[config.Settings]
+	Database   *config.Object[config.AccountDatabase]
 	Logger     *logging.Logger
 	Window     *window.Window
 	WinManager *window.Manager

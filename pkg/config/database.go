@@ -7,6 +7,7 @@ import (
 
 type Account struct {
 	Name           string `yaml:"name" key:"true"`
+	Preset         string `yaml:"preset"`
 	ServerID       string `yaml:"serverID,omitempty"`
 	LinkCode       string `yaml:"linkCode,omitempty"`
 	Invalid        bool   `yaml:"invalid,omitempty"`
@@ -73,8 +74,8 @@ func (d *AccountDatabase) Get(name string) *Account {
 	return nil
 }
 
-func NewDatabase(runtime *Runtime) (Reactive, error) {
-	db := File[State]{name: "database", path: "accounts.yaml", format: YAML, runtime: runtime}
+func NewDatabase(runtime *Runtime) (*Object[AccountDatabase], error) {
+	db := File[AccountDatabase]{name: "database", path: "accounts.yaml", format: YAML, runtime: runtime}
 	if err := db.load(); err != nil {
 		return nil, errors.Wrap(err, "Failed to load macro state")
 	}

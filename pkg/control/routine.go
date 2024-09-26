@@ -3,6 +3,7 @@ package control
 import (
 	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
+	"github.com/pkg/errors"
 )
 
 type Routine struct {
@@ -47,7 +48,7 @@ func (r *Routine) Execute() {
 				case common.TerminateSignal:
 					return
 				default:
-					r.err <- err.Error()
+					r.err <- errors.Wrap(err, "").Error()
 					<-<-r.pause
 				}
 			}

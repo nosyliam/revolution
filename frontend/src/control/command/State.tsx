@@ -1,12 +1,16 @@
 import {Group, Stack} from "@mantine/core";
 import {IconPlayerPauseFilled, IconPlayerPlayFilled, IconPlayerStopFilled} from '@tabler/icons-react';
 import ActionButton from "./ActionButton";
-import React from "react";
+import React, {useContext} from "react";
 import Switcher from "./Switcher";
 import TextContainer from "./TextContainer";
+import {RuntimeContext} from "../../hooks/useRuntime";
 
 
 export default function State() {
+    const runtime = useContext(RuntimeContext)
+    const state = runtime.Object("state")
+
     const start = (macro: string) => {
     }
     const pause = (macro: string) => {

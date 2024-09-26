@@ -23,11 +23,6 @@ type Reactive interface {
 	File() Savable
 }
 
-type reactiveList interface {
-	Reactive
-	list()
-}
-
 type reactiveObject interface {
 	Reactive
 	object() interface{}
@@ -180,7 +175,7 @@ func (c *List[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			c.keySz = field.Tag.Get("yaml")
 			c.index = make(map[string]*Object[T])
 			for _, obj := range c.obj {
-				objKey := reflect.ValueOf(obj.Concrete()).Elem().FieldByName(c.key).String()
+				objKey := reflect.ValueOf(obj.object()).Elem().FieldByName(c.key).String()
 				if _, ok := c.index[objKey]; ok {
 					return c.errPath(fmt.Sprintf("duplicate key: %s", objKey))
 				}
@@ -320,6 +315,9 @@ func (c *List[T]) GetConcrete(chain chain, index int) (interface{}, error) {
 		field := reflect.ValueOf(c.prim).Index(idx)
 		return field.Interface(), nil
 	}
+	if len(chain) == index+1 {
+		return c.list(), nil
+	}
 	if len(chain) == index {
 		return nil, c.errPath("a key must be provided")
 	}
@@ -328,7 +326,7 @@ func (c *List[T]) GetConcrete(chain chain, index int) (interface{}, error) {
 	}
 	if c.index != nil {
 		if val, ok := c.index[chain[index].val]; ok {
-			return c.getField(reflect.ValueOf(val), chain, index)
+			return c.getConcreteField(reflect.ValueOf(val), chain, index)
 		} else {
 			return nil, nil
 		}
@@ -339,7 +337,7 @@ func (c *List[T]) GetConcrete(chain chain, index int) (interface{}, error) {
 	}
 
 	field := reflect.ValueOf(c.obj).Index(idx)
-	return field.Interface().(Reactive).Get(chain, index+1)
+	return field.Interface().(Reactive).GetConcrete(chain, index+1)
 }
 
 func (c *List[T]) Append(chain chain, index int, value interface{}) error {
@@ -473,17 +471,11 @@ func (c *List[T]) Length(chain chain, index int) int {
 	return field.Interface().(Reactive).Length(chain, index+1)
 }
 
-func (c *List[T]) list() {}
-
-func (c *List[T]) Concrete() []T {
+func (c *List[T]) list() interface{} {
 	if c.prim != nil {
 		return c.prim
 	} else {
-		var concrete []T
-		for _, obj := range c.obj {
-			concrete = append(concrete, *obj.obj)
-		}
-		return concrete // optimize?
+		return c.obj
 	}
 }
 
@@ -494,6 +486,10 @@ type Object[T any] struct {
 
 func (c *Object[T]) object() interface{} {
 	return c.obj
+}
+
+func (c *Object[T]) Object() T {
+	return *c.obj
 }
 
 func (c *Object[T]) MarshalYAML() (interface{}, error) {
@@ -691,10 +687,6 @@ func (c *Object[T]) Length(chain chain, index int) int {
 	return 0
 }
 
-func (c *Object[T]) Concrete() *T {
-	return c.obj
-}
-
 func (c *Object[T]) SetPath(path string, value interface{}) error {
 	chain, err := compilePath(path)
 	if err != nil {
@@ -703,8 +695,24 @@ func (c *Object[T]) SetPath(path string, value interface{}) error {
 	return c.Set(chain, 0, value)
 }
 
+func (c *Object[T]) SetPathf(value interface{}, path string, args ...interface{}) error {
+	chain, err := compilePath(fmt.Sprintf(path, args...))
+	if err != nil {
+		return err
+	}
+	return c.Set(chain, 0, value)
+}
+
 func (c *Object[T]) GetPath(path string) (interface{}, error) {
 	chain, err := compilePath(path)
+	if err != nil {
+		return nil, err
+	}
+	return c.Get(chain, 0)
+}
+
+func (c *Object[T]) GetPathf(path string, args ...interface{}) (interface{}, error) {
+	chain, err := compilePath(fmt.Sprintf(path, args...))
 	if err != nil {
 		return nil, err
 	}
@@ -800,13 +808,18 @@ func Concrete[T any](object Reactive, path string, args ...interface{}) *T {
 	if obj, err := object.GetConcrete(chain, 0); err != nil {
 		panic(fmt.Sprintf("invalid concrete access: %s: %v", path, err))
 	} else {
-		if val, ok := obj.(T); ok {
+		if obj == nil {
+			return nil
+		}
+		switch val := obj.(type) {
+		case T:
 			return &val
-		} else if valPtr, ok := obj.(*T); ok {
-			return valPtr
-		} else if obj != nil {
+		case *T:
+			return val
+		case *Object[T]:
+			return val.object().(*T)
+		default:
 			panic(fmt.Sprintf("invalid concrete object type: %s", path))
 		}
-		return nil
 	}
 }
