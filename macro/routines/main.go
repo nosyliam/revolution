@@ -8,7 +8,18 @@ import (
 const MainRoutineKind RoutineKind = "Main"
 
 var MainRoutine = Actions{
-	Info("Hello world")(),
+	Set("test", 0),
+	Loop(
+		For(10),
+		Condition(
+			If(GreaterThan(V[int]("test"), 5)),
+			Info("Second: %d", VI("test"))(Status),
+			Else(),
+			Info("First: %d", VI("test"))(Status),
+		),
+		Increment("test"),
+		Sleep(1).Seconds(),
+	),
 	Sleep(1).Seconds(),
 }
 

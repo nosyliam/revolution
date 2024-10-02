@@ -2,7 +2,6 @@ package routines
 
 import (
 	. "github.com/nosyliam/revolution/pkg/common"
-	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/control"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 	"github.com/stretchr/testify/assert"
@@ -71,7 +70,7 @@ func Test_Conditionals(t *testing.T) {
 }
 
 func Test_Loops(t *testing.T) {
-	macro := &Macro{Results: &ActionResults{}, State: &config.MacroState{LoopState: &config.LoopState{}}}
+	macro := &Macro{Results: &ActionResults{}}
 	exec(macro, []Action{
 		Loop(
 			For(10),

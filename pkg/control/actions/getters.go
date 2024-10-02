@@ -15,9 +15,17 @@ func S(path string) interface{} {
 	return nil
 }
 
+// Get a variable as a concrete type
 func V[T any](name VariableName) func(macro *common.Macro) T {
 	return func(macro *common.Macro) T {
 		return macro.Scratch.Get(string(name)).(T)
+	}
+}
+
+// Get a variable as an interface
+func VI(name VariableName) func(macro *common.Macro) interface{} {
+	return func(macro *common.Macro) interface{} {
+		return macro.Scratch.Get(string(name))
 	}
 }
 

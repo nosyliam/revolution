@@ -315,17 +315,17 @@ func (c *List[T]) GetConcrete(chain chain, index int) (interface{}, error) {
 		field := reflect.ValueOf(c.prim).Index(idx)
 		return field.Interface(), nil
 	}
-	if len(chain) == index+1 {
-		return c.list(), nil
-	}
 	if len(chain) == index {
-		return nil, c.errPath("a key must be provided")
+		return c.list(), nil
 	}
 	if !chain[index].brackets {
 		return nil, c.errPath("list values must be indexed with brackets")
 	}
 	if c.index != nil {
 		if val, ok := c.index[chain[index].val]; ok {
+			if len(chain) == index+1 {
+				return val, nil
+			}
 			return c.getConcreteField(reflect.ValueOf(val), chain, index)
 		} else {
 			return nil, nil
@@ -337,6 +337,9 @@ func (c *List[T]) GetConcrete(chain chain, index int) (interface{}, error) {
 	}
 
 	field := reflect.ValueOf(c.obj).Index(idx)
+	if len(chain) == index+1 {
+		return field.Interface(), nil
+	}
 	return field.Interface().(Reactive).GetConcrete(chain, index+1)
 }
 
@@ -743,6 +746,14 @@ func (c *Object[T]) DeletePath(path string) error {
 	return c.Delete(chain, 0)
 }
 
+func (c *Object[T]) DeletePathf(path string, args ...interface{}) error {
+	chain, err := compilePath(fmt.Sprintf(path, args...))
+	if err != nil {
+		return nil
+	}
+	return c.Delete(chain, 0)
+}
+
 func (c *Object[T]) LengthPath(path string) int {
 	chain, err := compilePath(path)
 	if err != nil {
@@ -773,7 +784,7 @@ func compilePath(path string) (chain, error) {
 
 func getFieldTag(tag reflect.StructTag) string {
 	var field string
-	if field = tag.Get("yaml"); field != "" {
+	if field = tag.Get("yaml"); field != "" && field != "-" {
 		if strings.Count(field, ",") > 0 {
 			field = strings.Split(field, ",")[0]
 		}
@@ -819,6 +830,7 @@ func Concrete[T any](object Reactive, path string, args ...interface{}) *T {
 		case *Object[T]:
 			return val.object().(*T)
 		default:
+			fmt.Println("result", val)
 			panic(fmt.Sprintf("invalid concrete object type: %s", path))
 		}
 	}

@@ -17,16 +17,21 @@ type LoopState struct {
 type MacroState struct {
 	AccountName string `yaml:"accountName" key:"true"`
 
-	Running bool `state:"running"`
-	Paused  bool `state:"paused"`
+	Running bool `state:"running" yaml:"-"`
+	Paused  bool `state:"paused" yaml:"-"`
 
-	Status string `state:"status"`
+	Status string `state:"status" default:"Pending"`
+}
+
+type StateConfig struct {
+	CodeStatus    string `state:"codeStatus" default:"pending" yaml:"-"`
+	DefaultPreset string `yaml:"defaultPreset" default:"default"`
+	ActiveAccount string `yaml:"activeAccount,omitempty" default:"default"`
 }
 
 type State struct {
-	DefaultPreset string            `yaml:"defaultPreset" default:"default"`
-	ActiveAccount string            `yaml:"activeAccount,omitempty"`
-	Macros        *List[MacroState] `yaml:"macros"`
+	Config *Object[StateConfig] `yaml:"config"`
+	Macros *List[MacroState]    `yaml:"macros"`
 }
 
 func NewState(runtime *Runtime) (*Object[State], error) {

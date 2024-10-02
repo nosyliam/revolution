@@ -22,6 +22,10 @@ func execArgs(macro *common.Macro, args []interface{}) []interface{} {
 		switch fn := arg.(type) {
 		case func(macro *common.Macro) error:
 			res = append(res, fn(macro))
+		case func(macro *common.Macro) interface{}:
+			res = append(res, fn(macro))
+		case func() interface{}:
+			res = append(res, fn())
 		case func() error:
 			res = append(res, fn())
 		case common.Action:
@@ -44,10 +48,10 @@ type LogAction struct {
 }
 
 func (a *LogAction) Execute(macro *common.Macro) error {
-	if a.status {
-		macro.Status(a.log)
-	}
 	msg := fmt.Sprintf(a.log, execArgs(macro, a.args)...)
+	if a.status {
+		macro.Status(msg)
+	}
 	if err := macro.Logger.Log(a.verbosity, a.level, msg); err != nil {
 		return errors.Wrap(err, "failed to log")
 	}

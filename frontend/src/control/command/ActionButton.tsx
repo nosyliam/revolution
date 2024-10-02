@@ -6,7 +6,8 @@ import React from "react";
 interface ActionButtonProps {
     action: string
     icon: React.ReactNode
-    execute: (macro: string) => void
+    execute: () => void
+    disabled?: boolean
 }
 
 export default function ActionButton(props: ActionButtonProps) {
@@ -17,6 +18,8 @@ export default function ActionButton(props: ActionButtonProps) {
                 classNames={classes}
                 fz={16}
                 leftSection={props.icon}
+                disabled={props.disabled}
+                onClick={props.execute}
             >
                 { props.action }
             </Button>

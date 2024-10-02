@@ -122,7 +122,6 @@ export default function JellyTool() {
     const requireMutation = settings.Value<boolean>("requireMutation", false)
     const mutationType = settings.Value<string>("mutationType", "movespeed")
     const mutationValue = settings.Value<number>("mutationValue", 0)
-    const rollLimit = settings.Value<number>("rollLimit", 0)
     const usePercent = settings.Value<boolean>("usePercent", false)
     const stopGifted = settings.Value<boolean>("stopGifted", false)
     const stopMythic = settings.Value<boolean>("stopMythic", false)

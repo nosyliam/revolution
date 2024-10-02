@@ -41,7 +41,7 @@ type Event = (RollbackEvent | EmittedEvent) & BaseEvent
 
 type Value = number | string | boolean
 
-interface KeyedObject {
+export interface KeyedObject {
     key: string
     object: Object
 }
@@ -143,6 +143,10 @@ export class Object implements Reactive {
         this.path = path
     }
 
+    public Concrete<T extends Value>(field: string): T | undefined {
+        return this.values[field]?.value as T
+    }
+
     public Value<T extends Value>(field: string, defaultValue: T): T {
         let def: Field = this.values[field] ? {value: this.values[field].value} : {value: defaultValue}
         const [value, dispatch] = useState<Value>(def.value)
@@ -229,9 +233,11 @@ export class List<T extends ListValue> implements Reactive {
 
     private dispatch?: Dispatch<T[]>
     private values: Array<T> = []
+    private reactive?: boolean = false
 
     public primitive: boolean | undefined = undefined;
     public keyed: boolean = false;
+
 
     constructor(path: Path, runtime: Runtime) {
         this.path = path;
@@ -251,7 +257,10 @@ export class List<T extends ListValue> implements Reactive {
         return index
     }
 
-    public Values(): T[] {
+    public Values(reactive?: boolean): T[] {
+        if (reactive)
+            this.reactive = true
+        reactive && console.log('initialize', this.values)
         const [values, dispatch] = useState<T[]>(this.values)
         useEffect(() => {
             this.dispatch = dispatch
@@ -293,9 +302,13 @@ export class List<T extends ListValue> implements Reactive {
         const index = this.index(path)
         if (!path.peekFinal) {
             if (this.keyed) {
-                (this.values[index] as KeyedObject).object.Receive(path, event)
+                (this.values[index] as KeyedObject).object.Receive(path.increment(), event)
+                if (this.reactive)
+                    this.dispatch && this.dispatch([...this.values])
             } else {
-                (this.values[index] as Object).Receive(path, event)
+                (this.values[index] as Object).Receive(path.increment(), event)
+                if (this.reactive)
+                    this.dispatch && this.dispatch([...this.values])
             }
             return
         }
@@ -320,14 +333,19 @@ export class List<T extends ListValue> implements Reactive {
                 this.dispatch && this.dispatch([...this.values])
                 break;
             case "append":
+                if (path.value == '_init')
+                    return
+                console.log('append', String(path), event)
                 if (this.keyed) {
                     (this.values as KeyedObject[]) = [...(this.values as KeyedObject[]), {
                         key: path.value,
                         object: new Object(path, this.runtime)
                     }]
+                    console.log('dispatching', this.values.slice())
                 } else if (!this.primitive) {
                     (this.values as Object[]) = [...(this.values as Object[]), new Object(path, this.runtime)]
                 }
+                this.dispatch && console.log('dispatching', this.values.slice())
                 this.dispatch && this.dispatch(this.values)
                 break;
             case "delete":

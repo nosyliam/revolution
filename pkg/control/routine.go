@@ -16,13 +16,11 @@ type Routine struct {
 
 	stop     chan struct{}
 	redirect chan *common.RedirectExecution
-	pause    <-chan (<-chan struct{})
 	err      chan<- string
 }
 
 func (r *Routine) Copy(routine *Routine) {
 	r.stop = routine.stop
-	r.pause = routine.pause
 	r.err = routine.err
 	r.redirect = routine.redirect
 }
@@ -49,7 +47,7 @@ func (r *Routine) Execute() {
 					return
 				default:
 					r.err <- errors.Wrap(err, "").Error()
-					<-<-r.pause
+					<-<-r.macro.Pause
 				}
 			}
 			if len(r.redirect) > 0 {
@@ -77,8 +75,8 @@ func (r *Routine) Execute() {
 				}
 				break
 			}
-			if len(r.pause) > 0 {
-				<-<-r.pause
+			if len(r.macro.Pause) > 0 {
+				<-<-r.macro.Pause
 			}
 		}
 		r.macro.Results = &common.ActionResults{}
@@ -92,7 +90,6 @@ func ExecuteRoutine(
 	macro *common.Macro,
 	actions common.Actions,
 	stop chan struct{},
-	pause <-chan (<-chan struct{}),
 	status chan<- string,
 	err chan<- string,
 	redirect chan *common.RedirectExecution,
@@ -101,7 +98,6 @@ func ExecuteRoutine(
 		macro:    macro,
 		actions:  actions,
 		stop:     stop,
-		pause:    pause,
 		err:      err,
 		redirect: redirect,
 	}

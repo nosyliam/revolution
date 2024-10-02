@@ -33,8 +33,8 @@ func (a *Account) GenerateJoinUrl(ignoreLink bool) (string, error) {
 	return "", nil
 }
 
-func NewAccount(db *AccountDatabase, code string) (*Account, error) {
-	return nil, nil
+func (a *Account) Delete() {
+
 }
 
 type AccountDatabase struct {

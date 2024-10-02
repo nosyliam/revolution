@@ -14,7 +14,7 @@ import Tools from "../pages/tools/Tools";
 export default function MacroTabs() {
     return (
         <Flex style={{flexGrow: 1}}>
-            <Tabs defaultValue="gallery">
+            <Tabs defaultValue="gallery" style={{width: '100%'}}>
                 <Tabs.List bg="gray.0">
                     <Tabs.Tab classNames={tabClasses} value="gather" leftSection={<IconShovel size={16}/>}>
                         Gather

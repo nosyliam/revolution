@@ -46,6 +46,7 @@ type Macro struct {
 	Subroutine SubroutineExecutor
 	Action     func(Action) error
 	Status     func(string)
+	Pause      <-chan (<-chan struct{})
 }
 
 func (m *Macro) Copy() *Macro {

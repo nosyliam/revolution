@@ -178,6 +178,9 @@ func (a *loopAction) Execute(macro *common.Macro) error {
 				if err := macro.Action(exec); err != nil {
 					return err
 				}
+				if len(macro.Pause) > 0 {
+					<-<-macro.Pause
+				}
 				if unwind := state.Unwind; unwind != nil {
 					break
 				}
@@ -251,6 +254,14 @@ func For(args ...int) LoopPredicate {
 	default:
 		panic("invalid arguments")
 	}
+}
+
+type whileLoop struct {
+	predicate PredicateFunc
+}
+
+type untilLoop struct {
+	predicate PredicateFunc
 }
 
 func Loop(predicate LoopPredicate, actions ...interface{}) common.Action {

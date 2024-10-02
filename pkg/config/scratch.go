@@ -78,3 +78,7 @@ func (s *Scratch) Reset(name string) {
 		val.value = false
 	}
 }
+
+func NewScratch() *Scratch {
+	return &Scratch{LoopState: &LoopState{}, variables: make(map[string]*variable)}
+}
