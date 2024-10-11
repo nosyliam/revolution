@@ -1,6 +1,7 @@
 package routines
 
 import (
+	"fmt"
 	. "github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 )
@@ -10,6 +11,7 @@ const (
 )
 
 func closeWindow(macro *Macro) error {
+	fmt.Println("window", macro.Window)
 	if err := macro.Window.Close(); err != nil {
 		return err
 	}
@@ -19,7 +21,14 @@ func closeWindow(macro *Macro) error {
 }
 
 func openWindow(macro *Macro) error {
-	return nil
+	ignoreLink := V[bool](UsePublicServer)(macro)
+	if win, err := macro.WinManager.OpenWindow(macro.Account, macro.Database, macro.Settings, ignoreLink); err != nil {
+		fmt.Println("open err", err)
+		return err
+	} else {
+		macro.Window = win
+		return nil
+	}
 }
 
 func fallbackServerEnabled(macro *Macro) bool {
@@ -31,6 +40,8 @@ func privateServerAttempts(macro *Macro) int {
 }
 
 var OpenRobloxRoutine = Actions{
+	Set(RetryCount, 0),
+	Set(UsePublicServer, false),
 	Condition(
 		If(NotNil(Window)),
 		Info("Attempting to close Roblox")(Status, Discord),
@@ -38,7 +49,7 @@ var OpenRobloxRoutine = Actions{
 			For(5),
 			Condition(
 				If(ExecError(closeWindow)),
-				Error("Failed to close Roblox: %s! Attempt %d", LastError, Index(0))(Status, Discord),
+				Error("Failed to close Roblox: %s! Attempt: %d", LastError, Index(0))(Status, Discord),
 				Sleep(5).Seconds(),
 				Else(),
 				Break(),
@@ -50,10 +61,10 @@ var OpenRobloxRoutine = Actions{
 		For(10),
 		Condition(
 			If(ExecError(openWindow)),
-			Error("Failed to open Roblox: %s! Attempt %d", LastError, Index(0))(Status, Discord),
+			Error("Failed to open Roblox! Attempt: %d", Index(0))(Status, Discord),
 			Sleep(5).Seconds(),
 			Condition(
-				If(And(Equal(V[int](RetryCount), 5), True(fallbackServerEnabled))),
+				If(And(GreaterThanEq(V[int](RetryCount), 5), True(P[bool]("window.fallbackToPublicServer")))),
 				Set(UsePublicServer, true),
 				If(Equal(privateServerAttempts, 5)),
 				Break(),
@@ -70,8 +81,6 @@ var OpenRobloxRoutine = Actions{
 		Sleep(30).Seconds(),
 		Restart(),
 	),
-	Reset(RetryCount),
-	Reset(UsePublicServer),
 	Redirect(MainRoutineKind),
 }
 

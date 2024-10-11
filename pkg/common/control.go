@@ -32,11 +32,10 @@ const (
 	Seven
 )
 
-type InterruptType int
+type InterruptKind int
 
 const (
-	ImmediateInterrupt InterruptType = iota
-	DelayedInterrupt
+	DelayedInterrupt InterruptKind = iota
 	IntervalInterrupt
 )
 
@@ -58,7 +57,9 @@ type EventBus interface {
 }
 
 type Scheduler interface {
-	Execute(interruptType InterruptType) error
+	Execute(interruptType InterruptKind)
+	Start()
+	Close()
 }
 
 type Event interface {

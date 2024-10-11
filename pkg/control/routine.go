@@ -6,23 +6,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+const MainRoutineKind common.RoutineKind = "main"
+
 type Routine struct {
 	macro   *common.Macro
+	kind    common.RoutineKind
 	actions []common.Action
 
 	depth       int
 	redirectLoc *common.RedirectExecution
 	parent      *Routine
 
-	stop     chan struct{}
-	redirect chan *common.RedirectExecution
-	err      chan<- string
+	stop chan struct{}
+	err  chan<- string
 }
 
 func (r *Routine) Copy(routine *Routine) {
 	r.stop = routine.stop
 	r.err = routine.err
-	r.redirect = routine.redirect
 }
 
 func (r *Routine) Execute() {
@@ -30,29 +31,39 @@ func (r *Routine) Execute() {
 		for i := 0; i < len(r.actions); i++ {
 			if err := r.actions[i].Execute(r.macro); err != nil {
 				if redirect, ok := err.(*common.RedirectExecution); ok {
-					r.parent.redirectLoc = redirect
-					return
+					if r.parent != nil {
+						r.parent.redirectLoc = redirect
+						return
+					} else {
+						r.redirectLoc = redirect
+						err = nil
+					}
 				}
 				switch err {
 				case common.RetrySignal:
 					i -= 1
-					continue
 				case common.StepBackSignal:
 					i -= 2
-					continue
 				case common.RestartSignal:
-					i = 0
-					continue
+					i = -1
 				case common.TerminateSignal:
 					return
+				case nil:
 				default:
 					r.err <- errors.Wrap(err, "").Error()
 					<-<-r.macro.Pause
 				}
 			}
-			if len(r.redirect) > 0 {
-				r.parent.redirectLoc = <-r.redirect
-				return
+			if len(r.macro.Redirect) > 0 && (r.parent == nil || r.parent.redirectLoc == nil) {
+				kind := <-r.macro.Redirect
+				if kind.Routine != r.kind {
+					if r.parent == nil {
+						r.redirectLoc = kind
+					} else {
+						r.parent.redirectLoc = kind
+						return
+					}
+				}
 			}
 			if len(r.stop) > 0 {
 				<-r.stop
@@ -92,14 +103,13 @@ func ExecuteRoutine(
 	stop chan struct{},
 	status chan<- string,
 	err chan<- string,
-	redirect chan *common.RedirectExecution,
 ) {
 	routine := &Routine{
-		macro:    macro,
-		actions:  actions,
-		stop:     stop,
-		err:      err,
-		redirect: redirect,
+		macro:   macro,
+		actions: actions,
+		stop:    stop,
+		err:     err,
+		kind:    MainRoutineKind,
 	}
 	macro.Scratch.Stack = []string{"Main"}
 	var execSub func(routine *Routine, macro *common.Macro) common.SubroutineExecutor
@@ -134,7 +144,7 @@ func ExecuteRoutine(
 			subMacro.Action = func(action common.Action) error {
 				return action.Execute(subMacro)
 			}
-			subRoutine := &Routine{macro: subMacro, actions: subActions, depth: routine.depth + 1, parent: routine}
+			subRoutine := &Routine{macro: subMacro, actions: subActions, depth: routine.depth + 1, parent: routine, kind: kind}
 			subRoutine.Copy(routine)
 			subRoutine.Execute()
 			macro.Scratch.Stack = macro.Scratch.Stack[1:]
@@ -148,5 +158,6 @@ func ExecuteRoutine(
 	macro.Status = func(stat string) {
 		status <- stat
 	}
+	go macro.Scheduler.Start()
 	routine.Execute()
 }

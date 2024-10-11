@@ -33,6 +33,7 @@ type Macro struct {
 	Account    string
 	EventBus   EventBus
 	Backend    Backend
+	Scheduler  Scheduler
 	Results    *ActionResults
 	State      *config.Object[config.State]
 	Settings   *config.Object[config.Settings]
@@ -47,20 +48,24 @@ type Macro struct {
 	Action     func(Action) error
 	Status     func(string)
 	Pause      <-chan (<-chan struct{})
+	Redirect   chan *RedirectExecution
 }
 
 func (m *Macro) Copy() *Macro {
-	macro := &Macro{
-		EventBus: m.EventBus,
-		Backend:  m.Backend,
-		Settings: m.Settings,
-		Logger:   m.Logger,
-		Window:   m.Window,
-		State:    m.State,
-		Results:  &ActionResults{},
+	return &Macro{
+		Account:    m.Account,
+		EventBus:   m.EventBus,
+		Backend:    m.Backend,
+		Scheduler:  m.Scheduler,
+		Settings:   m.Settings,
+		State:      m.State,
+		Database:   m.Database,
+		Window:     m.Window,
+		WinManager: m.WinManager,
+		Scratch:    m.Scratch,
+		Subroutine: m.Subroutine,
+		Logger:     m.Logger,
+		Pause:      m.Pause,
+		Redirect:   m.Redirect,
 	}
-	macro.Action = func(action Action) error {
-		return action.Execute(macro)
-	}
-	return macro
 }

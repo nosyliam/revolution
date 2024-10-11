@@ -41,3 +41,16 @@ func (a *incrementVariableAction) Execute(macro *common.Macro) error {
 func Increment(name VariableName) common.Action {
 	return &incrementVariableAction{name: name}
 }
+
+type clearVariableAction struct {
+	name VariableName
+}
+
+func (a *clearVariableAction) Execute(macro *common.Macro) error {
+	macro.Scratch.Clear(string(a.name))
+	return nil
+}
+
+func Clear(name VariableName) common.Action {
+	return &clearVariableAction{name: name}
+}

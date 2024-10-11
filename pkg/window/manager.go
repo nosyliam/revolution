@@ -6,6 +6,7 @@ import (
 	. "github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
+	"github.com/sqweek/dialog"
 	"image"
 	"strings"
 	"sync"
@@ -160,34 +161,42 @@ func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowC
 
 	// If there's no window configuration associated with the macro instance, attempt to find an available spot
 	if settings == nil {
+		retinaFound := false
 		if sz == "" {
 			sz = FullWindowSize
 		}
-		for _, screen := range m.reservedWindows {
-			switch true {
+		for i, screen := range m.reservedWindows {
+			if screens[i].Scale > 1 {
+				retinaFound = true
+				continue
+			}
+
+			switch {
 			case screen.Available(0, 1, 2, 3) && sz == FullWindowSize:
-				settings = &WindowConfig{Alignment: FullScreenWindowAlignment}
+				settings = &WindowConfig{Screen: i, Alignment: FullScreenWindowAlignment}
 			case screen.Available(0, 1) && sz == HalfWindowSize:
-				settings = &WindowConfig{Alignment: TopLeftWindowAlignment, FullWidth: true}
+				settings = &WindowConfig{Screen: i, Alignment: TopLeftWindowAlignment, FullWidth: true}
 			case screen.Available(2, 3) && sz == HalfWindowSize:
-				settings = &WindowConfig{Alignment: BottomLeftWindowAlignment, FullWidth: true}
+				settings = &WindowConfig{Screen: i, Alignment: BottomLeftWindowAlignment, FullWidth: true}
 			case screen.Available(0):
-				settings = &WindowConfig{Alignment: TopLeftWindowAlignment}
+				settings = &WindowConfig{Screen: i, Alignment: TopLeftWindowAlignment}
 			case screen.Available(1):
-				settings = &WindowConfig{Alignment: TopRightWindowAlignment}
+				settings = &WindowConfig{Screen: i, Alignment: TopRightWindowAlignment}
 			case screen.Available(2):
-				settings = &WindowConfig{Alignment: BottomLeftWindowAlignment}
+				settings = &WindowConfig{Screen: i, Alignment: BottomLeftWindowAlignment}
 			case screen.Available(3):
-				settings = &WindowConfig{Alignment: BottomRightWindowAlignment}
+				settings = &WindowConfig{Screen: i, Alignment: BottomRightWindowAlignment}
 			}
 			if settings != nil {
 				break
 			}
 		}
-		if settings != nil {
-			return nil, errors.New("No displays available for the macro window")
-		} else {
-
+		if settings == nil {
+			if retinaFound {
+				return nil, errors.New("A non-retina display could not be found. Attach a monitor or install DeskPad to add a virtual monitor.")
+			} else {
+				return nil, errors.New("No displays available for the macro window")
+			}
 		}
 	}
 
@@ -288,13 +297,13 @@ func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowC
 	return settings, nil
 }
 
-func (m *Manager) OpenWindow(accountName *string, db, settings Reactive, ignoreLink bool) (*Window, error) {
+func (m *Manager) OpenWindow(accountName string, db, settings Reactive, ignoreLink bool) (*Window, error) {
 	var joinOptions = JoinOptions{}
 	var windowConfig *WindowConfig
-	if accountName != nil {
+	if accountName != "default" {
 		account := Concrete[Account](db, "accounts[%s]", accountName)
 		if account == nil {
-			return nil, errors.New(fmt.Sprintf("Account %s not found", *accountName))
+			return nil, errors.New(fmt.Sprintf("Account %s not found", accountName))
 		}
 		if url, err := account.GenerateJoinUrl(ignoreLink); err != nil {
 			return nil, errors.Wrap(err, "Failed to generate join url")
@@ -308,17 +317,19 @@ func (m *Manager) OpenWindow(accountName *string, db, settings Reactive, ignoreL
 			}
 		}
 	} else {
-		if id := Concrete[string](settings, "window.windowConfigId"); *id != "" {
-			if windowConfig = Concrete[WindowConfig](settings, "windows[%s]", *id); windowConfig == nil {
-				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *id))
-			}
-		}
 		if privateLink := Concrete[string](settings, "window.privateServerLink"); *privateLink != "" && !ignoreLink {
 			parts := strings.Split(*privateLink, "=")
 			if len(parts) != 2 {
 				return nil, errors.New("Invalid private server link format")
 			}
 			joinOptions = JoinOptions{LinkCode: parts[1]}
+		}
+	}
+	if windowConfig == nil {
+		if id := Concrete[string](settings, "window.windowConfigId"); *id != "" && *id != "default" {
+			if windowConfig = Concrete[WindowConfig](settings, "windows[%s]", *id); windowConfig == nil {
+				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *id))
+			}
 		}
 	}
 	if windowConfig != nil {
@@ -330,8 +341,9 @@ func (m *Manager) OpenWindow(accountName *string, db, settings Reactive, ignoreL
 	if err = m.adjustDisplays(); err != nil {
 		return nil, errors.Wrap(err, "failed to adjust displays")
 	}
-	windowConfig, err = m.reserveWindow(windowConfig, *Concrete[WindowSize](settings, "window.defaultWindowSize"))
+	windowConfig, err = m.reserveWindow(windowConfig, *Concrete[WindowSize](settings, "window.windowSize"))
 	if err != nil {
+		dialog.Message(err.Error()).Error()
 		return nil, errors.Wrap(err, "Failed to reserve window")
 	}
 	id, err := m.backend.OpenWindow(joinOptions)
@@ -350,5 +362,9 @@ func (m *Manager) OpenWindow(accountName *string, db, settings Reactive, ignoreL
 }
 
 func NewWindowManager(backend Backend) *Manager {
-	return &Manager{backend: backend}
+	return &Manager{
+		backend:      backend,
+		windowFrames: make(map[string]revimg.Frame),
+		reservedIds:  make(map[string]*Window),
+	}
 }

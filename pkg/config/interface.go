@@ -830,7 +830,6 @@ func Concrete[T any](object Reactive, path string, args ...interface{}) *T {
 		case *Object[T]:
 			return val.object().(*T)
 		default:
-			fmt.Println("result", val)
 			panic(fmt.Sprintf("invalid concrete object type: %s", path))
 		}
 	}

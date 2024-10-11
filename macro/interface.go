@@ -41,7 +41,9 @@ func (i *Interface) Start() {
 		Scratch:    config.NewScratch(),
 		Results:    &common.ActionResults{},
 		Pause:      pause,
+		Redirect:   i.redirect,
 	}
+	i.Macro.Scheduler = NewScheduler(i.Macro, i.redirect)
 
 	stop := make(chan struct{}, 1)
 	err := make(chan string, 1)
@@ -60,23 +62,26 @@ func (i *Interface) Start() {
 			case <-i.pause:
 				if i.unpause != nil {
 					_ = i.State.SetPath("paused", false)
+					i.Macro.Scheduler.Start()
 					i.unpause <- struct{}{}
 					i.unpause = nil
 					continue
 				}
 				_ = i.State.SetPath("paused", true)
+				i.Macro.Scheduler.Close()
 				i.unpause = make(chan struct{}, 1)
 				pause <- i.unpause
 			case <-i.stop:
 				_ = i.State.SetPath("running", false)
 				stop <- struct{}{}
+				i.Macro = nil
 				return
 			}
 		}
 	}()
 
 	main := common.Routines[routines.MainRoutineKind]
-	control.ExecuteRoutine(i.Macro, main, stop, status, err, i.redirect)
+	go control.ExecuteRoutine(i.Macro, main, stop, status, err)
 }
 
 func (i *Interface) SendError(err string) {

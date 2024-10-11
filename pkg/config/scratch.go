@@ -79,6 +79,10 @@ func (s *Scratch) Reset(name string) {
 	}
 }
 
+func (s *Scratch) Clear(name string) {
+	delete(s.variables, name)
+}
+
 func NewScratch() *Scratch {
 	return &Scratch{LoopState: &LoopState{}, variables: make(map[string]*variable)}
 }

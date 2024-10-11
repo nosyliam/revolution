@@ -178,6 +178,9 @@ func (a *loopAction) Execute(macro *common.Macro) error {
 				if err := macro.Action(exec); err != nil {
 					return err
 				}
+				if len(macro.Redirect) > 0 {
+					return <-macro.Redirect
+				}
 				if len(macro.Pause) > 0 {
 					<-<-macro.Pause
 				}

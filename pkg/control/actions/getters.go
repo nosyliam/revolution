@@ -2,6 +2,7 @@ package actions
 
 import (
 	"github.com/nosyliam/revolution/pkg/common"
+	"github.com/nosyliam/revolution/pkg/config"
 )
 
 type VariableName string
@@ -26,6 +27,13 @@ func V[T any](name VariableName) func(macro *common.Macro) T {
 func VI(name VariableName) func(macro *common.Macro) interface{} {
 	return func(macro *common.Macro) interface{} {
 		return macro.Scratch.Get(string(name))
+	}
+}
+
+// Get a setting path as a concrete type
+func P[T any](path string) func(macro *common.Macro) T {
+	return func(macro *common.Macro) T {
+		return *config.Concrete[T](macro.Settings, path)
 	}
 }
 

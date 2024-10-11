@@ -3,20 +3,21 @@ package macro
 import (
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
+	"github.com/nosyliam/revolution/pkg/config"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
+	"slices"
 	"time"
 )
 
 const ClockTime = 50 * time.Millisecond
 
-type interruptMap map[common.RoutineKind]int
-
 type interval struct {
-	priority    int
-	delayed     bool
-	delay       time.Duration
-	kind        common.RoutineKind
-	getLastExec func() time.Time
+	priority int
+	delayed  bool
+	delay    int64
+	kind     common.RoutineKind
+
+	lastExec, enabled string
 }
 
 // Scheduler manages the execution of recurring tasks called interrupts. When an interrupt is activated, execution
@@ -35,25 +36,52 @@ type Scheduler struct {
 	macro     *common.Macro
 	close     chan struct{}
 	redirect  chan<- *common.RedirectExecution
-	delayed   interruptMap
-	interval  interruptMap
 	intervals []*interval
 	tick      int
 }
 
-func (s *Scheduler) Execute(interruptType common.InterruptType) error {
-	var interrupts interruptMap
-	switch interruptType {
-	case common.DelayedInterrupt:
-		interrupts = s.delayed
-	case common.IntervalInterrupt:
-		interrupts = s.interval
+// AddInterval registers an interval with the scheduler
+func (s *Scheduler) AddInterval(
+	kind common.InterruptKind,
+	routine common.RoutineKind,
+	priority int,
+	delay int64,
+	lastExecutionPath, enabledPath string,
+) {
+	s.intervals = append(s.intervals, &interval{
+		priority: priority,
+		delay:    delay,
+		delayed:  kind == common.DelayedInterrupt,
+		kind:     routine,
+		lastExec: lastExecutionPath,
+		enabled:  enabledPath,
+	})
+}
+
+func (s *Scheduler) Execute(interruptType common.InterruptKind) {
+	var intervals []*interval
+
+	for _, ivl := range s.intervals {
+		if interruptType == common.DelayedInterrupt && ivl.delayed {
+			intervals = append(intervals, ivl)
+		} else if interruptType == common.IntervalInterrupt && !ivl.delayed {
+			intervals = append(intervals, ivl)
+		}
 	}
 
-	if len(interrupts) == 0 {
-		return nil
+	slices.SortFunc(intervals, func(a, b *interval) int {
+		return a.priority - b.priority
+	})
+
+	for _, ivl := range intervals {
+		if *config.Concrete[bool](s.macro.Settings, ivl.enabled) {
+			var lastExec = *config.Concrete[int64](s.macro.State, ivl.lastExec)
+			if time.Now().Unix() >= lastExec+ivl.delay*60 {
+				s.macro.Routine(ivl.kind)
+				_ = s.macro.State.SetPath(ivl.lastExec, time.Now().Unix())
+			}
+		}
 	}
-	return nil
 }
 
 func (s *Scheduler) Close() {
@@ -71,14 +99,17 @@ func (s *Scheduler) Tick() {
 	if opening := s.macro.Scratch.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && len(s.redirect) == 0 {
 		if s.macro.Window == nil {
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
+			return
 		}
 		if err := s.macro.Window.Fix(); err != nil {
-			s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to close and re-open", LastError)(Status, Discord))
+			s.macro.Action(Error("Failed to adjust Roblox! Attempting to re-open")(Status))
+			s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to re-open", err)(Discord))
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}
 		if err := s.macro.Window.Screenshot(); err != nil {
-			s.macro.Action(Error("Failed to screenshot Roblox: %s! Attempting to close and re-open", LastError)(Status, Discord))
+			s.macro.Action(Error("Failed to screenshot Roblox! Attempting to re-open")(Status))
+			s.macro.Action(Error("Failed to screenshot Roblox: %s! Attempting to re-open", err)(Discord))
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}
@@ -104,17 +135,18 @@ func NewScheduler(macro *common.Macro, redirect chan<- *common.RedirectExecution
 	return &Scheduler{
 		macro:    macro,
 		redirect: redirect,
-		delayed:  interruptMap{},
-		interval: interruptMap{},
 	}
 }
 
-type intervalInterruptAction struct{}
+type InterruptAction struct {
+	kind common.InterruptKind
+}
 
-func (a *intervalInterruptAction) Execute(macro *common.Macro) error {
+func (a *InterruptAction) Execute(macro *common.Macro) error {
+	macro.Scheduler.Execute(a.kind)
 	return nil
 }
 
-func IntervalInterrupt() common.Action {
-	return &intervalInterruptAction{}
+func Interrupt() common.Action {
+	return &InterruptAction{}
 }

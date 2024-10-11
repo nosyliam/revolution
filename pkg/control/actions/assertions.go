@@ -2,6 +2,7 @@ package actions
 
 import (
 	"github.com/nosyliam/revolution/pkg/common"
+	"reflect"
 )
 
 type (
@@ -183,12 +184,16 @@ func LessThanEq(args ...interface{}) PredicateFunc {
 
 func NotNil(obj interface{}) PredicateFunc {
 	fn := obj.(func(*common.Macro) interface{})
-	return func(macro *common.Macro) bool { return fn(macro) != nil }
+	return func(macro *common.Macro) bool {
+		return !reflect.ValueOf(fn(macro)).IsNil()
+	}
 }
 
 func Nil(obj interface{}) PredicateFunc {
 	fn := obj.(func(*common.Macro) interface{})
-	return func(macro *common.Macro) bool { return fn(macro) == nil }
+	return func(macro *common.Macro) bool {
+		return reflect.ValueOf(fn(macro)).IsNil()
+	}
 }
 
 func True(args ...interface{}) PredicateFunc {
@@ -214,10 +219,10 @@ func execError(exec interface{}, err bool) PredicateFunc {
 	return func(macro *common.Macro) bool {
 		if err {
 			res := exc(macro)
-			return res == nil
+			return res != nil
 		} else {
 			res := exc(macro)
-			return res != nil
+			return res == nil
 		}
 	}
 }
