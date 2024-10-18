@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
 	"image"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -97,6 +98,14 @@ type Manager struct {
 	frames          []revimg.ScreenFrame
 }
 
+func (m *Manager) minimumSize() revimg.Frame {
+	if runtime.GOOS == "darwin" {
+		return revimg.Frame{Width: 800, Height: 628}
+	} else {
+		return revimg.Frame{Width: 0, Height: 0}
+	}
+}
+
 func (m *Manager) freeWindow(id string) {
 	m.Lock()
 	defer m.Unlock()
@@ -125,6 +134,7 @@ func (m *Manager) adjustDisplays() error {
 		m.displayCount = count
 	}
 	if len(m.reservedWindows) > m.displayCount {
+		fmt.Println("adjusting display count")
 		for i := len(m.reservedWindows); i > m.displayCount; i-- {
 			for _, id := range m.reservedWindows[i-1] {
 				if id != nil {
@@ -150,13 +160,33 @@ func (m *Manager) windowFrame(id string) revimg.Frame {
 	return m.windowFrames[id]
 }
 
+func (m *Manager) getScreens() ([]revimg.ScreenFrame, error) {
+	var adjustedScreens []revimg.ScreenFrame
+	screens, err := m.backend.DisplayFrames()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get screen data")
+	}
+	if runtime.GOOS == "darwin" {
+		for _, screen := range screens {
+			adjustedScreens = append(adjustedScreens, revimg.ScreenFrame{
+				Frame: revimg.Frame{Width: screen.Width, Height: screen.Height - 38},
+				Scale: screen.Scale,
+			})
+		}
+	} else {
+		adjustedScreens = screens
+	}
+	fmt.Println("screens", adjustedScreens)
+	return adjustedScreens, nil
+}
+
 func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowConfig, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	screens, err := m.backend.DisplayFrames()
+	screens, err := m.getScreens()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get screen data")
+		return nil, err
 	}
 
 	// If there's no window configuration associated with the macro instance, attempt to find an available spot
@@ -283,8 +313,13 @@ func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowC
 	}
 	y := 0
 	w := screen.Width
-	if !settings.FullWidth {
-		w = screen.Width / 2
+	h := screen.Height
+	if settings.Alignment != FullScreenWindowAlignment {
+		fmt.Println("align", settings.Alignment)
+		h = screen.Height / 2
+		if !settings.FullWidth {
+			w = screen.Width / 2
+		}
 	}
 	if settings.Alignment == BottomLeftWindowAlignment || settings.Alignment == BottomRightWindowAlignment {
 		y = screen.Height / 2
@@ -293,7 +328,12 @@ func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowC
 		x += screen.Width / 2
 	}
 
-	m.windowFrames[settings.ID] = revimg.Frame{X: x, Y: y, Width: w, Height: screen.Height / 2}
+	fmt.Println("reserving", x, y, w, h)
+	minSize := m.minimumSize()
+	if w < minSize.Width || h < minSize.Height {
+		return nil, errors.New("There is not enough space for the window configuration. Please increase your resolution or add another display.")
+	}
+	m.windowFrames[settings.ID] = revimg.Frame{X: x, Y: y, Width: w, Height: h}
 	return settings, nil
 }
 

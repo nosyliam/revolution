@@ -77,6 +77,7 @@ func (w *windowBackend) getWindow(id int) (*C.Window, error) {
 func (w *windowBackend) initializeWindow(pid int) bool {
 	ret := (*C.Window)(C.get_window_with_pid(C.int(pid)))
 	if ret == nil {
+		fmt.Println("cant initialize")
 		return false
 	}
 
@@ -118,6 +119,8 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 		return 0, window.PermissionDeniedErr
 	}
 
+	fmt.Println("opening window")
+
 	// Attempt to bind non-macro roblox instances first
 	findRunningInstance := func(initialize bool) (int, error) {
 		processes, err := ps.Processes()
@@ -131,8 +134,11 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 				}
 				if _, ok := w.windows[pid]; !ok {
 					if w.initializeWindow(pid) {
+						fmt.Println("initialize", pid)
 						return pid, nil
 					}
+				} else {
+					fmt.Println("not ok")
 				}
 			}
 		}
@@ -217,13 +223,14 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 	}
 
 	for i := 0; i < 10; i++ {
+		fmt.Println("opening instance")
 		cmd := exec.Command("open", "-n", url)
 		err = cmd.Start()
 		if err != nil {
 			return 0, errors.New("failed to start installer")
 		}
 
-		for j := 0; j < 100; j++ {
+		for j := 0; j < 500; j++ {
 			if pid, err := findRunningInstance(true); err != nil {
 				return 0, err
 			} else if pid != -1 {
@@ -278,9 +285,10 @@ func (w *windowBackend) GetFrame(id int) (*revimg.Frame, error) {
 	}
 
 	cFrame := (*C.Frame)(C.get_window_frame(win))
-	if cFrame == nil {
+	if cFrame == nil || (cFrame.width == 0 && cFrame.height == 0) {
 		return nil, errors.New("failed to get window frame")
 	}
+	fmt.Println("frame", cFrame.width, cFrame.height, cFrame.x, cFrame.y)
 
 	frame := &revimg.Frame{
 		Width:  int(C.int(cFrame.width)),

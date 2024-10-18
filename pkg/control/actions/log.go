@@ -21,15 +21,21 @@ func execArgs(macro *common.Macro, args []interface{}) []interface{} {
 	for _, arg := range args {
 		switch fn := arg.(type) {
 		case func(macro *common.Macro) error:
+			res = append(res, fn(macro).Error())
+		case func(macro *common.Macro) int:
+			res = append(res, fn(macro))
+		case func(macro *common.Macro) bool:
+			res = append(res, fn(macro))
+		case func(macro *common.Macro) string:
 			res = append(res, fn(macro))
 		case func(macro *common.Macro) interface{}:
 			res = append(res, fn(macro))
 		case func() interface{}:
 			res = append(res, fn())
 		case func() error:
-			res = append(res, fn())
+			res = append(res, fn().Error())
 		case common.Action:
-			res = append(res, fn.Execute(macro))
+			res = append(res, fn.Execute(macro).Error())
 		default:
 			res = append(res, fn)
 		}

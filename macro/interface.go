@@ -43,7 +43,7 @@ func (i *Interface) Start() {
 		Pause:      pause,
 		Redirect:   i.redirect,
 	}
-	i.Macro.Scheduler = NewScheduler(i.Macro, i.redirect)
+	i.Macro.Scheduler = NewScheduler(i.redirect)
 
 	stop := make(chan struct{}, 1)
 	err := make(chan string, 1)
@@ -62,7 +62,7 @@ func (i *Interface) Start() {
 			case <-i.pause:
 				if i.unpause != nil {
 					_ = i.State.SetPath("paused", false)
-					i.Macro.Scheduler.Start()
+					go i.Macro.Scheduler.Start()
 					i.unpause <- struct{}{}
 					i.unpause = nil
 					continue
@@ -73,6 +73,7 @@ func (i *Interface) Start() {
 				pause <- i.unpause
 			case <-i.stop:
 				_ = i.State.SetPath("running", false)
+				_ = i.State.SetPath("status", "Ready")
 				stop <- struct{}{}
 				i.Macro = nil
 				return

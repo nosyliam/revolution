@@ -20,7 +20,7 @@ type MacroState struct {
 	Running bool `state:"running" yaml:"-"`
 	Paused  bool `state:"paused" yaml:"-"`
 
-	Status string `state:"status" default:"Pending"`
+	Status string `state:"status" default:"Ready"`
 }
 
 type StateConfig struct {

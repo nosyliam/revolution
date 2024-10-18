@@ -251,9 +251,9 @@ func For(args ...int) LoopPredicate {
 	case 3:
 		return &forLoop{args[0], args[1], args[2]}
 	case 2:
-		return &forLoop{args[0], args[1], 0}
+		return &forLoop{args[0], args[1], 1}
 	case 1:
-		return &forLoop{0, args[0], 0}
+		return &forLoop{0, args[0], 1}
 	default:
 		panic("invalid arguments")
 	}

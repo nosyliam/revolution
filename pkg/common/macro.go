@@ -30,6 +30,8 @@ type (
 )
 
 type Macro struct {
+	Root *Macro
+
 	Account    string
 	EventBus   EventBus
 	Backend    Backend
@@ -52,7 +54,12 @@ type Macro struct {
 }
 
 func (m *Macro) Copy() *Macro {
+	var root = m
+	if m.Root != nil {
+		root = m.Root
+	}
 	return &Macro{
+		Root:       root,
 		Account:    m.Account,
 		EventBus:   m.EventBus,
 		Backend:    m.Backend,

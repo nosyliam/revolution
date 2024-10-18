@@ -1,6 +1,7 @@
 package macro
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
@@ -10,6 +11,8 @@ import (
 )
 
 const ClockTime = 50 * time.Millisecond
+
+var intervals []*interval
 
 type interval struct {
 	priority int
@@ -33,22 +36,20 @@ type interval struct {
 // Examples of interval interrupts include planters, bug runs and wealth clock. Interval interrupts are
 // only executed during the start of the main loop (after the hive backboard check) and are assigned a specific priority
 type Scheduler struct {
-	macro     *common.Macro
-	close     chan struct{}
-	redirect  chan<- *common.RedirectExecution
-	intervals []*interval
-	tick      int
+	macro    *common.Macro
+	close    chan struct{}
+	redirect chan<- *common.RedirectExecution
+	tick     int
 }
 
-// AddInterval registers an interval with the scheduler
-func (s *Scheduler) AddInterval(
+func RegisterInterval(
 	kind common.InterruptKind,
 	routine common.RoutineKind,
 	priority int,
 	delay int64,
 	lastExecutionPath, enabledPath string,
 ) {
-	s.intervals = append(s.intervals, &interval{
+	intervals = append(intervals, &interval{
 		priority: priority,
 		delay:    delay,
 		delayed:  kind == common.DelayedInterrupt,
@@ -59,21 +60,21 @@ func (s *Scheduler) AddInterval(
 }
 
 func (s *Scheduler) Execute(interruptType common.InterruptKind) {
-	var intervals []*interval
+	var ivls []*interval
 
-	for _, ivl := range s.intervals {
+	for _, ivl := range intervals {
 		if interruptType == common.DelayedInterrupt && ivl.delayed {
-			intervals = append(intervals, ivl)
+			ivls = append(ivls, ivl)
 		} else if interruptType == common.IntervalInterrupt && !ivl.delayed {
-			intervals = append(intervals, ivl)
+			ivls = append(ivls, ivl)
 		}
 	}
 
-	slices.SortFunc(intervals, func(a, b *interval) int {
+	slices.SortFunc(ivls, func(a, b *interval) int {
 		return a.priority - b.priority
 	})
 
-	for _, ivl := range intervals {
+	for _, ivl := range ivls {
 		if *config.Concrete[bool](s.macro.Settings, ivl.enabled) {
 			var lastExec = *config.Concrete[int64](s.macro.State, ivl.lastExec)
 			if time.Now().Unix() >= lastExec+ivl.delay*60 {
@@ -96,24 +97,27 @@ func (s *Scheduler) Tick() {
 		s.tick++
 	}()
 	// If we're not opening the window or unwinding a redirect, check the Roblox window
-	if opening := s.macro.Scratch.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && len(s.redirect) == 0 {
-		if s.macro.Window == nil {
+	if opening := s.macro.Scratch.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && !s.macro.Scratch.Redirect {
+		if s.macro.Root.Window == nil {
+			fmt.Println("failed 0")
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}
-		if err := s.macro.Window.Fix(); err != nil {
-			s.macro.Action(Error("Failed to adjust Roblox! Attempting to re-open")(Status))
+		if err := s.macro.Root.Window.Fix(); err != nil {
+			s.macro.Action(Error("Failed to adjust Roblox! Re-opening")(Status))
 			s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to re-open", err)(Discord))
+			fmt.Println("failed 1", err)
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}
-		if err := s.macro.Window.Screenshot(); err != nil {
-			s.macro.Action(Error("Failed to screenshot Roblox! Attempting to re-open")(Status))
+		if err := s.macro.Root.Window.Screenshot(); err != nil {
+			s.macro.Action(Error("Failed to screenshot Roblox! Re-opening")(Status))
 			s.macro.Action(Error("Failed to screenshot Roblox: %s! Attempting to re-open", err)(Discord))
+			fmt.Println("failed 2", err)
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}
-	} else if len(s.redirect) > 0 || opening {
+	} else if s.macro.Scratch.Redirect || opening {
 		return
 	}
 }
@@ -131,9 +135,12 @@ func (s *Scheduler) Start() {
 	}
 }
 
-func NewScheduler(macro *common.Macro, redirect chan<- *common.RedirectExecution) common.Scheduler {
+func (s *Scheduler) Initialize(macro *common.Macro) {
+	s.macro = macro
+}
+
+func NewScheduler(redirect chan<- *common.RedirectExecution) common.Scheduler {
 	return &Scheduler{
-		macro:    macro,
 		redirect: redirect,
 	}
 }

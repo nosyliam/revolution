@@ -32,9 +32,13 @@ func (r *Routine) Execute() {
 			if err := r.actions[i].Execute(r.macro); err != nil {
 				if redirect, ok := err.(*common.RedirectExecution); ok {
 					if r.parent != nil {
+						fmt.Println("true 1")
+						r.macro.Scratch.Redirect = true
 						r.parent.redirectLoc = redirect
 						return
 					} else {
+						fmt.Println("true 2")
+						r.macro.Scratch.Redirect = true
 						r.redirectLoc = redirect
 						err = nil
 					}
@@ -51,15 +55,21 @@ func (r *Routine) Execute() {
 				case nil:
 				default:
 					r.err <- errors.Wrap(err, "").Error()
+					fmt.Println("waiting for unpause")
 					<-<-r.macro.Pause
+					fmt.Println("pause complete")
 				}
 			}
 			if len(r.macro.Redirect) > 0 && (r.parent == nil || r.parent.redirectLoc == nil) {
 				kind := <-r.macro.Redirect
 				if kind.Routine != r.kind {
 					if r.parent == nil {
+						fmt.Println("true 3")
+						r.macro.Scratch.Redirect = true
 						r.redirectLoc = kind
 					} else {
+						fmt.Println("true 4")
+						r.macro.Scratch.Redirect = true
 						r.parent.redirectLoc = kind
 						return
 					}
@@ -77,7 +87,10 @@ func (r *Routine) Execute() {
 					r.parent.redirectLoc = r.redirectLoc
 					return
 				}
+				fmt.Println("redirect", r.macro.Scratch.Redirect)
 				r.macro.Routine(r.redirectLoc.Routine)
+				fmt.Println("redirect 2", r.macro.Scratch.Redirect)
+				r.redirectLoc = nil
 				break
 			}
 			if r.macro.Scratch.LoopState.Unwind != nil {
@@ -105,7 +118,7 @@ func ExecuteRoutine(
 	err chan<- string,
 ) {
 	routine := &Routine{
-		macro:   macro,
+		macro:   macro.Copy(),
 		actions: actions,
 		stop:    stop,
 		err:     err,
@@ -136,6 +149,7 @@ func ExecuteRoutine(
 				panic(fmt.Sprintf("unknown subroutine %s", string(kind)))
 			}
 			macro.Scratch.Stack = append([]string{string(kind)}, macro.Scratch.Stack...)
+			macro.Scratch.Redirect = false
 			subMacro := macro.Copy()
 			subMacro.Logger = subMacro.Logger.Child(string(kind))
 			subMacro.Results = &common.ActionResults{}
@@ -150,14 +164,14 @@ func ExecuteRoutine(
 			macro.Scratch.Stack = macro.Scratch.Stack[1:]
 		}
 	}
-	macro.Routine = exec(routine, macro)
-	macro.Subroutine = execSub(routine, macro)
-	macro.Action = func(action common.Action) error {
-		return action.Execute(macro)
+	routine.macro.Routine = exec(routine, routine.macro)
+	routine.macro.Subroutine = execSub(routine, routine.macro)
+	routine.macro.Action = func(action common.Action) error {
+		return action.Execute(routine.macro)
 	}
-	macro.Status = func(stat string) {
+	routine.macro.Status = func(stat string) {
 		status <- stat
 	}
-	go macro.Scheduler.Start()
+	macro.Scheduler.Initialize(routine.macro)
 	routine.Execute()
 }

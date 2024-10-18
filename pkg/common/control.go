@@ -60,6 +60,7 @@ type Scheduler interface {
 	Execute(interruptType InterruptKind)
 	Start()
 	Close()
+	Initialize(macro *Macro)
 }
 
 type Event interface {

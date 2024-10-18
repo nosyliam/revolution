@@ -10,6 +10,7 @@ type VariableName string
 const (
 	RetryCount      VariableName = "retry-count"
 	UsePublicServer VariableName = "use-public-server"
+	RestartSleep    VariableName = "restart-sleep"
 )
 
 func S(path string) interface{} {
@@ -37,21 +38,21 @@ func P[T any](path string) func(macro *common.Macro) T {
 	}
 }
 
-func Index(depth ...int) func(macro *common.Macro) interface{} {
+func Index(depth ...int) func(macro *common.Macro) int {
 	if len(depth) > 1 {
 		panic("too many arguments")
 	}
-	var depthV int
+	var depthV = 0
 	if len(depth) == 1 {
 		depthV = depth[0]
 	}
-	return func(macro *common.Macro) interface{} {
+	return func(macro *common.Macro) int {
 		return macro.Scratch.LoopState.Index[depthV]
 	}
 }
 
 func Window(macro *common.Macro) interface{} {
-	return macro.Window
+	return macro.Root.Window
 }
 
 func LastError(macro *common.Macro) interface{} {

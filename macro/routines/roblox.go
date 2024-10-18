@@ -12,11 +12,11 @@ const (
 
 func closeWindow(macro *Macro) error {
 	fmt.Println("window", macro.Window)
-	if err := macro.Window.Close(); err != nil {
+	if err := macro.Root.Window.Close(); err != nil {
 		return err
 	}
 
-	macro.Window = nil
+	macro.Root.Window = nil
 	return nil
 }
 
@@ -26,50 +26,36 @@ func openWindow(macro *Macro) error {
 		fmt.Println("open err", err)
 		return err
 	} else {
-		macro.Window = win
+		macro.Root.Window = win
 		return nil
 	}
 }
 
-func fallbackServerEnabled(macro *Macro) bool {
-	return false
-}
-
-func privateServerAttempts(macro *Macro) int {
-	return 0
-}
-
 var OpenRobloxRoutine = Actions{
+	Condition(If(True(V[bool](RestartSleep))), Sleep(5).Seconds()),
 	Set(RetryCount, 0),
 	Set(UsePublicServer, false),
 	Condition(
 		If(NotNil(Window)),
 		Info("Attempting to close Roblox")(Status, Discord),
-		Loop(
-			For(5),
-			Condition(
-				If(ExecError(closeWindow)),
-				Error("Failed to close Roblox: %s! Attempt: %d", LastError, Index(0))(Status, Discord),
-				Sleep(5).Seconds(),
-				Else(),
-				Break(),
-			),
-		),
+		Logic(closeWindow),
+		Sleep(3).Seconds(),
 	),
 	Info("Opening Roblox")(Status, Discord),
 	Loop(
-		For(10),
+		For(1, 11),
+		Logic(func() {
+			fmt.Println("executing index")
+		}),
 		Condition(
 			If(ExecError(openWindow)),
 			Error("Failed to open Roblox! Attempt: %d", Index(0))(Status, Discord),
 			Sleep(5).Seconds(),
 			Condition(
-				If(And(GreaterThanEq(V[int](RetryCount), 5), True(P[bool]("window.fallbackToPublicServer")))),
+				If(And(GreaterThanEq(Index(), 5), True(P[bool]("window.fallbackToPublicServer")))),
 				Set(UsePublicServer, true),
-				If(Equal(privateServerAttempts, 5)),
+				If(Equal(Index(), 5)),
 				Break(),
-				Else(),
-				Increment(RetryCount),
 			),
 			Else(),
 			Break(),
@@ -81,7 +67,14 @@ var OpenRobloxRoutine = Actions{
 		Sleep(30).Seconds(),
 		Restart(),
 	),
-	Redirect(MainRoutineKind),
+	Condition(
+		If(False(V[bool](RestartSleep))),
+		Logic(func(macro *Macro) {
+			fmt.Println("start scheduler")
+			go macro.Scheduler.Start()
+		}),
+	),
+	Set(RestartSleep, true),
 }
 
 func init() {

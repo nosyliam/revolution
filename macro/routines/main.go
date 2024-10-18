@@ -8,6 +8,10 @@ import (
 const MainRoutineKind RoutineKind = "Main"
 
 var MainRoutine = Actions{
+	Condition(
+		If(False(V[bool](RestartSleep))),
+		Redirect(OpenRobloxRoutineKind),
+	),
 	Set("test", 0),
 	Loop(
 		For(10),

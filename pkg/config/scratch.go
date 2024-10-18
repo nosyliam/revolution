@@ -24,6 +24,7 @@ type Scratch struct {
 	LoopState *LoopState
 	LastError error
 	Stack     []string
+	Redirect  bool
 
 	variables map[string]*variable
 }
@@ -84,5 +85,7 @@ func (s *Scratch) Clear(name string) {
 }
 
 func NewScratch() *Scratch {
-	return &Scratch{LoopState: &LoopState{}, variables: make(map[string]*variable)}
+	scratch := &Scratch{LoopState: &LoopState{}, variables: make(map[string]*variable)}
+	scratch.Set("restart-sleep", false)
+	return scratch
 }
