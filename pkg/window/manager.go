@@ -176,7 +176,7 @@ func (m *Manager) getScreens() ([]revimg.ScreenFrame, error) {
 	} else {
 		adjustedScreens = screens
 	}
-	fmt.Println("screens", adjustedScreens)
+
 	return adjustedScreens, nil
 }
 
@@ -328,7 +328,6 @@ func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowC
 		x += screen.Width / 2
 	}
 
-	fmt.Println("reserving", x, y, w, h)
 	minSize := m.minimumSize()
 	if w < minSize.Width || h < minSize.Height {
 		return nil, errors.New("There is not enough space for the window configuration. Please increase your resolution or add another display.")

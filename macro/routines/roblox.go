@@ -1,7 +1,6 @@
 package routines
 
 import (
-	"fmt"
 	. "github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 )
@@ -11,7 +10,6 @@ const (
 )
 
 func closeWindow(macro *Macro) error {
-	fmt.Println("window", macro.Window)
 	if err := macro.Root.Window.Close(); err != nil {
 		return err
 	}
@@ -23,7 +21,6 @@ func closeWindow(macro *Macro) error {
 func openWindow(macro *Macro) error {
 	ignoreLink := V[bool](UsePublicServer)(macro)
 	if win, err := macro.WinManager.OpenWindow(macro.Account, macro.Database, macro.Settings, ignoreLink); err != nil {
-		fmt.Println("open err", err)
 		return err
 	} else {
 		macro.Root.Window = win
@@ -44,9 +41,6 @@ var OpenRobloxRoutine = Actions{
 	Info("Opening Roblox")(Status, Discord),
 	Loop(
 		For(1, 11),
-		Logic(func() {
-			fmt.Println("executing index")
-		}),
 		Condition(
 			If(ExecError(openWindow)),
 			Error("Failed to open Roblox! Attempt: %d", Index(0))(Status, Discord),
@@ -70,7 +64,6 @@ var OpenRobloxRoutine = Actions{
 	Condition(
 		If(False(V[bool](RestartSleep))),
 		Logic(func(macro *Macro) {
-			fmt.Println("start scheduler")
 			go macro.Scheduler.Start()
 		}),
 	),
