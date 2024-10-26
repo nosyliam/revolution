@@ -106,14 +106,12 @@ func (s *Scheduler) Tick() {
 		if err := s.macro.Root.Window.Fix(); err != nil {
 			s.macro.Action(Error("Failed to adjust Roblox! Re-opening")(Status))
 			s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to re-open", err)(Discord))
-			fmt.Println("failed 1", err)
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}
-		if err := s.macro.Root.Window.Screenshot(); err != nil {
+		if err := s.macro.Root.Window.TakeScreenshot(); err != nil {
 			s.macro.Action(Error("Failed to screenshot Roblox! Re-opening")(Status))
 			s.macro.Action(Error("Failed to screenshot Roblox: %s! Attempting to re-open", err)(Discord))
-			fmt.Println("failed 2", err)
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}

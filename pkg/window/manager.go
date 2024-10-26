@@ -11,15 +11,18 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 type Window struct {
 	id         int
 	config     *WindowConfig
 	backend    Backend
-	screenshot *image.RGBA
+	screenshot atomic.Pointer[image.RGBA]
 	mgr        *Manager
 	err        error
+
+	Offset int
 }
 
 func (w *Window) PID() int {
@@ -57,15 +60,16 @@ func (w *Window) Fix() error {
 }
 
 func (w *Window) Screenshot() *image.RGBA {
-	return w.screenshot
+	return w.screenshot.Load()
 }
 
 func (w *Window) TakeScreenshot() error {
 	var err error
-	w.screenshot, err = w.backend.Screenshot(w.id)
+	screenshot, err := w.backend.Screenshot(w.id)
 	if err != nil {
 		return err
 	}
+	w.screenshot.Store(screenshot)
 	return nil
 }
 

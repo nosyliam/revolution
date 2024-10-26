@@ -32,12 +32,10 @@ func (r *Routine) Execute() {
 			if err := r.actions[i].Execute(r.macro); err != nil {
 				if redirect, ok := err.(*common.RedirectExecution); ok {
 					if r.parent != nil {
-						fmt.Println("true 1")
 						r.macro.Scratch.Redirect = true
 						r.parent.redirectLoc = redirect
 						return
 					} else {
-						fmt.Println("true 2")
 						r.macro.Scratch.Redirect = true
 						r.redirectLoc = redirect
 						err = nil
@@ -64,11 +62,9 @@ func (r *Routine) Execute() {
 				kind := <-r.macro.Redirect
 				if kind.Routine != r.kind {
 					if r.parent == nil {
-						fmt.Println("true 3")
 						r.macro.Scratch.Redirect = true
 						r.redirectLoc = kind
 					} else {
-						fmt.Println("true 4")
 						r.macro.Scratch.Redirect = true
 						r.parent.redirectLoc = kind
 						return
@@ -87,9 +83,7 @@ func (r *Routine) Execute() {
 					r.parent.redirectLoc = r.redirectLoc
 					return
 				}
-				fmt.Println("redirect", r.macro.Scratch.Redirect)
 				r.macro.Routine(r.redirectLoc.Routine)
-				fmt.Println("redirect 2", r.macro.Scratch.Redirect)
 				r.redirectLoc = nil
 				break
 			}

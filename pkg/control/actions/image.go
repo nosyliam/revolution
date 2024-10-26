@@ -1,6 +1,9 @@
-package image
+package actions
 
-import "github.com/nosyliam/revolution/pkg/common"
+import (
+	"github.com/nosyliam/revolution/pkg/common"
+	"github.com/nosyliam/revolution/pkg/image"
+)
 
 type Modifier func(params ...interface{}) Value
 type Value func(ctx *imageSearchContext) interface{}
@@ -11,23 +14,35 @@ type imageSearchContext struct {
 	search *imageSearch
 	macro  *common.Macro
 
-	result     map[string][]Point
-	lastResult []Point
+	result     map[string][]image.Point
+	lastResult []image.Point
 
 	subX, subY     int
 	x1, y1, x2, y2 int
-	variance       int
-	bitmap         string
+	exit           bool
+
+	defVariance                    int
+	varianceSet                    bool
+	variance, instances, direction int
 }
 
 func (i *imageSearchContext) execute() {
-
+	for _, step := range i.search.steps {
+		step(i)
+		if i.exit {
+			break
+		}
+	}
+	if i.lastResult == nil {
+		panic("invalid search: no search executed")
+	}
 }
 
 func NewImageSearchContext(search *imageSearch, macro *common.Macro) *imageSearchContext {
 	return &imageSearchContext{
 		search: search,
 		macro:  macro,
+		result: make(map[string][]image.Point),
 	}
 }
 

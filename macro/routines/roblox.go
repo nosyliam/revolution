@@ -7,6 +7,7 @@ import (
 
 const (
 	OpenRobloxRoutineKind RoutineKind = "OpenRoblox"
+	ResetRoutineKind      RoutineKind = "Reset"
 )
 
 func closeWindow(macro *Macro) error {
