@@ -20,6 +20,11 @@ func closeWindow(macro *Macro) error {
 }
 
 func openWindow(macro *Macro) error {
+	if macro.Root.Window != nil {
+		if err := closeWindow(macro); err != nil {
+			return err
+		}
+	}
 	ignoreLink := V[bool](UsePublicServer)(macro)
 	if win, err := macro.WinManager.OpenWindow(macro.Account, macro.Database, macro.Settings, ignoreLink); err != nil {
 		return err
@@ -27,6 +32,24 @@ func openWindow(macro *Macro) error {
 		macro.Root.Window = win
 		return nil
 	}
+}
+
+var LoadingImage = ImageSteps{
+	SelectCoordinate(Change, 0, 30, 0, 150),
+	Variance(4),
+	Search("loading").Find(),
+}
+
+var ScienceImage = ImageSteps{
+	SelectCoordinate(Change, 0, 30, 0, 150),
+	Variance(4),
+	Search("science").Find(),
+}
+
+var DisconnectImage = ImageSteps{
+	SelectCoordinate(Change, 0, 30, 0, Sub(Height, 30)),
+	Variance(2),
+	Search("disconnected").Find(),
 }
 
 var OpenRobloxRoutine = Actions{
@@ -53,6 +76,62 @@ var OpenRobloxRoutine = Actions{
 				Break(),
 			),
 			Else(),
+			Loop(
+				For(180),
+				Condition(
+					If(Equal(Index(), 179)),
+					Error("No BSS was found!")(Status, Discord),
+					Sleep(5).Seconds(),
+					Continue(1),
+				),
+				Condition(
+					If(ExecError(TakeScreenshot)),
+					Error("Failed to screenshot BSS!")(Status, Discord),
+					Sleep(5).Seconds(),
+					Continue(1),
+					Else(),
+					Condition(
+						If(Image(LoadingImage...).Found()),
+						Info("Game Open")(Status, Discord),
+						Break(),
+						If(Image(ScienceImage...).Found()),
+						Info("Game Loaded")(Status, Discord),
+						Terminate(),
+						If(Image(DisconnectImage...).Found()),
+						Info("Disconnected during reconnect")(Status, Discord),
+						Sleep(5).Seconds(),
+						Continue(1),
+					),
+				),
+			),
+			Loop(
+				For(180),
+				Condition(
+					If(Equal(Index(), 179)),
+					Error("BSS load timeout exceeded!")(Status, Discord),
+					Sleep(5).Seconds(),
+					Continue(1),
+				),
+				Condition(
+					If(ExecError(TakeScreenshot)),
+					Error("Failed to screenshot BSS!")(Status, Discord),
+					Sleep(5).Seconds(),
+					Continue(1),
+					Else(),
+					Condition(
+						If(Or(
+							Image(LoadingImage...).NotFound(),
+							Image(ScienceImage...).Found(),
+						)),
+						Info("Game Loaded")(Status, Discord),
+						Break(),
+						If(Image(DisconnectImage...).Found()),
+						Info("Disconnected during reconnect!")(Status, Discord),
+						Sleep(5).Seconds(),
+						Continue(1),
+					),
+				),
+			),
 			Break(),
 		),
 	),

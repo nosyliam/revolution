@@ -52,7 +52,8 @@ func ImageSearch(needle *image.RGBA, haystack *image.RGBA, options *SearchOption
 		return nil, errors.New("invalid variation")
 	}
 
-	hScan, nScan := &haystack.Pix[0], &needle.Pix[0]
+	hScan := &haystack.Pix[0]
+	nScan := &needle.Pix[0]
 
 	direction := options.SearchDirection
 	if direction == 0 {
@@ -120,7 +121,7 @@ func ImageSearch(needle *image.RGBA, haystack *image.RGBA, options *SearchOption
 		}
 	}
 
-	var outputs []Point
+	var outputs = make([]Point, 0)
 	iX, stepX, iY, stepY, outputCount := 1, 1, 1, 1, 0
 	mod := direction % 4
 	if mod > 1 {

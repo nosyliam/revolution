@@ -1,9 +1,11 @@
 package actions
 
 import (
+	"fmt"
 	. "github.com/nosyliam/revolution/bitmaps"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/image"
+	"reflect"
 )
 
 func X1(ctx *imageSearchContext) interface{} {
@@ -31,7 +33,11 @@ func XY2(ctx *imageSearchContext) interface{} {
 }
 
 func Height(ctx *imageSearchContext) interface{} {
-	return image.Point{X: ctx.x2, Y: ctx.y2}
+	return ctx.macro.Root.Window.Screenshot().Bounds().Dy()
+}
+
+func Width(ctx *imageSearchContext) interface{} {
+	return ctx.macro.Root.Window.Screenshot().Bounds().Dx()
 }
 
 // Add adds together two or more values
@@ -262,14 +268,14 @@ func singleCoordinateSelect(value Value, mod func(ctx *imageSearchContext, val i
 		case Value:
 			switch v := fn(ctx).(type) {
 			case image.Point:
-				switch value {
-				case X1:
+				switch reflect.ValueOf(value).Pointer() {
+				case reflect.ValueOf(X1).Pointer():
 					fallthrough
-				case X2:
+				case reflect.ValueOf(X2).Pointer():
 					mod(ctx, v.X)
-				case Y1:
+				case reflect.ValueOf(Y1).Pointer():
 					fallthrough
-				case Y2:
+				case reflect.ValueOf(Y2).Pointer():
 					mod(ctx, v.Y)
 				}
 			case int:
@@ -489,6 +495,7 @@ type search struct {
 
 func (s *search) Find() Step {
 	return func(ctx *imageSearchContext) {
+		fmt.Println("exec search", s.bitmaps)
 		for _, bitmap := range s.bitmaps {
 			var variance = ctx.variance
 			if ctx.defVariance != 0 && variance == 0 && !ctx.varianceSet {
@@ -505,9 +512,12 @@ func (s *search) Find() Step {
 					Instances:       ctx.instances,
 				},
 			)
+
 			if err != nil {
 				ctx.macro.Action(Error("Image search failed!", bitmap, err)(Status))
 				ctx.macro.Action(Error("Image search for bitmap %s failed: %v", bitmap, err)(Discord))
+				ctx.lastResult = make([]image.Point, 0)
+				fmt.Println("search failed", err)
 				return
 			}
 

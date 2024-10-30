@@ -5,6 +5,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/image"
 )
 
+type ImageSteps []Step
 type Modifier func(params ...interface{}) Value
 type Value func(ctx *imageSearchContext) interface{}
 
@@ -76,4 +77,11 @@ func (i *imageSearch) Instances() func(macro *common.Macro) int {
 
 func Image(steps ...Step) *imageSearch {
 	return &imageSearch{steps: steps}
+}
+
+func TakeScreenshot(macro *common.Macro) error {
+	if err := macro.Root.Window.Fix(); err != nil {
+		return err
+	}
+	return macro.Root.Window.TakeScreenshot()
 }

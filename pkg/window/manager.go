@@ -2,7 +2,6 @@ package window
 
 import (
 	"fmt"
-	"github.com/nosyliam/revolution/bitmaps"
 	. "github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
@@ -27,11 +26,6 @@ type Window struct {
 
 func (w *Window) PID() int {
 	return w.id
-}
-
-func (w *Window) FindImage(bitmapName string, options *revimg.SearchOptions) ([]revimg.Point, error) {
-	needle := bitmaps.Registry.Get(bitmapName)
-	return revimg.ImageSearch(needle, w.screenshot, options)
 }
 
 func (w *Window) Fix() error {

@@ -67,6 +67,9 @@ func (a *conditionalAction) Execute(macro *common.Macro) error {
 				if err := exec(macro); err != nil {
 					return err
 				}
+				if macro.Scratch.LoopState.Unwind != nil {
+					return nil
+				}
 			}
 			return nil
 		}
