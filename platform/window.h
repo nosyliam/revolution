@@ -1,5 +1,6 @@
 #include "base.h"
 #include <stdio.h>
+#include <windows.h>
 
 typedef struct Frame {
     int width;
@@ -32,7 +33,7 @@ bool check_ax_enabled(bool showPrompt) {
     // Statically load all required functions one time
     static dispatch_once_t once; dispatch_once (&once,
     ^{
-        // Open the framework
+        // Open the frameworkw
         void* handle = dlopen("/System/Library/Frameworks/Application"
             "Services.framework/ApplicationServices", RTLD_LAZY);
 

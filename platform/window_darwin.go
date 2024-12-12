@@ -5,8 +5,6 @@ package platform
 // #include "window.h"
 import "C"
 
-import "C"
-
 import (
 	"encoding/json"
 	"fmt"
