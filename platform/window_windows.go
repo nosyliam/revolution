@@ -4,21 +4,22 @@
 package platform
 
 // #include "window.h"
+// #cgo LDFLAGS: -lgdi32 -lshcore
 import "C"
 
 import (
 	"encoding/json"
 	"fmt"
-	ps "github.com/mitchellh/go-ps"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
+	ps "github.com/shirou/gopsutil/v4/process"
 	"image"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
-	"regexp"
+	"path/filepath"
 	"time"
 	"unsafe"
 )
@@ -28,6 +29,13 @@ var WindowBackend window.Backend = &windowBackend{make(map[int]*C.Window), ""}
 type windowBackend struct {
 	windows   map[int]*C.Window
 	robloxLoc string
+}
+
+func (w *windowBackend) DissociateWindow(id int) {
+	if _, ok := w.windows[id]; ok {
+		w.freeWindow(id)
+	}
+	delete(w.windows, id)
 }
 
 func (w *windowBackend) CloseWindow(id int) error {
@@ -40,6 +48,7 @@ func (w *windowBackend) CloseWindow(id int) error {
 	}
 
 	w.freeWindow(id)
+	delete(w.windows, id)
 	return nil
 }
 
@@ -49,23 +58,18 @@ func (w *windowBackend) freeWindow(id int) {
 		return
 	}
 
-	C.CFRelease((C.CFTypeRef)(win.window))
 	C.free(unsafe.Pointer(win))
 }
 
 func (w *windowBackend) getWindow(id int) (*C.Window, error) {
-	resp := (bool)(C.check_ax_enabled(C.bool(true)))
-	if resp == false {
-		return nil, window.PermissionDeniedErr
-	}
-
 	win, ok := w.windows[id]
 	if !ok {
 		return nil, window.WindowNotFoundErr
 	}
 
-	_, err := ps.FindProcess(id)
-	if err != nil {
+	exists, err := ps.PidExists(int32(id))
+	if !exists || err != nil {
+		w.freeWindow(id)
 		return nil, window.WindowNotFoundErr
 	}
 
@@ -75,7 +79,6 @@ func (w *windowBackend) getWindow(id int) (*C.Window, error) {
 func (w *windowBackend) initializeWindow(pid int) bool {
 	ret := (*C.Window)(C.get_window_with_pid(C.int(pid)))
 	if ret == nil {
-		fmt.Println("cant initialize")
 		return false
 	}
 
@@ -83,28 +86,43 @@ func (w *windowBackend) initializeWindow(pid int) bool {
 	return true
 }
 
-func (w *windowBackend) getRobloxVersion(loc string) (string, error) {
-	pList, err := os.Open(fmt.Sprintf("%s/Contents/Info.plist", loc))
-	if os.IsNotExist(err) {
-		return "", nil
-	} else if err != nil {
-		return "", errors.Wrap(err, "failed to open Roblox application info for update check")
-	}
+func (w *windowBackend) getRobloxRoot() string {
+	return filepath.Join(os.Getenv("LOCALAPPDATA"), "Roblox", "Versions")
+}
 
-	data, err := io.ReadAll(pList)
+func (w *windowBackend) getRobloxVersion() (string, error) {
+	entries, err := os.ReadDir(w.getRobloxRoot())
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read Roblox application info for update check")
+		panic(err)
 	}
 
-	_ = pList.Close()
-
-	versionReg := regexp.MustCompile("<key>CFBundleShortVersionString</key>\n\t<string>(.*)</string>")
-	matches := versionReg.FindStringSubmatch(string(data))
-	if len(matches) <= 1 {
-		return "", errors.Wrap(err, "failed to read Roblox version")
+	var instances = make(map[string]time.Time)
+	for _, entry := range entries {
+		if entry.IsDir() {
+			exePath := filepath.Join(w.getRobloxRoot(), entry.Name(), "RobloxPlayerBeta.exe")
+			if info, err := os.Stat(exePath); err == nil {
+				instances[entry.Name()] = info.ModTime()
+			} else if !os.IsNotExist(err) {
+				return "", err
+			}
+		}
 	}
 
-	return matches[1], nil
+	if len(instances) == 0 {
+		return "", errors.New("no Roblox versions found")
+	}
+
+	var mostRecent time.Time
+	var mostRecentKey string
+
+	for key, t := range instances {
+		if mostRecent.IsZero() || t.After(mostRecent) {
+			mostRecent = t
+			mostRecentKey = key
+		}
+	}
+
+	return mostRecentKey, nil
 }
 
 func (w *windowBackend) SetRobloxLocation(loc string) {
@@ -112,31 +130,27 @@ func (w *windowBackend) SetRobloxLocation(loc string) {
 }
 
 func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
-	resp := (bool)(C.check_ax_enabled(C.bool(true)))
-	if resp == false {
-		return 0, window.PermissionDeniedErr
-	}
-
-	fmt.Println("opening window")
-
 	// Attempt to bind non-macro roblox instances first
 	findRunningInstance := func(initialize bool) (int, error) {
 		processes, err := ps.Processes()
 		if err != nil {
 			return 0, errors.Wrap(err, "failed to list processes")
 		}
-		for _, process := range processes {
-			if pid := process.Pid(); process.Executable() == "RobloxPlayer" {
+		for _, p := range processes {
+			n, err := p.Name()
+			if err != nil {
+				continue
+			}
+			if pid := int(p.Pid); n == "RobloxPlayerBeta.exe" {
 				if !initialize {
 					return pid, nil
 				}
 				if _, ok := w.windows[pid]; !ok {
 					if w.initializeWindow(pid) {
-						fmt.Println("initialize", pid)
 						return pid, nil
 					}
 				} else {
-					fmt.Println("not ok")
+					fmt.Println("not ok", pid)
 				}
 			}
 		}
@@ -149,17 +163,12 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 		return pid, nil
 	}
 
-	loc := "/Applications/Roblox.app"
-	if w.robloxLoc != "" {
-		loc = w.robloxLoc
-	}
-
-	version, err := w.getRobloxVersion(loc)
+	version, err := w.getRobloxVersion()
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to get current Roblox version")
 	}
 
-	vResp, err := http.Get("https://clientsettingscdn.roblox.com/v2/client-version/MacPlayer")
+	vResp, err := http.Get("https://clientsettingscdn.roblox.com/v2/client-version/WindowsPlayer")
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to fetch latest Roblox version")
 	}
@@ -173,9 +182,9 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 		return 0, errors.Wrap(err, "failed to unmarshal latest Roblox version")
 	}
 
-	if dataMap["version"].(string) != version {
+	if dataMap["clientVersionUpload"].(string) != version {
 		var pid = -1
-		cmd := exec.Command("open", fmt.Sprintf("%s/Contents/MacOS/RobloxPlayerInstaller.app", loc))
+		cmd := exec.Command(filepath.Join(w.getRobloxRoot(), "RobloxPlayerInstaller.exe"))
 		err = cmd.Start()
 		if err != nil {
 			return 0, errors.New("failed to start installer")
@@ -195,7 +204,7 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 		}
 
 		for i := 0; i < 1000; i++ {
-			if int((C.int)(C.get_window_count(C.int(pid)))) == 1 {
+			if int((C.int)(C.get_window_visible_count(C.int(pid)))) == 1 {
 				break
 			}
 			<-time.After(10 * time.Millisecond)
@@ -221,21 +230,27 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 	}
 
 	for i := 0; i < 10; i++ {
-		fmt.Println("opening instance")
-		cmd := exec.Command("open", "-n", url)
+		cmd := exec.Command("cmd", "/C", "start", url)
 		err = cmd.Start()
+		fmt.Println("starting roblox")
 		if err != nil {
-			return 0, errors.New("failed to start installer")
+			return 0, errors.New("failed to open roblox")
 		}
 
+		var pid = 0
 		for j := 0; j < 500; j++ {
-			if pid, err := findRunningInstance(true); err != nil {
+			if pid, err = findRunningInstance(true); err != nil {
 				return 0, err
 			} else if pid != -1 {
 				return pid, nil
 			}
 			<-time.After(10 * time.Millisecond)
 		}
+
+		if pid == -1 {
+			return 0, errors.New("failed to find roblox process")
+		}
+
 		<-time.After(1 * time.Second)
 	}
 
@@ -259,6 +274,9 @@ func (w *windowBackend) Screenshot(id int) (*image.RGBA, error) {
 	}
 
 	screen := (*C.Screenshot)(C.screenshot_window(win))
+	if screen == nil {
+		return nil, errors.New("failed to take screenshot")
+	}
 	data := C.GoBytes(unsafe.Pointer(screen.data), C.int(screen.len))
 	width, height, stride := C.ulong(screen.width), C.ulong(screen.height), C.ulong(screen.stride)
 
@@ -286,7 +304,6 @@ func (w *windowBackend) GetFrame(id int) (*revimg.Frame, error) {
 	if cFrame == nil || (cFrame.width == 0 && cFrame.height == 0) {
 		return nil, errors.New("failed to get window frame")
 	}
-	fmt.Println("frame", cFrame.width, cFrame.height, cFrame.x, cFrame.y)
 
 	frame := &revimg.Frame{
 		Width:  int(C.int(cFrame.width)),

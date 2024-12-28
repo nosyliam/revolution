@@ -30,3 +30,7 @@ var ResetRoutine = Actions{
 		).Found()),
 	),
 }
+
+func init() {
+	ResetRoutine.Register(ResetRoutineKind)
+}

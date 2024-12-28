@@ -13,6 +13,7 @@ function App() {
     const disconnected = runtime.Disconnected()
     const [disconnectTimer, setDisconnectTimer] = useState(0)
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(runtime.Ready)
     useEffect(() => {
         if (!disconnected) {

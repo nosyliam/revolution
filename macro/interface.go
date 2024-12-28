@@ -75,6 +75,10 @@ func (i *Interface) Start() {
 				_ = i.State.SetPath("running", false)
 				_ = i.State.SetPath("status", "Ready")
 				stop <- struct{}{}
+				if i.Macro.Window != nil {
+					i.Macro.Window.Dissociate()
+				}
+				i.Macro.Scheduler.Close()
 				i.Macro = nil
 				return
 			}

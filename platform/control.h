@@ -53,3 +53,44 @@ void send_key_event(int pid, bool down, int key) {
 }
 
 #endif
+#if defined(IS_WINDOWS)
+#include <windows.h>
+#include <stdbool.h>
+
+void microsleep(int ms, int* interrupt) {
+
+}
+
+void move_mouse(int x, int y) {
+    SetCursorPos(x, y);
+}
+
+void scroll_mouse(int x, int y) {
+    INPUT input = { 0 };
+    input.type = INPUT_MOUSE;
+
+    if (y != 0) {
+        input.mi.dwFlags = MOUSEEVENTF_WHEEL;
+        input.mi.mouseData = y * WHEEL_DELTA;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+
+    if (x != 0) {
+        input.mi.dwFlags = MOUSEEVENTF_HWHEEL;
+        input.mi.mouseData = x * WHEEL_DELTA;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+}
+
+void send_key_event(int pid, bool down, int key) {
+    INPUT input = { 0 };
+    input.type = INPUT_KEYBOARD;
+    input.ki.wVk = key;
+
+    if (!down) {
+        input.ki.dwFlags = KEYEVENTF_KEYUP;
+    }
+
+    SendInput(1, &input, sizeof(INPUT));
+}
+#endif

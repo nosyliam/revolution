@@ -17,6 +17,7 @@ type JoinOptions struct {
 }
 
 type Backend interface {
+	DissociateWindow(int)
 	OpenWindow(options JoinOptions) (int, error)
 	CloseWindow(id int) error
 	ActivateWindow(id int) error

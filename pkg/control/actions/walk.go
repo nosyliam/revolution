@@ -1,6 +1,9 @@
 package actions
 
-import "github.com/nosyliam/revolution/pkg/common"
+import (
+	"github.com/nosyliam/revolution/pkg/common"
+	time2 "time"
+)
 
 type SleepAction struct {
 	ms      int
@@ -19,6 +22,7 @@ func (a *SleepAction) Execute(macro *common.Macro) error {
 	}
 	var interrupt = make(chan struct{})
 	macro.Backend.Sleep(time, interrupt)
+	time2.Sleep(time2.Duration(time) * time2.Millisecond)
 	return nil
 }
 

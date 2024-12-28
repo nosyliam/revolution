@@ -1,5 +1,3 @@
-//go:build darwin
-
 package platform
 
 // #include "control.h"

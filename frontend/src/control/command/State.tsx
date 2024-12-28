@@ -1,4 +1,4 @@
-import {Group, Stack} from "@mantine/core";
+import {Box, Group, Stack} from "@mantine/core";
 import {IconPlayerPauseFilled, IconPlayerPlayFilled, IconPlayerStopFilled} from '@tabler/icons-react';
 import ActionButton from "./ActionButton";
 import React, {useContext} from "react";
@@ -18,7 +18,6 @@ export default function State() {
 
     const activeData = index[activeAccount]
     const loadCheck = (macros.length == 0 ? true : undefined) || (activeData == undefined ? true : undefined)
-    console.log('load', loadCheck, activeAccount, index)
 
     const start = (macro: string) => {
     }
@@ -28,34 +27,36 @@ export default function State() {
     }
 
     return (
-        <Stack gap={4} p={6}>
+        <Box p={6}>
             <Group gap={4}>
-                <TextContainer label="Status" width={322}>{ loadCheck ? 'Loading' : activeData.Concrete<string>('status') }</TextContainer>
-                <Switcher type="Preset"/>
+                <Stack gap={4}>
+                    <TextContainer label="Status">{ loadCheck ? 'Loading' : activeData.Concrete<string>('status') }</TextContainer>
+                    <Group gap={4} style={{flexGrow: 1, flexWrap: 'nowrap'}}>
+                        <ActionButton
+                            action="Start"
+                            icon={<IconPlayerPlayFilled size={16}/>}
+                            execute={() => Start(activeAccount)}
+                            disabled={loadCheck ?? (!activeData.Concrete<boolean>('paused') && activeData.Concrete<boolean>('running'))}
+                        />
+                        <ActionButton
+                            action="Pause"
+                            icon={<IconPlayerPauseFilled size={16}/>}
+                            execute={() => Pause(activeAccount)}
+                            disabled={loadCheck ?? (!activeData.Concrete<boolean>('running') || activeData.Concrete<boolean>('paused'))}
+                        />
+                        <ActionButton
+                            action="Stop"
+                            icon={<IconPlayerStopFilled size={16}/>}
+                            execute={() => Stop(activeAccount)}
+                            disabled={loadCheck ?? !activeData.Concrete<boolean>('running')}
+                        />
+                    </Group>
+                </Stack>
+                <Stack gap={4} style={{flexGrow: 1}}>
+                    <Switcher type="Preset"/>
+                    <Switcher type="Account"/>
+                </Stack>
             </Group>
-            <Group gap={4}>
-                <Group gap={4}>
-                    <ActionButton
-                        action="Start"
-                        icon={<IconPlayerPlayFilled size={16}/>}
-                        execute={() => Start(activeAccount)}
-                        disabled={loadCheck ?? (!activeData.Concrete<boolean>('paused') && activeData.Concrete<boolean>('running'))}
-                    />
-                    <ActionButton
-                        action="Pause"
-                        icon={<IconPlayerPauseFilled size={16}/>}
-                        execute={() => Pause(activeAccount)}
-                        disabled={loadCheck ?? (!activeData.Concrete<boolean>('running') || activeData.Concrete<boolean>('paused'))}
-                    />
-                    <ActionButton
-                        action="Stop"
-                        icon={<IconPlayerStopFilled size={16}/>}
-                        execute={() => Stop(activeAccount)}
-                        disabled={loadCheck ?? !activeData.Concrete<boolean>('running')}
-                    />
-                </Group>
-                <Switcher type="Account"/>
-            </Group>
-        </Stack>
+        </Box>
     )
 }

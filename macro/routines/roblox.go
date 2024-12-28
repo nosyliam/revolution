@@ -96,7 +96,7 @@ var OpenRobloxRoutine = Actions{
 						Break(),
 						If(Image(ScienceImage...).Found()),
 						Info("Game Loaded")(Status, Discord),
-						Terminate(),
+						Break(),
 						If(Image(DisconnectImage...).Found()),
 						Info("Disconnected during reconnect")(Status, Discord),
 						Sleep(5).Seconds(),

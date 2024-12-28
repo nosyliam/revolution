@@ -1,7 +1,6 @@
 package macro
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
@@ -87,7 +86,7 @@ func (s *Scheduler) Execute(interruptType common.InterruptKind) {
 
 func (s *Scheduler) Close() {
 	if s.close == nil {
-		panic("scheduler already closed")
+		return
 	}
 	s.close <- struct{}{}
 }
@@ -99,7 +98,6 @@ func (s *Scheduler) Tick() {
 	// If we're not opening the window or unwinding a redirect, check the Roblox window
 	if opening := s.macro.Scratch.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && !s.macro.Scratch.Redirect {
 		if s.macro.Root.Window == nil {
-			fmt.Println("failed 0")
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}

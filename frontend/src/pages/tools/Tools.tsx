@@ -12,7 +12,7 @@ export default function Tools() {
     const [active, setActive] = useState(0)
 
     return (
-        <Group style={{height: '100%'}} gap={8}>
+        <Group style={{height: '100%', flexWrap: 'nowrap'}} gap={8}>
             <Paper shadow="xs" w={150} style={{height: '100%'}}>
                 <FloatingSelector selections={Object.keys(tools)} active={active} setActive={setActive}/>
             </Paper>

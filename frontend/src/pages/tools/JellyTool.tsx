@@ -95,7 +95,7 @@ const Mutations: { [key: string]: Mutation } = {
         numeric: false
     },
     "instant-conversion": {
-        value: "instant conversion",
+        value: "instant-conversion",
         label: "Instant Conv.",
         minPercent: 8,
         maxPercent: 20,
@@ -226,7 +226,7 @@ export default function JellyTool() {
                     </ControlBox>
                     <ControlBox
                         leftAction={
-                            <Group style={{gap: 4}}>
+                            <Group style={{gap: 4, flexWrap: 'nowrap'}}>
                                 <NumberInput w={60} size="xs" value={mutationValue} max={100}
                                              disabled={!enabled || !requireMutation}
                                              onChange={(value) => settings.Set<number>("mutationValue", value as number)}/>
@@ -244,6 +244,7 @@ export default function JellyTool() {
                     >
                         <Select
                             size="xs"
+                            pl={4}
                             w={110}
                             withCheckIcon={false}
                             value={mutationType}

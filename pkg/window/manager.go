@@ -28,6 +28,10 @@ func (w *Window) PID() int {
 	return w.id
 }
 
+func (w *Window) Dissociate() {
+	w.backend.DissociateWindow(w.id)
+}
+
 func (w *Window) Fix() error {
 	if err := w.mgr.adjustDisplays(); err != nil {
 		return errors.Wrap(err, "failed to adjust displays")
@@ -61,6 +65,7 @@ func (w *Window) TakeScreenshot() error {
 	var err error
 	screenshot, err := w.backend.Screenshot(w.id)
 	if err != nil {
+		fmt.Println("screen err", err)
 		return err
 	}
 	w.screenshot.Store(screenshot)
@@ -313,7 +318,6 @@ func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowC
 	w := screen.Width
 	h := screen.Height
 	if settings.Alignment != FullScreenWindowAlignment {
-		fmt.Println("align", settings.Alignment)
 		h = screen.Height / 2
 		if !settings.FullWidth {
 			w = screen.Width / 2

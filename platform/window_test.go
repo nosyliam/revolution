@@ -1,9 +1,12 @@
 package platform
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/pkg/image"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/stretchr/testify/assert"
+	"image/png"
+	"os"
 	"testing"
 )
 
@@ -15,6 +18,10 @@ func Test_DisplayFrames(t *testing.T) {
 }
 
 func Test_Window(t *testing.T) {
+	frames, err := WindowBackend.DisplayFrames()
+	assert.NoError(t, err)
+	fmt.Println(frames)
+
 	id, err := WindowBackend.OpenWindow(window.JoinOptions{})
 	assert.NoError(t, err)
 
@@ -24,9 +31,15 @@ func Test_Window(t *testing.T) {
 	err = WindowBackend.SetFrame(id, image.Frame{100, 100, 0, 0})
 	assert.NoError(t, err)
 
-	/*
-		proc, err := os.FindProcess(id)
-		if err == nil {
-			_ = proc.Kill()
-		}*/
+	fmt.Println(WindowBackend.GetFrame(id))
+
+	err = WindowBackend.ActivateWindow(id)
+	assert.NoError(t, err)
+
+	img, err := WindowBackend.Screenshot(id)
+	assert.NoError(t, err)
+
+	f, _ := os.Create("test.png")
+	png.Encode(f, img)
+	f.Close()
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"github.com/nosyliam/revolution/platform"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
@@ -9,18 +10,32 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"os"
+	"runtime"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
+	defer func() { //catch or finally
+		if err := recover(); err != nil { //catch
+			fmt.Fprintf(os.Stderr, "Exception: %v\n", err)
+			os.Exit(1)
+		}
+	}()
 	app := NewMacro(platform.WindowBackend, platform.ControlBackend)
+
+	var height = 400
+	if runtime.GOOS == "windows" {
+		height += 11
+	}
 
 	if err := wails.Run(&options.App{
 		Title:         "Revolution Macro",
 		Width:         600,
-		Height:        400,
+		Height:        height,
 		DisableResize: true,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
@@ -41,6 +56,12 @@ func main() {
 			},
 			WebviewIsTransparent: true,
 			WindowIsTranslucent:  true,
+		},
+		Windows: &windows.Options{
+			WebviewIsTransparent: true,
+			WindowIsTranslucent:  true,
+			BackdropType:         windows.Mica,
+			Theme:                windows.SystemDefault,
 		},
 	}); err != nil {
 		dialog.Message(errors.Wrap(err, "Failed to run application").Error()).Error()

@@ -13,25 +13,25 @@ import Tools from "../pages/tools/Tools";
 
 export default function MacroTabs() {
     return (
-        <Flex style={{flexGrow: 1}}>
-            <Tabs defaultValue="gallery" style={{width: '100%'}}>
+        <Flex style={{flexGrow: 1, minHeight: 0}}>
+            <Tabs defaultValue="gallery" style={{width: '100%'}} classNames={tabClasses}>
                 <Tabs.List bg="gray.0">
-                    <Tabs.Tab classNames={tabClasses} value="gather" leftSection={<IconShovel size={16}/>}>
+                    <Tabs.Tab value="gather" leftSection={<IconShovel size={16}/>}>
                         Gather
                     </Tabs.Tab>
-                    <Tabs.Tab classNames={tabClasses} value="collect" leftSection={<IconTicket size={16}/>}>
+                    <Tabs.Tab value="collect" leftSection={<IconTicket size={16}/>}>
                         Collect
                     </Tabs.Tab>
-                    <Tabs.Tab classNames={tabClasses} value="planters" leftSection={<IconBucket size={16}/>}>
+                    <Tabs.Tab value="planters" leftSection={<IconBucket size={16}/>}>
                         Planters
                     </Tabs.Tab>
-                    <Tabs.Tab classNames={tabClasses} value="status" leftSection={<IconTerminal2 size={16}/>}>
+                    <Tabs.Tab value="status" leftSection={<IconTerminal2 size={16}/>}>
                         Status
                     </Tabs.Tab>
-                    <Tabs.Tab classNames={tabClasses} value="tools" leftSection={<IconTool size={16}/>}>
+                    <Tabs.Tab value="tools" leftSection={<IconTool size={16}/>}>
                         Tools
                     </Tabs.Tab>
-                    <Tabs.Tab classNames={tabClasses} value="settings" leftSection={<IconSettings size={16}/>}>
+                    <Tabs.Tab value="settings" leftSection={<IconSettings size={16}/>}>
                         Settings
                     </Tabs.Tab>
                 </Tabs.List>

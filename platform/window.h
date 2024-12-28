@@ -1,6 +1,5 @@
 #include "base.h"
 #include <stdio.h>
-#include <windows.h>
 
 typedef struct Frame {
     int width;
@@ -274,4 +273,300 @@ Window* get_window_with_pid(pid_t pid) {
 
 	return NULL;
 };
+#endif
+#if defined(IS_WINDOWS)
+#include <windows.h>
+#include <shlwapi.h>
+#include <shellscalingapi.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#pragma comment(lib, "Shcore.lib")
+typedef struct Window {
+	DWORD pid;
+	HWND hwnd;
+} Window;
+
+typedef struct WindowCount {
+	DWORD pid;
+	int windowCount;
+} WindowCount;
+
+int get_display_count() {
+	int displayCount = GetSystemMetrics(SM_CMONITORS);
+	if (displayCount <= 0) {
+		return 0;
+	}
+    return displayCount;
+}
+
+Screenshot* screenshot_window(const Window* window) {
+    if (!window || !window->hwnd) {
+        printf("exit 1\n");
+        return NULL;  // Invalid input
+    }
+
+    // Get the client area dimensions
+    RECT clientRect;
+    if (!GetClientRect(window->hwnd, &clientRect)) {
+        printf("exit 2\n");
+        return NULL;  // Failed to get client rect
+    }
+
+    // Convert client coordinates to screen coordinates
+    POINT topLeft = {clientRect.left, clientRect.top};
+    POINT bottomRight = {clientRect.right, clientRect.bottom};
+    MapWindowPoints(window->hwnd, NULL, &topLeft, 1);
+    MapWindowPoints(window->hwnd, NULL, &bottomRight, 1);
+
+    int windowWidth = bottomRight.x - topLeft.x;
+    int windowHeight = bottomRight.y - topLeft.y;
+
+    // Get the screen DC
+    HDC hScreenDC = GetDC(NULL);
+    if (!hScreenDC) {
+        return NULL;
+    }
+
+    // Create a memory DC and compatible bitmap
+    HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
+    if (!hMemoryDC) {
+        ReleaseDC(NULL, hScreenDC);
+        return NULL;
+    }
+
+    HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, windowWidth, windowHeight);
+    if (!hBitmap) {
+        DeleteDC(hMemoryDC);
+        ReleaseDC(NULL, hScreenDC);
+        return NULL;
+    }
+
+    HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemoryDC, hBitmap);
+
+    // Copy the client area from the screen to the memory DC
+    if (!BitBlt(hMemoryDC, 0, 0, windowWidth, windowHeight, hScreenDC, topLeft.x, topLeft.y, SRCCOPY)) {
+        SelectObject(hMemoryDC, hOldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hMemoryDC);
+        ReleaseDC(NULL, hScreenDC);
+        return NULL;
+    }
+
+    // Retrieve bitmap information
+    BITMAP bitmap;
+    if (!GetObject(hBitmap, sizeof(BITMAP), &bitmap)) {
+        SelectObject(hMemoryDC, hOldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hMemoryDC);
+        ReleaseDC(NULL, hScreenDC);
+        return NULL;
+    }
+
+    // Calculate stride and data size
+    size_t stride = ((windowWidth * 3) + 3) & ~3;  // Align stride to 4 bytes
+    size_t dataSize = stride * windowHeight;
+
+    unsigned char* bgrData = (unsigned char*)malloc(dataSize);
+    if (!bgrData) {
+        SelectObject(hMemoryDC, hOldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hMemoryDC);
+        ReleaseDC(NULL, hScreenDC);
+        return NULL;
+    }
+
+    // Retrieve pixel data using GetDIBits
+    BITMAPINFOHEADER bi = {0};
+    bi.biSize = sizeof(BITMAPINFOHEADER);
+    bi.biWidth = windowWidth;
+    bi.biHeight = -windowHeight; // Negative height for top-down DIB
+    bi.biPlanes = 1;
+    bi.biBitCount = 24;          // 24-bit BGR format
+    bi.biCompression = BI_RGB;
+
+    if (!GetDIBits(hMemoryDC, hBitmap, 0, windowHeight, bgrData, (BITMAPINFO*)&bi, DIB_RGB_COLORS)) {
+        free(bgrData);
+        SelectObject(hMemoryDC, hOldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hMemoryDC);
+        ReleaseDC(NULL, hScreenDC);
+        return NULL;
+    }
+
+    // Convert BGR to RGBA
+    size_t rgbaSize = windowWidth * windowHeight * 4; // 4 bytes per pixel (RGBA)
+    unsigned char* rgbaData = (unsigned char*)malloc(rgbaSize);
+    if (!rgbaData) {
+        free(bgrData);
+        SelectObject(hMemoryDC, hOldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hMemoryDC);
+        ReleaseDC(NULL, hScreenDC);
+        return NULL;
+    }
+
+    for (int y = 0; y < windowHeight; y++) {
+        for (int x = 0; x < windowWidth; x++) {
+            size_t bgrIndex = y * stride + x * 3;
+            size_t rgbaIndex = (y * windowWidth + x) * 4;
+
+            // Copy BGR to RGBA and set alpha channel to 255
+            rgbaData[rgbaIndex + 0] = bgrData[bgrIndex + 2]; // Red
+            rgbaData[rgbaIndex + 1] = bgrData[bgrIndex + 1]; // Green
+            rgbaData[rgbaIndex + 2] = bgrData[bgrIndex + 0]; // Blue
+            rgbaData[rgbaIndex + 3] = 255;                  // Alpha
+        }
+    }
+
+    free(bgrData);
+
+    // Populate the Screenshot structure
+    Screenshot* screenshot = (Screenshot*)malloc(sizeof(Screenshot));
+    if (!screenshot) {
+        free(rgbaData);
+        SelectObject(hMemoryDC, hOldBitmap);
+        DeleteObject(hBitmap);
+        DeleteDC(hMemoryDC);
+        ReleaseDC(NULL, hScreenDC);
+        return NULL;
+    }
+
+    screenshot->width = windowWidth;
+    screenshot->height = windowHeight;
+    screenshot->stride = windowWidth * 4; // RGBA stride
+    screenshot->len = (unsigned int)rgbaSize;
+    screenshot->data = rgbaData;
+
+    // Cleanup
+    SelectObject(hMemoryDC, hOldBitmap);
+    DeleteObject(hBitmap);
+    DeleteDC(hMemoryDC);
+    ReleaseDC(NULL, hScreenDC);
+
+    return screenshot;
+}
+
+void set_window_frame(const Window* window, const int width, const int height, const int x, const int y) {
+    SetWindowPos(window->hwnd, HWND_TOP, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
+}
+
+Frame* get_window_frame(const Window* window) {
+    RECT rect;
+    if (GetWindowRect(window->hwnd, &rect)) {
+        Frame *frame = malloc(sizeof(Frame));
+    	frame->width = rect.right - rect.left;
+    	frame->height = rect.bottom - rect.top;
+    	frame->x = rect.left;
+        frame->y = rect.top;
+        return frame;
+    } else {
+        return NULL;
+    }
+}
+
+void activate_window(const Window* window) {
+  SetForegroundWindow(window->hwnd);
+}
+
+BOOL CALLBACK EnumDisplayMonitorsProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
+	Frames* frames = (Frames*)dwData;
+	Frame* data = frames->frames;
+
+	MONITORINFO monitorInfo;
+	monitorInfo.cbSize = sizeof(MONITORINFOEX);
+	if (GetMonitorInfo(hMonitor, &monitorInfo)) {
+		RECT rect = monitorInfo.rcMonitor;
+		int width = rect.right - rect.left;
+		int height = rect.bottom - rect.top;
+
+		HRESULT hr;
+		DEVICE_SCALE_FACTOR scaleFactor;
+		hr = GetScaleFactorForMonitor(hMonitor, &scaleFactor);
+        if (SUCCEEDED(hr)) {
+        	scaleFactor = scaleFactor;
+        } else {
+          	scaleFactor = SCALE_100_PERCENT;
+        }
+
+        Frame *frame = malloc(sizeof(Frame));
+    	frame->width = (int)width;
+    	frame->height = (int)height;
+    	frame->x = rect.left;
+    	frame->y = rect.top;
+        frame->scale = scaleFactor / 100;
+		data[frames->len++] = *frame;
+	}
+
+	return TRUE;
+}
+
+Frames* get_display_frames() {
+	// Get the number of displays
+	int displayCount = GetSystemMetrics(SM_CMONITORS);
+	if (displayCount <= 0) {
+		return NULL;
+	}
+
+	Frames* frames = (Frames*)malloc(sizeof(Frames));
+	Frame* data = (Frame*)malloc(sizeof(Frame) * displayCount);
+	frames->frames = data;
+	frames->len = 0;
+
+	EnumDisplayMonitors(NULL, NULL, EnumDisplayMonitorsProc, (LPARAM)frames);
+
+	return frames;
+}
+
+BOOL CALLBACK EnumWindowVisibleCountProc(HWND hwnd, LPARAM lParam) {
+	WindowCount* data = (WindowCount*)lParam;
+
+	DWORD windowPid = 0;
+	GetWindowThreadProcessId(hwnd, &windowPid);
+
+	if (windowPid == data->pid && IsWindowVisible(hwnd)) {
+		data->windowCount++;
+	}
+
+	return TRUE;
+}
+
+BOOL CALLBACK EnumWindowHwndProc(HWND hwnd, LPARAM lParam) {
+	Window* window = (Window*)lParam;
+
+	DWORD windowPid = 0;
+	GetWindowThreadProcessId(hwnd, &windowPid);
+
+	if (windowPid == window->pid) {
+		if (IsWindowVisible(hwnd)) {
+			window->hwnd = hwnd;
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+int get_window_visible_count(int pid) {
+	WindowCount data = { 0 };
+	data.pid = pid;
+	data.windowCount = 0;
+
+	EnumWindows(EnumWindowVisibleCountProc, (LPARAM)&data);
+
+	return data.windowCount;
+}
+
+Window* get_window_with_pid(int pid) {
+	Window* data = malloc(sizeof(Window));
+	data->pid = pid;
+	data->hwnd = NULL;
+
+	EnumWindows(EnumWindowHwndProc, (LPARAM)data);
+
+	if (data->hwnd == NULL) {
+	    return NULL;
+	}
+
+	return data;
+}
 #endif

@@ -132,11 +132,8 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 				}
 				if _, ok := w.windows[pid]; !ok {
 					if w.initializeWindow(pid) {
-						fmt.Println("initialize", pid)
 						return pid, nil
 					}
-				} else {
-					fmt.Println("not ok")
 				}
 			}
 		}
@@ -286,7 +283,6 @@ func (w *windowBackend) GetFrame(id int) (*revimg.Frame, error) {
 	if cFrame == nil || (cFrame.width == 0 && cFrame.height == 0) {
 		return nil, errors.New("failed to get window frame")
 	}
-	fmt.Println("frame", cFrame.width, cFrame.height, cFrame.x, cFrame.y)
 
 	frame := &revimg.Frame{
 		Width:  int(C.int(cFrame.width)),
