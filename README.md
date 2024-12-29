@@ -4,8 +4,6 @@ Revolution is a cross-platform Bee Swarm Simulator macro beautifully handcrafted
 
 ## Credits
 
-Credit to [Natro Macro](https://github.com/NatroTeam/NatroMacro/tree/main) for bitmap assets
-
 Copyright © 2024 nosyliam
 
 ## License

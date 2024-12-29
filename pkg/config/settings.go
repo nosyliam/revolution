@@ -42,12 +42,17 @@ type WindowSettings struct {
 	FallbackToPublicServer bool       `yaml:"fallbackToPublicServer" default:"true"`
 }
 
+type PlayerSettings struct {
+	MoveSpeed float64 `yaml:"moveSpeed" default:"16"`
+}
+
 // Settings defines the configuration for an individual preset
 type Settings struct {
 	Name         string                   `yaml:"name" key:"true" lock:"default"`
 	LogVerbosity int                      `yaml:"logVerbosity"`
 	Discord      *Object[DiscordSettings] `yaml:"discord"`
 	Window       *Object[WindowSettings]  `yaml:"window"`
+	Player       *Object[PlayerSettings]  `yaml:"player"`
 }
 
 type Tools struct {

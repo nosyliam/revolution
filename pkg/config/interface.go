@@ -85,6 +85,9 @@ func (c *config) setField(field reflect.Value, chain chain, index int, value int
 	case reflect.String:
 		field.SetString(value.(string))
 		c.file.Runtime().Set(path, value.(string))
+	case reflect.Float64:
+		field.SetFloat(value.(float64))
+		c.file.Runtime().Set(path, value.(float64))
 	default:
 		return errors.New("unsupported value")
 	}
@@ -110,6 +113,8 @@ func (c *config) getField(field reflect.Value, chain chain, index int) (interfac
 		return field.Bool(), nil
 	case reflect.String:
 		return field.String(), nil
+	case reflect.Float64:
+		return field.Float(), nil
 	default:
 		return errors.New("unsupported value"), nil
 	}
@@ -540,6 +545,12 @@ func (c *Object[T]) Initialize(path string, file Savable) error {
 				}
 			case reflect.String:
 				field.SetString(def)
+			case reflect.Float64:
+				if num, err := strconv.ParseFloat(def, 64); err == nil {
+					field.SetFloat(num)
+				} else {
+					panic("invalid number default")
+				}
 			}
 		}
 	}

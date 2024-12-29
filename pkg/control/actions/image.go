@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/image"
 )
@@ -72,6 +73,29 @@ func (i *imageSearch) Instances() func(macro *common.Macro) int {
 		ctx := NewImageSearchContext(i, macro)
 		ctx.execute()
 		return len(ctx.lastResult)
+	}
+}
+
+func (i *imageSearch) X() func(macro *common.Macro) int {
+	return func(macro *common.Macro) int {
+		ctx := NewImageSearchContext(i, macro)
+		ctx.execute()
+		if len(ctx.lastResult) == 0 {
+			return -1
+		}
+		return ctx.lastResult[0].X
+	}
+}
+
+func (i *imageSearch) Y() func(macro *common.Macro) int {
+	return func(macro *common.Macro) int {
+		ctx := NewImageSearchContext(i, macro)
+		ctx.execute()
+		fmt.Println("result", ctx.lastResult)
+		if len(ctx.lastResult) == 0 {
+			return -1
+		}
+		return ctx.lastResult[0].Y
 	}
 }
 

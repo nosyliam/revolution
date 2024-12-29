@@ -65,8 +65,10 @@ func (w *Window) TakeScreenshot() error {
 	var err error
 	screenshot, err := w.backend.Screenshot(w.id)
 	if err != nil {
-		fmt.Println("screen err", err)
 		return err
+	}
+	if len(screenshot.Pix) == 0 {
+		return errors.New("empty screenshot")
 	}
 	w.screenshot.Store(screenshot)
 	return nil

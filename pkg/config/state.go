@@ -21,6 +21,8 @@ type MacroState struct {
 	Paused  bool `state:"paused" yaml:"-"`
 
 	Status string `state:"status" default:"Ready"`
+
+	BaseOffset int `state:"baseOffset"`
 }
 
 type StateConfig struct {

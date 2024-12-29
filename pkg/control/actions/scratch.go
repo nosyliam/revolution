@@ -8,7 +8,16 @@ type setVariableAction struct {
 }
 
 func (a *setVariableAction) Execute(macro *common.Macro) error {
-	macro.Scratch.Set(string(a.name), a.val)
+	var computed = a.val
+	switch val := a.val.(type) {
+	case func(macro *common.Macro) int:
+		computed = val(macro)
+	case func(macro *common.Macro) bool:
+		computed = val(macro)
+	case func(macro *common.Macro) string:
+		computed = val(macro)
+	}
+	macro.Scratch.Set(string(a.name), computed)
 	return nil
 }
 

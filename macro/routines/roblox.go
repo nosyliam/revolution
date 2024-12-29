@@ -47,9 +47,16 @@ var ScienceImage = ImageSteps{
 }
 
 var DisconnectImage = ImageSteps{
-	SelectCoordinate(Change, 0, 30, 0, Sub(Height, 30)),
+	SelectCoordinate(Change, 0, 0, 0, 100),
 	Variance(2),
 	Search("disconnected").Find(),
+}
+
+var OffsetImage = ImageSteps{
+	SelectCoordinate(Change, 0, 0, 0, 150),
+	Variance(5),
+	Direction(1),
+	Search("tophoney").Find(),
 }
 
 var OpenRobloxRoutine = Actions{
@@ -103,6 +110,7 @@ var OpenRobloxRoutine = Actions{
 						Continue(1),
 					),
 				),
+				Sleep(100),
 			),
 			Loop(
 				For(180),
@@ -118,12 +126,13 @@ var OpenRobloxRoutine = Actions{
 					Sleep(5).Seconds(),
 					Continue(1),
 					Else(),
+					Set(Offset, Image(OffsetImage...).Y()),
 					Condition(
-						If(Or(
+						If(And(Or(
 							Image(LoadingImage...).NotFound(),
 							Image(ScienceImage...).Found(),
-						)),
-						Info("Game Loaded")(Status, Discord),
+						), GreaterThan(V[int](Offset), 0))),
+						Info("Game Loaded: %d", V[int](Offset))(Status, Discord),
 						Break(),
 						If(Image(DisconnectImage...).Found()),
 						Info("Disconnected during reconnect!")(Status, Discord),
@@ -131,6 +140,7 @@ var OpenRobloxRoutine = Actions{
 						Continue(1),
 					),
 				),
+				Sleep(100),
 			),
 			Break(),
 		),
@@ -147,6 +157,7 @@ var OpenRobloxRoutine = Actions{
 			go macro.Scheduler.Start()
 		}),
 	),
+	SetState("baseOffset", V[int](Offset)),
 	Set(RestartSleep, true),
 }
 

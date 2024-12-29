@@ -6,8 +6,8 @@ import (
 )
 
 func Register(registry registry.Registry) {
-	registry.RegisterPng("toppollen", toppollen)
+	registry.RegisterPng("tophoney", tophoney)
 }
 
-//go:embed toppollen.png
-var toppollen []byte
+//go:embed tophoney.png
+var tophoney []byte

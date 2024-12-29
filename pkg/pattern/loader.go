@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/pkg/errors"
+	"github.com/sqweek/dialog"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -31,17 +35,54 @@ type Metadata struct {
 	GatherPattern      bool
 }
 
-func NewMetadataFromStatementList(stmts []ast.Stmt) Metadata {
-	meta := Metadata{}
-	return meta
+func NewMetadataFromStatementList(stmts []ast.Stmt) (*Metadata, error) {
+	meta := &Metadata{
+		ReturnMethod: "reset",
+	}
+	value := reflect.ValueOf(meta)
+	for _, stmt := range stmts {
+		if n, ok := stmt.(*ast.FuncCallStmt); ok {
+			if fc, ok := n.Expr.(*ast.FuncCallExpr); ok {
+				if fn, ok := fc.Func.(*ast.IdentExpr); ok {
+					field := value.FieldByName(strings.TrimPrefix(fn.Value, "Set"))
+					if !field.IsValid() {
+						continue
+					}
+					switch field.Type().Kind() {
+					case reflect.String:
+						if expr, ok := fc.Args[0].(*ast.StringExpr); ok {
+							field.SetString(expr.Value)
+						} else {
+							return nil, errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
+						}
+					case reflect.Bool:
+						switch fc.Args[0].(type) {
+						case *ast.TrueExpr:
+							field.SetBool(true)
+						case *ast.FalseExpr:
+							field.SetBool(false)
+						default:
+							return nil, errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
+						}
+					case reflect.Int:
+						if expr, ok := fc.Args[0].(*ast.NumberExpr); ok {
+							val, _ := strconv.Atoi(expr.Value)
+							field.SetInt(int64(val))
+						} else {
+							return nil, errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
+						}
+					}
+				}
+			}
+		}
+	}
+	return meta, nil
 }
 
 type Pattern struct {
-	Meta  Metadata
+	Meta  *Metadata
 	Proto *lua.FunctionProto
-
-	Name string
-	Path string
+	Path  string
 }
 
 type Loader struct {
@@ -96,14 +137,25 @@ func (l *Loader) handleFileChange(path string) {
 		}
 		chunk, err := parse.Parse(bytes.NewReader(data), path)
 		if err != nil {
+			dialog.Message(fmt.Sprintf("Failed to parse Lua pattern at %s: %v", path, err)).Error()
+			return
+		}
+		metadata, err := NewMetadataFromStatementList(chunk)
+		if err != nil {
+			dialog.Message(fmt.Sprintf("Failed to extract metadata from Lua pattern at %s: %v", path, err)).Error()
 			return
 		}
 		proto, err := lua.Compile(chunk, path)
 		if err != nil {
+			dialog.Message(fmt.Sprintf("Failed to compile Lua pattern at %s: %v", path, err)).Error()
 			return
 		}
 		l.mu.Lock()
-		//l.patterns[patternName] = proto
+		l.patterns[metadata.Name] = &Pattern{
+			Meta:  metadata,
+			Proto: proto,
+			Path:  path,
+		}
 		l.mu.Unlock()
 	}
 }

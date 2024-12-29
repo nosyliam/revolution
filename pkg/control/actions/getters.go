@@ -11,6 +11,7 @@ const (
 	RetryCount      VariableName = "retry-count"
 	UsePublicServer VariableName = "use-public-server"
 	RestartSleep    VariableName = "restart-sleep"
+	Offset          VariableName = "offset"
 )
 
 func S(path string) interface{} {
