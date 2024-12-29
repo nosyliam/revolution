@@ -101,7 +101,8 @@ func (r *Reader) Start() {
 			if activeScan == nil {
 				r.err <- "OCR subprocess returned unexpected data"
 			}
-			if text[0:2] == "E=" {
+			fmt.Println("res", text)
+			if len(text) > 3 && text[0:2] == "E=" {
 				err := text[2:]
 				activeScan.out <- Result{Error: &err}
 				activeScan.finish <- true

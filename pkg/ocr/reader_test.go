@@ -16,9 +16,12 @@ func Test_ImageReader(t *testing.T) {
 
 	go imageReader.Start()
 
-	img := bitmaps.Registry.Get("honeyfixture2")
+	//now := time.Now()
+	img := bitmaps.Registry.Get("testdigit")
+	fmt.Println(img)
 	res := <-imageReader.ReadImage(img)
 	fmt.Println(res)
+
 	assert.NotNil(t, res)
 	assert.NoError(t, err)
 }

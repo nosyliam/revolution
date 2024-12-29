@@ -10,6 +10,7 @@ import {
 import tabClasses from "./Tab.module.css"
 import React from "react";
 import Tools from "../pages/tools/Tools";
+import Status from "../pages/status/Status";
 
 export default function MacroTabs() {
     return (
@@ -39,6 +40,9 @@ export default function MacroTabs() {
                 <Box p={6} style={{height: 'calc(100% - 34px)'}}>
                     <Tabs.Panel value="tools" style={{height: '100%'}}>
                         <Tools/>
+                    </Tabs.Panel>
+                    <Tabs.Panel value="status" style={{height: '100%'}}>
+                        <Status />
                     </Tabs.Panel>
                 </Box>
             </Tabs>

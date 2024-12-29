@@ -149,8 +149,6 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 					if w.initializeWindow(pid) {
 						return pid, nil
 					}
-				} else {
-					fmt.Println("not ok", pid)
 				}
 			}
 		}

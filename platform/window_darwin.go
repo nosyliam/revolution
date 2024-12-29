@@ -24,10 +24,16 @@ import (
 
 var WindowBackend window.Backend = &windowBackend{make(map[int]*C.Window), ""}
 
-// This structure is redundant because it's impossible to perform multi-instance on MacOS, but that may change
 type windowBackend struct {
 	windows   map[int]*C.Window
 	robloxLoc string
+}
+
+func (w *windowBackend) DissociateWindow(id int) {
+	if _, ok := w.windows[id]; ok {
+		w.freeWindow(id)
+	}
+	delete(w.windows, id)
 }
 
 func (w *windowBackend) CloseWindow(id int) error {
