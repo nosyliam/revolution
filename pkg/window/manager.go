@@ -2,11 +2,14 @@ package window
 
 import (
 	"fmt"
+	"github.com/nosyliam/revolution/bitmaps"
 	. "github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
 	"image"
+	"image/png"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -14,14 +17,15 @@ import (
 )
 
 type Window struct {
-	id         int
-	config     *WindowConfig
-	backend    Backend
-	screenshot atomic.Pointer[image.RGBA]
-	mgr        *Manager
-	err        error
-
-	Offset int
+	id          int
+	config      *WindowConfig
+	backend     Backend
+	screenshot  atomic.Pointer[image.RGBA]
+	origin      atomic.Pointer[revimg.Point]
+	originFails int
+	loaded      bool
+	mgr         *Manager
+	err         error
 }
 
 func (w *Window) PID() int {
@@ -61,6 +65,14 @@ func (w *Window) Screenshot() *image.RGBA {
 	return w.screenshot.Load()
 }
 
+func (w *Window) Origin() *revimg.Point {
+	return w.origin.Load()
+}
+
+func (w *Window) MarkLoaded() {
+	w.loaded = true
+}
+
 func (w *Window) TakeScreenshot() error {
 	var err error
 	screenshot, err := w.backend.Screenshot(w.id)
@@ -69,6 +81,25 @@ func (w *Window) TakeScreenshot() error {
 	}
 	if len(screenshot.Pix) == 0 {
 		return errors.New("empty screenshot")
+	}
+	if w.loaded {
+		results, err := revimg.ImageSearch(bitmaps.Registry.Get("roblox"), screenshot, &revimg.SearchOptions{
+			BoundEnd:  &revimg.Point{X: 300, Y: 300},
+			Variation: 5,
+		})
+		if err != nil || len(results) == 0 {
+			fmt.Println("origin detect failed")
+			f, _ := os.Create("test.png")
+			png.Encode(f, screenshot)
+			f.Close()
+			w.originFails++
+		} else {
+			w.originFails = 0
+			w.origin.Store(&revimg.Point{X: results[0].X - 28, Y: results[0].Y - 24})
+		}
+		if w.originFails > 10 {
+			return errors.New("failed to detect origin")
+		}
 	}
 	w.screenshot.Store(screenshot)
 	return nil

@@ -52,10 +52,10 @@ var DisconnectImage = ImageSteps{
 	Search("disconnected").Find(),
 }
 
-var OffsetImage = ImageSteps{
+var HoneyOffsetImage = ImageSteps{
 	SelectCoordinate(Change, 0, 0, 0, 150),
 	Variance(5),
-	Direction(1),
+	Direction(0),
 	Search("tophoney").Find(),
 }
 
@@ -126,7 +126,7 @@ var OpenRobloxRoutine = Actions{
 					Sleep(5).Seconds(),
 					Continue(1),
 					Else(),
-					Set(Offset, Image(OffsetImage...).Y()),
+					Set(Offset, Image(HoneyOffsetImage...).X()),
 					Condition(
 						If(And(Or(
 							Image(LoadingImage...).NotFound(),
@@ -154,10 +154,10 @@ var OpenRobloxRoutine = Actions{
 	Condition(
 		If(False(V[bool](RestartSleep))),
 		Logic(func(macro *Macro) {
+			macro.Root.Window.MarkLoaded()
 			go macro.Scheduler.Start()
 		}),
 	),
-	SetState("baseOffset", V[int](Offset)),
 	Set(RestartSleep, true),
 }
 

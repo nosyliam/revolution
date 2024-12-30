@@ -80,6 +80,7 @@ func (i *imageSearch) X() func(macro *common.Macro) int {
 	return func(macro *common.Macro) int {
 		ctx := NewImageSearchContext(i, macro)
 		ctx.execute()
+		fmt.Println(ctx.lastResult)
 		if len(ctx.lastResult) == 0 {
 			return -1
 		}
@@ -91,7 +92,6 @@ func (i *imageSearch) Y() func(macro *common.Macro) int {
 	return func(macro *common.Macro) int {
 		ctx := NewImageSearchContext(i, macro)
 		ctx.execute()
-		fmt.Println("result", ctx.lastResult)
 		if len(ctx.lastResult) == 0 {
 			return -1
 		}

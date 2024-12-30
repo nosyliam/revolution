@@ -1,6 +1,8 @@
 package actions
 
-import "github.com/nosyliam/revolution/pkg/common"
+import (
+	"github.com/nosyliam/revolution/pkg/common"
+)
 
 type setStateAction struct {
 	path string
@@ -17,7 +19,7 @@ func (a *setStateAction) Execute(macro *common.Macro) error {
 	case func(macro *common.Macro) string:
 		computed = val(macro)
 	}
-	return macro.State.SetPath(a.path, computed)
+	return macro.Root.MacroState.SetPath(a.path, computed)
 }
 
 func SetState(path string, val interface{}) common.Action {

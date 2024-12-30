@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"image"
 	"math"
+	"slices"
 )
 
 var digits = make(map[*image.RGBA]int)
@@ -20,7 +21,6 @@ func generateNumber(digits []int) int {
 
 // DetectDigits detects the digits inside an image. Returns -1 if no digits were found
 func DetectDigits(image *image.RGBA) (int, error) {
-	var detectedDigits []int
 	if len(digits) == 0 {
 		digits[bitmaps.Registry.Get("digit_zero")] = 0
 		digits[bitmaps.Registry.Get("digit_one")] = 1
@@ -33,27 +33,33 @@ func DetectDigits(image *image.RGBA) (int, error) {
 		digits[bitmaps.Registry.Get("digit_eight")] = 8
 		digits[bitmaps.Registry.Get("digit_nine")] = 9
 	}
-	searchX := 38
+	var detectedDigits []struct{ x, v int }
 	for needle, digit := range digits {
 		points, err := revimg.ImageSearch(needle, image,
 			&revimg.SearchOptions{
-				BoundStart:      &revimg.Point{Y: 20},
-				BoundEnd:        &revimg.Point{X: searchX, Y: 38},
+				BoundStart:      &revimg.Point{Y: 22},
+				BoundEnd:        &revimg.Point{Y: 38},
 				SearchDirection: 8,
-				Variation:       10,
+				Variation:       0,
 			},
 		)
 		if err != nil {
 			return -1, errors.Wrap(err, "failed to perform image search")
 		}
-		if len(points) == 0 {
-			continue
+		for _, point := range points {
+			detectedDigits = append(detectedDigits, struct{ x, v int }{point.X, digit})
 		}
-		searchX = points[0].X
-		detectedDigits = append(detectedDigits, digit)
 	}
 	if len(detectedDigits) == 0 {
 		return -1, nil
 	}
-	return generateNumber(detectedDigits), nil
+	if len(detectedDigits) == 1 {
+		return detectedDigits[0].v, nil
+	}
+	var sortedDigits []int
+	slices.SortFunc(detectedDigits, func(x, y struct{ x, v int }) int { return y.x - x.x })
+	for _, d := range detectedDigits {
+		sortedDigits = append(sortedDigits, d.v)
+	}
+	return generateNumber(sortedDigits), nil
 }

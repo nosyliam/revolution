@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"github.com/nosyliam/revolution/pkg/config"
+	"github.com/nosyliam/revolution/pkg/detect"
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
@@ -38,8 +39,10 @@ type Macro struct {
 	Scheduler  Scheduler
 	Results    *ActionResults
 	State      *config.Object[config.State]
+	MacroState *config.Object[config.MacroState]
 	Settings   *config.Object[config.Settings]
 	Database   *config.Object[config.AccountDatabase]
+	BuffDetect *detect.BuffDetector
 	Logger     *logging.Logger
 	Window     *window.Window
 	WinManager *window.Manager

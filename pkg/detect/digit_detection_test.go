@@ -28,7 +28,7 @@ func loadFixture(name string) ([]byte, error) {
 }
 
 func Test_DigitDetection(t *testing.T) {
-	data, err := loadFixture("./fixture/blessing.png")
+	data, err := loadFixture("./fixture/digits/blessing.png")
 	assert.NoError(t, err)
 	bitmaps.Registry.RegisterPng("test", data)
 	test := bitmaps.Registry.Get("test")
@@ -36,4 +36,28 @@ func Test_DigitDetection(t *testing.T) {
 	result, err := DetectDigits(test)
 	assert.NoError(t, err)
 	assert.Equal(t, 23, result)
+}
+
+func Test_DigitDetection_Four(t *testing.T) {
+	data, err := loadFixture("./fixture/digits/four.png")
+	assert.NoError(t, err)
+	bitmaps.Registry.RegisterPng("test", data)
+	test := bitmaps.Registry.Get("test")
+	assert.NotNil(t, test)
+	result, err := DetectDigits(test)
+	assert.NoError(t, err)
+	assert.Equal(t, 4, result)
+}
+
+func BenchmarkDigitDetection(b *testing.B) {
+	data, err := loadFixture("./fixture/digits/blessing.png")
+	assert.NoError(b, err)
+	bitmaps.Registry.RegisterPng("test", data)
+	test := bitmaps.Registry.Get("test")
+	assert.NotNil(b, test)
+	for i := 0; i < b.N; i++ {
+		result, err := DetectDigits(test)
+		assert.NoError(b, err)
+		assert.Equal(b, 23, result)
+	}
 }

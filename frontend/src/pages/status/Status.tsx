@@ -10,12 +10,12 @@ export default function Status() {
     return (
         <Group style={{height: '100%', flexWrap: 'nowrap'}} gap={8}>
             <Console />
-            <Paper shadow="xs" style={{height: '100%'}} p={4}>
+            <Paper shadow="xs" style={{height: '100%', flexGrow: 1}} p={4}>
                 <Stack gap={4} style={{height: '100%'}}>
                     <Box style={{flexGrow: 1, height: '100%'}}>
                     </Box>
                     <Tabs variant="pills" defaultValue="logs">
-                        <Tabs.List>
+                        <Tabs.List style={{flexWrap: 'nowrap'}}>
                             <Tabs.Tab value="statistics" leftSection={<IconChartBarPopular style={iconStyle} />}>
                                 Statistics
                             </Tabs.Tab>

@@ -1,10 +1,12 @@
 package macro
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
+	"github.com/nosyliam/revolution/pkg/logging"
 	"slices"
 	"time"
 )
@@ -37,6 +39,7 @@ type interval struct {
 type Scheduler struct {
 	macro    *common.Macro
 	close    chan struct{}
+	ready    chan struct{}
 	redirect chan<- *common.RedirectExecution
 	tick     int
 }
@@ -94,6 +97,7 @@ func (s *Scheduler) Close() {
 func (s *Scheduler) Tick() {
 	defer func() {
 		s.tick++
+		s.ready <- struct{}{}
 	}()
 	// If we're not opening the window or unwinding a redirect, check the Roblox window
 	if opening := s.macro.Scratch.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && !s.macro.Scratch.Redirect {
@@ -116,14 +120,34 @@ func (s *Scheduler) Tick() {
 	} else if s.macro.Scratch.Redirect || opening {
 		return
 	}
+	s.macro.Root.BuffDetect.Tick(s.macro.Root.Window.Origin(), s.macro.Root.Window.Screenshot())
 }
 
 func (s *Scheduler) Start() {
+	s.ready = make(chan struct{}, 1)
 	s.close = make(chan struct{})
 	for {
+		go s.Tick()
 		select {
 		case <-time.After(ClockTime):
-			s.Tick()
+			delay := time.Duration(0)
+			var exit = false
+			for {
+				if exit {
+					break
+				}
+				select {
+				case <-s.ready:
+					exit = true
+					break
+				case <-time.After(50 * time.Millisecond):
+					delay += 50
+					_ = s.macro.Logger.Log(1, logging.Warning, fmt.Sprintf("Scheduler clock is running behind by %d ms!", delay))
+				case <-s.close:
+					s.close = nil
+					return
+				}
+			}
 		case <-s.close:
 			s.close = nil
 			return

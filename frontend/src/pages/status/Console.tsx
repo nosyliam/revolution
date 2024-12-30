@@ -12,10 +12,7 @@ export default function Console() {
             inputTextStyle={ConsoleStyles.inputText}
             promptLabel={<b>&gt;</b>}
             styleEchoBack='fullInherit'
-            welcomeMessage={[
-                'Welcome to the Revolution console.',
-                'Type \'help\' for a list of commands. '
-            ]}
+            welcomeMessage={'Welcome to the Revolution console. Type \'help\' for a list of commands.'}
         />
     )
 }

@@ -12,6 +12,8 @@ const (
 	UsePublicServer VariableName = "use-public-server"
 	RestartSleep    VariableName = "restart-sleep"
 	Offset          VariableName = "offset"
+	OffsetX         VariableName = "offset-x"
+	OffsetY         VariableName = "offset-y"
 )
 
 func S(path string) interface{} {

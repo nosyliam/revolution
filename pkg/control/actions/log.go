@@ -58,7 +58,7 @@ func (a *LogAction) Execute(macro *common.Macro) error {
 	if a.status {
 		macro.Status(msg)
 	}
-	fmt.Println("log", msg)
+	//fmt.Println("log", msg)
 	if err := macro.Logger.Log(a.verbosity, a.level, msg); err != nil {
 		return errors.Wrap(err, "failed to log")
 	}

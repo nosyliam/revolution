@@ -121,9 +121,7 @@ func (m *Macro) startup(ctx context.Context) {
 func (m *Macro) Start(instance string) {
 	account := m.interfaces[instance]
 	if *Concrete[bool](m.state, "macros[%s].paused", instance) {
-		fmt.Println("unpausing")
 		account.Unpause()
-		fmt.Println("unpaused")
 		return
 	}
 	account.Start()

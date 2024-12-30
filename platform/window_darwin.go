@@ -13,7 +13,6 @@ import (
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
 	"image"
-	"image/png"
 	"io"
 	"net/http"
 	"os"
@@ -40,10 +39,7 @@ func (w *windowBackend) DissociateWindow(id int) {
 func (w *windowBackend) CloseWindow(id int) error {
 	proc, err := os.FindProcess(id)
 	if err == nil {
-		err = proc.Kill()
-		if err != nil {
-			return err
-		}
+		_ = proc.Kill()
 	}
 
 	w.freeWindow(id)
@@ -271,9 +267,9 @@ func (w *windowBackend) Screenshot(id int) (*image.RGBA, error) {
 	img.Pix = data
 	img.Stride = int(stride)
 
-	f, _ := os.Create("test.png")
+	/*f, _ := os.Create("test.png")
 	png.Encode(f, &img)
-	f.Close()
+	f.Close()*/
 
 	C.free(unsafe.Pointer(screen.data))
 	C.free(unsafe.Pointer(screen))

@@ -2,6 +2,7 @@ package bitmaps
 
 import (
 	"bytes"
+	"github.com/nosyliam/revolution/bitmaps/buffs"
 	"github.com/nosyliam/revolution/bitmaps/convert"
 	"github.com/nosyliam/revolution/bitmaps/digits"
 	"github.com/nosyliam/revolution/bitmaps/offset"
@@ -45,6 +46,7 @@ func (b *bitmapRegistry) initialize() {
 	convert.Register(b)
 	reconnect.Register(b)
 	digits.Register(b)
+	buffs.Register(b)
 }
 
 func init() {

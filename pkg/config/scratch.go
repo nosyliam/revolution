@@ -67,6 +67,32 @@ func (s *Scratch) Increment(name string) {
 	}
 }
 
+func (s *Scratch) Subtract(name string, value int) {
+	val, ok := s.variables[name]
+	if !ok {
+		panic("unknown variable")
+	}
+	switch val.Type {
+	case intVariableType:
+		val.value = val.Int() - value
+	case boolVariableType:
+		panic("cannot increment a bool")
+	}
+}
+
+func (s *Scratch) Add(name string, value int) {
+	val, ok := s.variables[name]
+	if !ok {
+		panic("unknown variable")
+	}
+	switch val.Type {
+	case intVariableType:
+		val.value = val.Int() - value
+	case boolVariableType:
+		panic("cannot increment a bool")
+	}
+}
+
 func (s *Scratch) Reset(name string) {
 	val, ok := s.variables[name]
 	if !ok {

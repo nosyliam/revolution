@@ -63,3 +63,17 @@ func (a *clearVariableAction) Execute(macro *common.Macro) error {
 func Clear(name VariableName) common.Action {
 	return &clearVariableAction{name: name}
 }
+
+type subtractVariableAction struct {
+	name  VariableName
+	value int
+}
+
+func (a *subtractVariableAction) Execute(macro *common.Macro) error {
+	macro.Scratch.Subtract(string(a.name), a.value)
+	return nil
+}
+
+func Subtract(name VariableName, value int) common.Action {
+	return &subtractVariableAction{name: name, value: value}
+}

@@ -1,10 +1,12 @@
 package macro
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/control"
+	"github.com/nosyliam/revolution/pkg/detect"
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/sqweek/dialog"
@@ -35,9 +37,11 @@ func (i *Interface) Start() {
 		EventBus:   i.EventBus,
 		Backend:    i.Backend,
 		Settings:   i.Settings,
+		MacroState: i.State,
 		Database:   i.Database,
 		Logger:     i.Logger,
 		WinManager: i.WinMgr,
+		BuffDetect: detect.NewBuffDetector(i.Settings, i.State),
 		Scratch:    config.NewScratch(),
 		Results:    &common.ActionResults{},
 		Pause:      pause,
@@ -64,6 +68,7 @@ func (i *Interface) Start() {
 					_ = i.State.SetPath("paused", false)
 					go i.Macro.Scheduler.Start()
 					i.unpause <- struct{}{}
+					fmt.Println("unpaused")
 					i.unpause = nil
 					continue
 				}

@@ -11,8 +11,39 @@ import "C"
 import (
 	"github.com/pkg/errors"
 	"image"
+	"image/color"
 	"unsafe"
 )
+
+func HexToRGBA(hex uint32) color.RGBA {
+	return color.RGBA{
+		R: uint8((hex >> 16) & 0xFF),
+		G: uint8((hex >> 8) & 0xFF),
+		B: uint8(hex & 0xFF),
+		A: 0xFF, // Default alpha to fully opaque
+	}
+}
+
+func CropRGBA(src *image.RGBA, rect image.Rectangle) *image.RGBA {
+	dstRect := image.Rect(0, 0, rect.Dx(), rect.Dy())
+
+	cropped := image.NewRGBA(dstRect)
+
+	for y := rect.Min.Y; y < rect.Max.Y; y++ {
+		for x := rect.Min.X; x < rect.Max.X; x++ {
+			offsetSrc := src.PixOffset(x, y)
+			// Now (x - rect.Min.X, y - rect.Min.Y) is correct since cropped’s Min is (0,0).
+			offsetDst := cropped.PixOffset(x-rect.Min.X, y-rect.Min.Y)
+
+			copy(
+				cropped.Pix[offsetDst:offsetDst+4],
+				src.Pix[offsetSrc:offsetSrc+4],
+			)
+		}
+	}
+
+	return cropped
+}
 
 type Point struct {
 	X int
