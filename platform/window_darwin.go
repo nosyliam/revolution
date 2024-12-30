@@ -3,6 +3,14 @@
 package platform
 
 // #include "window.h"
+// #include "capture/CaptureBridge.h"
+// #cgo LDFLAGS: -L./capture -lCapture -framework Foundation -framework ScreenCaptureKit -framework CoreMedia -framework CoreVideo
+//
+//extern void GoFrameCallback(unsigned char* data, size_t length, int width, int height, int stride);
+//
+//static inline FrameCallback getCallbackPtr() {
+//    return (FrameCallback)GoFrameCallback;
+//}
 import "C"
 
 import (
@@ -22,10 +30,14 @@ import (
 	"unsafe"
 )
 
-var WindowBackend window.Backend = &windowBackend{make(map[int]*C.Window), ""}
+var WindowBackend window.Backend = &windowBackend{
+	windows:  make(map[int]*C.Window),
+	captures: make(map[int]*C.CaptureControllerRef),
+}
 
 type windowBackend struct {
 	windows   map[int]*C.Window
+	captures  map[int]*C.CaptureControllerRef
 	robloxLoc string
 }
 
@@ -250,6 +262,36 @@ func (w *windowBackend) ActivateWindow(id int) error {
 
 	C.activate_window(win)
 	return nil
+}
+
+//export GoFrameCallback
+func GoFrameCallback(data *C.uchar, length C.size_t, width, height, stride C.int) {
+	buf := C.GoBytes(unsafe.Pointer(data), C.int(length))
+
+	fmt.Printf("Got frame: %dx%d stride=%d size=%d len=%d\n",
+		width, height, stride, length, len(buf))
+
+	C.free(unsafe.Pointer(data))
+}
+
+func (w *windowBackend) StartCapture(id int) {
+	win, err := w.getWindow(id)
+	if err != nil {
+		return
+	}
+
+	controller := C.CreateCaptureController()
+	if controller == nil {
+		fmt.Println("Error: CreateCaptureController returned nil")
+		return
+	}
+
+	cbPtr := C.getCallbackPtr()
+	C.SetFrameCallback(controller, cbPtr)
+
+	if !C.StartCapture(controller, win.id) {
+		fmt.Println("Failed to start capture on window ID", id)
+	}
 }
 
 func (w *windowBackend) Screenshot(id int) (*image.RGBA, error) {

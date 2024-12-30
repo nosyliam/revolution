@@ -28,7 +28,7 @@ typedef struct Screenshot {
 static Boolean(*gAXIsProcessTrustedWithOptions) (CFDictionaryRef);
 static CFStringRef* gkAXTrustedCheckOptionPrompt;
 
-bool check_ax_enabled(bool showPrompt) {
+static bool check_ax_enabled(bool showPrompt) {
     // Statically load all required functions one time
     static dispatch_once_t once; dispatch_once (&once,
     ^{
@@ -76,7 +76,7 @@ typedef struct Window {
 	CGWindowID     id;
 } Window;
 
-int get_display_count() {
+static int get_display_count() {
 	CGDirectDisplayID displays[32];
 	uint32_t count;
 
@@ -88,7 +88,7 @@ int get_display_count() {
     return count;
 }
 
-Frames* get_display_frames() {
+static Frames* get_display_frames() {
 	CGDirectDisplayID displays[32];
 	uint32_t count;
 
@@ -123,7 +123,7 @@ Frames* get_display_frames() {
     return frames;
 }
 
-void set_window_frame(const Window* window, const int width, const int height, const int x, const int y) {
+static void set_window_frame(const Window* window, const int width, const int height, const int x, const int y) {
 	CGPoint* position = malloc(sizeof(CGPoint));
 	position->x = x;
 	position->y = y;
@@ -142,7 +142,7 @@ void set_window_frame(const Window* window, const int width, const int height, c
 	free(size);
 }
 
-Frame* get_window_frame(const Window* window) {
+static Frame* get_window_frame(const Window* window) {
 	CFTypeRef sizeStorage;
 	AXError result = AXUIElementCopyAttributeValue(window->window, (CFStringRef)kAXSizeAttribute, &sizeStorage);
 
@@ -184,7 +184,7 @@ Frame* get_window_frame(const Window* window) {
 	return frame;
 }
 
-Screenshot* screenshot_window(const Window* window) {
+static Screenshot* screenshot_window(const Window* window) {
     int bgraDataLen = 0;
     CGImageRef windowImage = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow, window->id, kCGWindowImageBoundsIgnoreFraming & kCGWindowImageNominalResolution);
 	CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
@@ -212,7 +212,7 @@ Screenshot* screenshot_window(const Window* window) {
     return screenshot;
 }
 
-void activate_window(const Window* window) {
+static void activate_window(const Window* window) {
 	if (AXUIElementPerformAction(window->window, kAXRaiseAction) != kAXErrorSuccess) {
 		pid_t pid = 0;
 		if (AXUIElementGetPid(window->window, &pid) != kAXErrorSuccess || !pid) { return; }
@@ -229,7 +229,7 @@ void activate_window(const Window* window) {
 	}
 }
 
-int get_window_count(pid_t pid) {
+static int get_window_count(pid_t pid) {
 	AXUIElementRef application = AXUIElementCreateApplication(pid);
 	if (application == 0) {return 0;}
 
@@ -245,7 +245,7 @@ int get_window_count(pid_t pid) {
     return 0;
 }
 
-Window* get_window_with_pid(pid_t pid) {
+static Window* get_window_with_pid(pid_t pid) {
 	AXUIElementRef application = AXUIElementCreateApplication(pid);
 	if (application == 0) {return NULL;}
 

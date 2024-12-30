@@ -8,13 +8,21 @@ import (
 	"image/png"
 	"os"
 	"testing"
+	"time"
 )
 
 func Test_DisplayFrames(t *testing.T) {
 	frames, err := WindowBackend.DisplayFrames()
 	assert.NoError(t, err)
-	assert.GreaterOrEqual(t, frames, 1)
+	assert.GreaterOrEqual(t, len(frames), 1)
 	assert.Greater(t, frames[0].Height, 500)
+}
+
+func Test_Capture(t *testing.T) {
+	id, err := WindowBackend.OpenWindow(window.JoinOptions{})
+	assert.NoError(t, err)
+	WindowBackend.StartCapture(id)
+	time.Sleep(60 * time.Second)
 }
 
 func Test_Window(t *testing.T) {
