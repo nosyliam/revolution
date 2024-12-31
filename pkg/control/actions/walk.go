@@ -2,7 +2,7 @@ package actions
 
 import (
 	"github.com/nosyliam/revolution/pkg/common"
-	time2 "time"
+	time "time"
 )
 
 type SleepAction struct {
@@ -16,13 +16,11 @@ func (a *SleepAction) Seconds() *SleepAction {
 }
 
 func (a *SleepAction) Execute(macro *common.Macro) error {
-	var time = a.ms
+	var ms = a.ms
 	if a.seconds {
-		time *= 1000
+		ms *= 1000
 	}
-	var interrupt = make(chan struct{})
-	macro.Backend.Sleep(time, interrupt)
-	time2.Sleep(time2.Duration(time) * time2.Millisecond)
+	time.Sleep(time.Duration(ms) * time.Millisecond)
 	return nil
 }
 

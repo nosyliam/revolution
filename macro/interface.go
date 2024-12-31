@@ -1,7 +1,6 @@
 package macro
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
@@ -47,9 +46,9 @@ func (i *Interface) Start() {
 		Pause:      pause,
 		Redirect:   i.redirect,
 	}
-	i.Macro.Scheduler = NewScheduler(i.redirect)
-
 	stop := make(chan struct{}, 1)
+	i.Macro.Scheduler = NewScheduler(i.redirect, i.stop)
+
 	err := make(chan string, 1)
 	status := make(chan string)
 
@@ -68,7 +67,6 @@ func (i *Interface) Start() {
 					_ = i.State.SetPath("paused", false)
 					go i.Macro.Scheduler.Start()
 					i.unpause <- struct{}{}
-					fmt.Println("unpaused")
 					i.unpause = nil
 					continue
 				}

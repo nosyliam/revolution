@@ -58,6 +58,10 @@ func Window(macro *common.Macro) interface{} {
 	return macro.Root.Window
 }
 
+func Capturing(macro *common.Macro) bool {
+	return macro.Root.Window.Capturing()
+}
+
 func LastError(macro *common.Macro) interface{} {
 	return macro.Scratch.LastError
 }

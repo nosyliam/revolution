@@ -21,8 +21,9 @@ func Test_DisplayFrames(t *testing.T) {
 func Test_Capture(t *testing.T) {
 	id, err := WindowBackend.OpenWindow(window.JoinOptions{})
 	assert.NoError(t, err)
-	WindowBackend.StartCapture(id)
-	time.Sleep(60 * time.Second)
+	_, err = WindowBackend.StartCapture(id)
+	assert.NoError(t, err)
+	time.Sleep(20 * time.Second)
 }
 
 func Test_Window(t *testing.T) {
@@ -44,7 +45,7 @@ func Test_Window(t *testing.T) {
 	err = WindowBackend.ActivateWindow(id)
 	assert.NoError(t, err)
 
-	img, err := WindowBackend.Screenshot(id)
+	//img, err := WindowBackend.Screenshot(id)
 	assert.NoError(t, err)
 
 	f, _ := os.Create("test.png")

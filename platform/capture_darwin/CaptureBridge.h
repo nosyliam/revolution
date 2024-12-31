@@ -13,6 +13,7 @@ extern "C" {
 typedef void* CaptureControllerRef;
 
 typedef void (*FrameCallback)(
+    int id,
     unsigned char* data,
     size_t length,
     int width,
@@ -28,6 +29,9 @@ void ReleaseCaptureController(CaptureControllerRef controllerRef);
 
 /// Sets the frame callback
 void SetFrameCallback(CaptureControllerRef controllerRef, FrameCallback cb);
+
+/// Sets the ID
+void SetID(CaptureControllerRef controllerRef, int id);
 
 /// Starts capturing the specified CGWindowID
 bool StartCapture(CaptureControllerRef controllerRef, CGWindowID windowID);

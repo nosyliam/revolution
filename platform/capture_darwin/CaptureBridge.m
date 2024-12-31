@@ -39,6 +39,13 @@ void SetFrameCallback(CaptureControllerRef controllerRef, FrameCallback cb) {
     obj.frameCallback = cb;
 }
 
+void SetID(CaptureControllerRef controllerRef, int id) {
+    if (!controllerRef) return;
+    CaptureController *obj = (__bridge CaptureController*)controllerRef;
+    obj.id = id;
+}
+
+
 bool StartCapture(CaptureControllerRef controllerRef, CGWindowID windowID) {
     if (!controllerRef) return false;
     CaptureController *obj = (__bridge CaptureController*)controllerRef;

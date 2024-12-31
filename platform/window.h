@@ -184,34 +184,6 @@ static Frame* get_window_frame(const Window* window) {
 	return frame;
 }
 
-static Screenshot* screenshot_window(const Window* window) {
-    int bgraDataLen = 0;
-    CGImageRef windowImage = CGWindowListCreateImage(CGRectNull, kCGWindowListOptionIncludingWindow, window->id, kCGWindowImageBoundsIgnoreFraming & kCGWindowImageNominalResolution);
-	CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-	size_t width = CGImageGetWidth(windowImage);
-	size_t height = CGImageGetHeight(windowImage);
-	size_t stride = CGImageGetBytesPerRow(windowImage);
-	size_t len = sizeof(unsigned char) * stride * height;
-	unsigned char* data = malloc(len);
-
-	CGContextRef context = CGBitmapContextCreate(data, width, height,
-												 8, stride, colorSpace,
-											     kCGImageAlphaPremultipliedLast | kCGBitmapByteOrder32Big);
-
-	CGContextDrawImage(context, CGRectMake(0, 0, width, height), windowImage);
-
-	Screenshot* screenshot = malloc(sizeof(Screenshot));
-	screenshot->width = width;
-	screenshot->height = height;
-	screenshot->stride = stride;
-	screenshot->data = data;
-	screenshot->len = len;
-
-	CGImageRelease(windowImage);
-	CGContextRelease(context);
-    return screenshot;
-}
-
 static void activate_window(const Window* window) {
 	if (AXUIElementPerformAction(window->window, kAXRaiseAction) != kAXErrorSuccess) {
 		pid_t pid = 0;

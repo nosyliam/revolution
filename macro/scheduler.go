@@ -1,17 +1,15 @@
 package macro
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
-	"github.com/nosyliam/revolution/pkg/logging"
+	revimg "github.com/nosyliam/revolution/pkg/image"
+	"image"
 	"slices"
 	"time"
 )
-
-const ClockTime = 50 * time.Millisecond
 
 var intervals []*interval
 
@@ -36,10 +34,12 @@ type interval struct {
 // Interval: Executed at time-based intervals (i.e. every hour), based on the time since last execution.
 // Examples of interval interrupts include planters, bug runs and wealth clock. Interval interrupts are
 // only executed during the start of the main loop (after the hive backboard check) and are assigned a specific priority
+//
+// The scheduler clock is defined by the speed at which the underlying OS backend pushes new frames (which is usually 30fps).
 type Scheduler struct {
 	macro    *common.Macro
 	close    chan struct{}
-	ready    chan struct{}
+	stop     chan<- struct{}
 	redirect chan<- *common.RedirectExecution
 	tick     int
 }
@@ -91,13 +91,13 @@ func (s *Scheduler) Close() {
 	if s.close == nil {
 		return
 	}
+	s.macro.Root.Window.CloseOutput()
 	s.close <- struct{}{}
 }
 
-func (s *Scheduler) Tick() {
+func (s *Scheduler) Tick(frame *image.RGBA) {
 	defer func() {
 		s.tick++
-		s.ready <- struct{}{}
 	}()
 	// If we're not opening the window or unwinding a redirect, check the Roblox window
 	if opening := s.macro.Scratch.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && !s.macro.Scratch.Redirect {
@@ -105,49 +105,36 @@ func (s *Scheduler) Tick() {
 			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
 			return
 		}
-		if err := s.macro.Root.Window.Fix(); err != nil {
-			s.macro.Action(Error("Failed to adjust Roblox! Re-opening")(Status))
-			s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to re-open", err)(Discord))
-			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
-			return
-		}
-		if err := s.macro.Root.Window.TakeScreenshot(); err != nil {
-			s.macro.Action(Error("Failed to screenshot Roblox! Re-opening")(Status))
-			s.macro.Action(Error("Failed to screenshot Roblox: %s! Attempting to re-open", err)(Discord))
-			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
-			return
+		// Fix window every 5 ticks to avoid expensive CGo calls
+		if s.tick%5 == 0 || frame == nil {
+			if err := s.macro.Root.Window.Fix(); err != nil {
+				s.macro.Action(Error("Failed to adjust Roblox! Re-opening")(Status))
+				s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to re-open", err)(Discord))
+				s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
+				return
+			}
 		}
 	} else if s.macro.Scratch.Redirect || opening {
 		return
 	}
-	s.macro.Root.BuffDetect.Tick(s.macro.Root.Window.Origin(), s.macro.Root.Window.Screenshot())
+	if frame != nil {
+		origin := &revimg.Point{X: s.macro.Root.MacroState.Object().BaseOriginX, Y: s.macro.Root.MacroState.Object().BaseOriginY}
+		s.macro.Root.BuffDetect.Tick(origin, frame)
+	}
 }
 
 func (s *Scheduler) Start() {
-	s.ready = make(chan struct{}, 1)
 	s.close = make(chan struct{})
+	input := s.macro.Root.Window.Output()
 	for {
-		go s.Tick()
 		select {
-		case <-time.After(ClockTime):
-			delay := time.Duration(0)
-			var exit = false
-			for {
-				if exit {
-					break
-				}
-				select {
-				case <-s.ready:
-					exit = true
-					break
-				case <-time.After(50 * time.Millisecond):
-					delay += 50
-					_ = s.macro.Logger.Log(1, logging.Warning, fmt.Sprintf("Scheduler clock is running behind by %d ms!", delay))
-				case <-s.close:
-					s.close = nil
-					return
-				}
+		case frame := <-input:
+			s.Tick(frame)
+			if frame == nil {
+				s.stop <- struct{}{}
 			}
+		case <-time.After(200 * time.Millisecond):
+			s.Tick(nil)
 		case <-s.close:
 			s.close = nil
 			return
@@ -159,9 +146,10 @@ func (s *Scheduler) Initialize(macro *common.Macro) {
 	s.macro = macro
 }
 
-func NewScheduler(redirect chan<- *common.RedirectExecution) common.Scheduler {
+func NewScheduler(redirect chan<- *common.RedirectExecution, stop chan<- struct{}) common.Scheduler {
 	return &Scheduler{
 		redirect: redirect,
+		stop:     stop,
 	}
 }
 

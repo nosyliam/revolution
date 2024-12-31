@@ -2,30 +2,28 @@ package window
 
 import (
 	"fmt"
-	"github.com/nosyliam/revolution/bitmaps"
 	. "github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
 	"image"
-	"image/png"
-	"os"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Window struct {
-	id          int
-	config      *WindowConfig
-	backend     Backend
-	screenshot  atomic.Pointer[image.RGBA]
-	origin      atomic.Pointer[revimg.Point]
-	originFails int
-	loaded      bool
-	mgr         *Manager
-	err         error
+	id         int
+	config     *WindowConfig
+	backend    Backend
+	screenshot atomic.Pointer[image.RGBA]
+	capturing  atomic.Bool
+	output     chan *image.RGBA
+	loaded     bool
+	mgr        *Manager
+	err        error
 }
 
 func (w *Window) PID() int {
@@ -61,48 +59,76 @@ func (w *Window) Fix() error {
 	return nil
 }
 
+func (w *Window) Output() <-chan *image.RGBA {
+	output := make(chan *image.RGBA, 60)
+	w.output = output
+	return output
+}
+
+func (w *Window) CloseOutput() {
+	if w.output != nil {
+		ch := w.output
+		w.output = nil
+		close(ch)
+	}
+}
+
 func (w *Window) Screenshot() *image.RGBA {
 	return w.screenshot.Load()
 }
 
-func (w *Window) Origin() *revimg.Point {
-	return w.origin.Load()
-}
-
-func (w *Window) MarkLoaded() {
-	w.loaded = true
-}
-
-func (w *Window) TakeScreenshot() error {
-	var err error
-	screenshot, err := w.backend.Screenshot(w.id)
+func (w *Window) StartCapture() error {
+	input, err := w.backend.StartCapture(w.id)
 	if err != nil {
 		return err
 	}
-	if len(screenshot.Pix) == 0 {
-		return errors.New("empty screenshot")
+	// Wait for the first image
+	select {
+	case img := <-input:
+		w.screenshot.Store(img)
+	case <-time.After(10 * time.Second):
+		return errors.New("timeout exceeded waiting for first frame")
 	}
-	if w.loaded {
-		results, err := revimg.ImageSearch(bitmaps.Registry.Get("roblox"), screenshot, &revimg.SearchOptions{
-			BoundEnd:  &revimg.Point{X: 300, Y: 300},
-			Variation: 5,
-		})
-		if err != nil || len(results) == 0 {
-			fmt.Println("origin detect failed")
-			f, _ := os.Create("test.png")
-			png.Encode(f, screenshot)
-			f.Close()
-			w.originFails++
-		} else {
-			w.originFails = 0
-			w.origin.Store(&revimg.Point{X: results[0].X - 28, Y: results[0].Y - 24})
+	w.capturing.Store(true)
+	go func() {
+		for {
+			select {
+			case img := <-input:
+				w.screenshot.Store(img)
+				if w.output != nil {
+					if len(w.output) > 30 {
+						fmt.Printf("WARNING: Scheduler frame output buffer is %d frames behind!\n", len(w.output))
+					}
+					if len(w.output) == 60 {
+						fmt.Println("WARNING: Scheduler frame buffer full, skipping frames")
+						for len(w.output) > 0 {
+							<-w.output
+						}
+					} else {
+						w.output <- img
+					}
+				}
+				if img == nil {
+					w.capturing.Store(false)
+					return
+				}
+			case <-time.After(5 * time.Second):
+				if w.output != nil {
+					for len(w.output) > 0 {
+						<-w.output
+					}
+				}
+				w.output <- nil
+				dialog.Message("The screen capture mechanism has timed out.").Error()
+				return
+			}
 		}
-		if w.originFails > 10 {
-			return errors.New("failed to detect origin")
-		}
-	}
-	w.screenshot.Store(screenshot)
+	}()
 	return nil
+}
+
+func (w *Window) Capturing() bool {
+	return w.capturing.Load()
 }
 
 func (w *Window) Close() error {

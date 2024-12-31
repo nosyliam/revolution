@@ -23,8 +23,8 @@ type Backend interface {
 	ActivateWindow(id int) error
 	SetRobloxLocation(loc string)
 
-	StartCapture(id int)
-	Screenshot(id int) (*image.RGBA, error)
+	StartCapture(id int) (<-chan *image.RGBA, error)
+	StopCapture(id int)
 	GetFrame(id int) (*revimg.Frame, error)
 	SetFrame(id int, frame revimg.Frame) error
 	DisplayFrames() ([]revimg.ScreenFrame, error)

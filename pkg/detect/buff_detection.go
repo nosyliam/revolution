@@ -13,7 +13,7 @@ import (
 
 // ConfirmationCount defines the number of the same hashes that must be successively calculated to confirm a new buff set.
 // This mechanic is necessary in order to address the transition states between buffs and handle unexpected graphical changes.
-const ConfirmationCount = 5
+const ConfirmationCount = 6
 
 type BuffDetector struct {
 	mu              sync.Mutex
@@ -157,7 +157,7 @@ func (b *BuffDetector) Tick(origin *revimg.Point, screenshot *image.RGBA) {
 		if (index+1)*38 >= screenshot.Bounds().Dx() {
 			break
 		}
-		tile := revimg.CropRGBA(screenshot, image.Rect(index*38+origin.X, origin.Y+58, (index+1)*38+origin.X, origin.Y+96))
+		tile := revimg.CropRGBA(screenshot, image.Rect((index*38)+origin.X, origin.Y+58, ((index+1)*38)+origin.X, origin.Y+96))
 		for kind := range BuffMetadataMap {
 			if _, ok := buffs[kind]; ok && kind != Haste {
 				continue

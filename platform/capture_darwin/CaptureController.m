@@ -1,5 +1,7 @@
 // CaptureController.m
 #import "CaptureController.h"
+#import <Accelerate/Accelerate.h>
+#import <AVFoundation/AVFoundation.h>
 
 @interface StreamOutput : NSObject <SCStreamOutput>
 @property (nonatomic, weak) CaptureController *owner;
@@ -11,7 +13,6 @@
 didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
        ofType:(SCStreamOutputType)type
 {
-    // Validate
     if (!CMSampleBufferIsValid(sampleBuffer) ||
         CMSampleBufferGetNumSamples(sampleBuffer) == 0) {
         return;
@@ -22,23 +23,43 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 
     CVPixelBufferLockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
 
-    void *baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer);
-    size_t width      = CVPixelBufferGetWidth(pixelBuffer);
-    size_t height     = CVPixelBufferGetHeight(pixelBuffer);
-    size_t bpr        = CVPixelBufferGetBytesPerRow(pixelBuffer);
-    size_t length     = bpr * height;
+    size_t fullWidth   = CVPixelBufferGetWidth(pixelBuffer);
+    size_t fullHeight  = CVPixelBufferGetHeight(pixelBuffer);
+    size_t bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer);
+    unsigned char *base = CVPixelBufferGetBaseAddress(pixelBuffer);
 
-    // Copy the frame into a new buffer (BGRA, for example)
-    unsigned char *bufferCopy = malloc(length);
-    memcpy(bufferCopy, baseAddress, length);
+    size_t fullLen = bytesPerRow * fullHeight;
+    unsigned char *bgraData = malloc(fullLen);
+    memcpy(bgraData, base, fullLen);
 
-    CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
+    uint8_t *rgbaData = malloc(fullLen);
 
-    if (self.owner.frameCallback) {
-        self.owner.frameCallback(bufferCopy, length, (int)width, (int)height, (int)bpr);
-    } else {
-        free(bufferCopy);
+    // Set up Accelerate vImage buffers
+    vImage_Buffer srcBuffer = {
+        .data = bgraData,
+        .height = fullHeight,
+        .width = fullWidth,
+        .rowBytes = bytesPerRow
+    };
+    vImage_Buffer destBuffer = {
+        .data = rgbaData,
+        .height = fullHeight,
+        .width = fullWidth,
+        .rowBytes = bytesPerRow
+    };
+
+    // Define the channel permutation to convert BGRA to RGBA
+    uint8_t permuteMap[4] = {2, 1, 0, 3}; // Maps BGRA -> RGBA
+
+    // Perform the channel permutation
+    vImage_Error error = vImagePermuteChannels_ARGB8888(&srcBuffer, &destBuffer, permuteMap, kvImageNoFlags);
+    if (error != kvImageNoError) {
+        NSLog(@"vImage error: %ld", error);
     }
+
+    free(bgraData);
+
+    self.owner.frameCallback(self.owner.id, rgbaData, fullLen, (int)fullWidth, (int)fullHeight, (int)bytesPerRow);
 }
 
 @end
@@ -61,22 +82,16 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 }
 
 - (void)startWindowCapture:(SCWindow *)scWin {
-    // 1) Get the window’s global bounding rect.
-
-    // Approach A: Use scWin.frame if supported on your macOS version:
-    // (According to some docs, scWin.frame might be available on macOS 13+)
     CGRect windowRect = scWin.frame;
 
     NSLog(@"Window bounding rect: %@", NSStringFromRect(*(NSRect *)&windowRect));
 
-    // 2) Map the bounding box to a specific display.
     CGDirectDisplayID matchingDisplayID = [self displayForWindowRect:windowRect];
     if (matchingDisplayID == kCGNullDirectDisplay) {
         NSLog(@"Could not find a matching display for window: %@", scWin.title);
         return;
     }
 
-    // 3) Create an SCDisplay for that display. SCDisplay has a +displayWithID: constructor (10.15+) or you can fetch from SCShareableContent.displays
     SCDisplay *matchingSCDisplay = [self scDisplayForCGDirectDisplayID:matchingDisplayID];
     if (!matchingSCDisplay) {
         NSLog(@"Could not convert CGDirectDisplayID %u to an SCDisplay.", matchingDisplayID);
@@ -85,13 +100,24 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 
     SCContentFilter *filter =
       [[SCContentFilter alloc] initWithDisplay:matchingSCDisplay
-                             includingWindows:@[ scWin ]];
+                               includingWindows:@[ scWin ]];
+
+
+    CGRect displayRect = matchingSCDisplay.frame;
+
+    CGRect relativeRect = CGRectMake(
+        windowRect.origin.x - displayRect.origin.x,
+        windowRect.origin.y - displayRect.origin.y,
+        windowRect.size.width,
+        windowRect.size.height
+    );
 
     SCStreamConfiguration *config = [SCStreamConfiguration new];
     config.queueDepth = 3;
-    config.minimumFrameInterval = CMTimeMake(1, 30); // ~30fps
-    // config.width = ...   // optionally scale the window
-    // config.height = ...
+    config.minimumFrameInterval = CMTimeMake(1, 30);
+    config.width = matchingSCDisplay.width;
+    config.height = matchingSCDisplay.height;
+    config.pixelFormat = kCVPixelFormatType_32BGRA;
 
     // Create stream
     self.stream = [[SCStream alloc] initWithFilter:filter
@@ -103,9 +129,9 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     }
 
     self.streamOutput = [[StreamOutput alloc] init];
-    self.streamOutput.owner = self;  // So the output can call self.frameCallback
+    self.streamOutput.owner = self;
 
-    self.captureQueue = dispatch_queue_create("com.example.captureQueue", DISPATCH_QUEUE_SERIAL);
+    self.captureQueue = dispatch_queue_create("com.revolutionmacro.captureQueue", DISPATCH_QUEUE_SERIAL);
 
     NSError *addError = nil;
     BOOL didAdd = [self.stream addStreamOutput:self.streamOutput
@@ -152,11 +178,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     return bestDisplay;
 }
 
-/// Example utility to find/create an SCDisplay for a given CGDirectDisplayID
 - (SCDisplay *)scDisplayForCGDirectDisplayID:(CGDirectDisplayID)displayID {
-    // Approach A: If you already enumerated SCShareableContent, just loop content.displays
-    // to find the SCDisplay whose displayID property == displayID.
-    // For instance:
     __block SCDisplay *match = nil;
     dispatch_semaphore_t sem = dispatch_semaphore_create(0);
 

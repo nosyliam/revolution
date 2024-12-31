@@ -149,7 +149,7 @@ type BuffMap map[BuffType]int
 
 func (b *BuffMap) Hash() string {
 	if b == nil {
-		return ""
+		return "INVALID"
 	}
 	h := crc32.New(crc32.MakeTable(crc32.IEEE))
 

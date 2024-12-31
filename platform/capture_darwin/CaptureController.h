@@ -4,6 +4,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 typedef void (*FrameCallback)(
+    int id,
     unsigned char* data,
     size_t length,
     int width,
@@ -14,6 +15,7 @@ typedef void (*FrameCallback)(
 @interface CaptureController : NSObject
 
 @property (nonatomic, assign) FrameCallback frameCallback;
+@property (nonatomic, assign) int id;
 
 - (instancetype)init NS_DESIGNATED_INITIALIZER;
 

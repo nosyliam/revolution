@@ -53,9 +53,7 @@ func (r *Routine) Execute() {
 				case nil:
 				default:
 					r.err <- errors.Wrap(err, "").Error()
-					fmt.Println("waiting for unpause")
 					<-<-r.macro.Pause
-					fmt.Println("pause complete")
 				}
 			}
 			if len(r.macro.Redirect) > 0 && (r.parent == nil || r.parent.redirectLoc == nil) {

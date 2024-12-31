@@ -1,9 +1,8 @@
 package main
 
-import "C"
 import (
 	"embed"
-	"fmt"
+	"flag"
 	"github.com/nosyliam/revolution/platform"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
@@ -12,20 +11,28 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
+	"log"
 	"os"
 	"runtime"
+	"runtime/pprof"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
-	defer func() { //catch or finally
-		if err := recover(); err != nil { //catch
-			fmt.Fprintf(os.Stderr, "Exception: %v\n", err)
-			os.Exit(1)
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
 		}
-	}()
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	app := NewMacro(platform.WindowBackend, platform.ControlBackend)
 
 	var height = 400

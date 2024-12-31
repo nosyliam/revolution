@@ -59,6 +59,13 @@ var HoneyOffsetImage = ImageSteps{
 	Search("tophoney").Find(),
 }
 
+var RobloxOffsetImage = ImageSteps{
+	SelectCoordinate(Change, 0, 0, 300, 300),
+	Variance(0),
+	Direction(0),
+	Search("roblox").Find(),
+}
+
 var OpenRobloxRoutine = Actions{
 	Condition(If(True(V[bool](RestartSleep))), Sleep(5).Seconds()),
 	Set(RetryCount, 0),
@@ -83,6 +90,13 @@ var OpenRobloxRoutine = Actions{
 				Break(),
 			),
 			Else(),
+			Condition(
+				If(ExecError(func(macro *Macro) error {
+					return macro.Root.Window.StartCapture()
+				})),
+				Error("Failed to start screen capture!")(Status, Discord),
+				Continue(),
+			),
 			Loop(
 				For(180),
 				Condition(
@@ -92,8 +106,8 @@ var OpenRobloxRoutine = Actions{
 					Continue(1),
 				),
 				Condition(
-					If(ExecError(TakeScreenshot)),
-					Error("Failed to screenshot BSS!")(Status, Discord),
+					If(False(Capturing)),
+					Error("Failed to capture Roblox!")(Status, Discord),
 					Sleep(5).Seconds(),
 					Continue(1),
 					Else(),
@@ -121,7 +135,7 @@ var OpenRobloxRoutine = Actions{
 					Continue(1),
 				),
 				Condition(
-					If(ExecError(TakeScreenshot)),
+					If(False(Capturing)),
 					Error("Failed to screenshot BSS!")(Status, Discord),
 					Sleep(5).Seconds(),
 					Continue(1),
@@ -145,6 +159,20 @@ var OpenRobloxRoutine = Actions{
 			Break(),
 		),
 	),
+	SetState("honeyOriginX", V[int](Offset)),
+	Set(OffsetX, Image(RobloxOffsetImage...).X()),
+	Condition(
+		If(GreaterThan(V[int](OffsetX), 0)),
+		Set(OffsetY, Image(RobloxOffsetImage...).Y()),
+		Subtract(OffsetX, 28),
+		Subtract(OffsetY, 24),
+		SetState("baseOriginX", V[int](OffsetX)),
+		SetState("baseOriginY", V[int](OffsetY)),
+		Else(),
+		Error("Offsets could not be detected!")(Status, Discord),
+		Sleep(10).Seconds(),
+		Restart(),
+	),
 	Condition(
 		If(Nil(Window)),
 		Error("Waiting 30 seconds before retrying")(Status, Discord),
@@ -154,7 +182,6 @@ var OpenRobloxRoutine = Actions{
 	Condition(
 		If(False(V[bool](RestartSleep))),
 		Logic(func(macro *Macro) {
-			macro.Root.Window.MarkLoaded()
 			go macro.Scheduler.Start()
 		}),
 	),

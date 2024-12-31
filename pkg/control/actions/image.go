@@ -102,10 +102,3 @@ func (i *imageSearch) Y() func(macro *common.Macro) int {
 func Image(steps ...Step) *imageSearch {
 	return &imageSearch{steps: steps}
 }
-
-func TakeScreenshot(macro *common.Macro) error {
-	if err := macro.Root.Window.Fix(); err != nil {
-		return err
-	}
-	return macro.Root.Window.TakeScreenshot()
-}

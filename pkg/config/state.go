@@ -21,6 +21,10 @@ type MacroState struct {
 	Paused  bool `state:"paused" yaml:"-"`
 
 	Status string `state:"status" default:"Ready"`
+
+	HoneyOriginX int `state:"honeyOriginX"`
+	BaseOriginX  int `state:"baseOriginX"`
+	BaseOriginY  int `state:"baseOriginY"`
 }
 
 type StateConfig struct {
