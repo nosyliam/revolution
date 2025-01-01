@@ -40,6 +40,9 @@ var BuffMetadataMap = map[BuffType]BuffMetadata{
 		Stackable:      true,
 		Speed:          true,
 	},
+	HasteCoconut: {
+		Speed: true,
+	},
 	HastePlus: {
 		PixelColor: revimg.HexToRGBA(0xEDDB4C),
 		Speed:      true,
@@ -116,13 +119,16 @@ var BuffMetadataMap = map[BuffType]BuffMetadata{
 		ImageX2:        25,
 		ImageY2:        38,
 		ImageVariation: 2,
+		Speed:          true,
 	},
 	SuperSmoothie: {
-		ImagePresent: "smoothie",
-		ImageX1:      8,
-		ImageY1:      37,
-		ImageX2:      24,
-		ImageY2:      38,
+		ImagePresent:   "smoothie",
+		ImageX1:        8,
+		ImageY1:        37,
+		ImageX2:        24,
+		ImageY2:        38,
+		ImageVariation: 2,
+		Speed:          true,
 	},
 }
 

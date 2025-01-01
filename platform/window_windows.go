@@ -4,7 +4,19 @@
 package platform
 
 // #include "window.h"
+// #include "capture_windows/CaptureBridge.h"
+//
+//extern void GoFrameCallback(int id, unsigned char* data, size_t length, int width, int height, int stride);
+//extern void GoErrorCallback(int id, char* error);
+//
+//static inline FrameCallback getFrameCallbackPtr() {
+//    return (FrameCallback)GoFrameCallback;
+//}
+//static inline ErrorCallback getErrorCallbackPtr() {
+//    return (ErrorCallback)GoErrorCallback;
+//}
 // #cgo LDFLAGS: -lgdi32 -lshcore
+// #cgo LDFLAGS: -L./capture_windows -L./platform/capture_windows -lCaptureLib -ld3d11 -ldxgi -lstdc++
 import "C"
 
 import (
@@ -20,35 +32,51 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
 
-var WindowBackend window.Backend = &windowBackend{make(map[int]*C.Window), ""}
+var singleton = &windowBackend{
+	windows: make(map[int]*windowData),
+}
+
+var WindowBackend window.Backend = singleton
+
+type windowData struct {
+	win        *C.Window
+	controller C.CaptureControllerRef
+	output     chan<- *image.RGBA
+	ready      atomic.Bool
+}
 
 type windowBackend struct {
-	windows   map[int]*C.Window
-	robloxLoc string
+	mu      sync.Mutex
+	windows map[int]*windowData
 }
 
 func (w *windowBackend) DissociateWindow(id int) {
 	if _, ok := w.windows[id]; ok {
 		w.freeWindow(id)
 	}
+	w.mu.Lock()
 	delete(w.windows, id)
+	w.mu.Unlock()
 }
 
 func (w *windowBackend) CloseWindow(id int) error {
 	proc, err := os.FindProcess(id)
 	if err == nil {
-		err = proc.Kill()
-		if err != nil {
-			return err
-		}
+		_ = proc.Kill()
 	}
 
-	w.freeWindow(id)
+	if _, ok := w.windows[id]; ok {
+		w.freeWindow(id)
+	}
+	w.mu.Lock()
 	delete(w.windows, id)
+	w.mu.Unlock()
 	return nil
 }
 
@@ -57,11 +85,11 @@ func (w *windowBackend) freeWindow(id int) {
 	if !ok {
 		return
 	}
-
-	C.free(unsafe.Pointer(win))
+	w.StopCapture(id)
+	C.free(unsafe.Pointer(win.win))
 }
 
-func (w *windowBackend) getWindow(id int) (*C.Window, error) {
+func (w *windowBackend) getWindow(id int) (*windowData, error) {
 	win, ok := w.windows[id]
 	if !ok {
 		return nil, window.WindowNotFoundErr
@@ -82,7 +110,7 @@ func (w *windowBackend) initializeWindow(pid int) bool {
 		return false
 	}
 
-	w.windows[pid] = ret
+	w.windows[pid] = &windowData{win: ret}
 	return true
 }
 
@@ -125,11 +153,9 @@ func (w *windowBackend) getRobloxVersion() (string, error) {
 	return mostRecentKey, nil
 }
 
-func (w *windowBackend) SetRobloxLocation(loc string) {
-	w.robloxLoc = loc
-}
-
 func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	// Attempt to bind non-macro roblox instances first
 	findRunningInstance := func(initialize bool) (int, error) {
 		processes, err := ps.Processes()
@@ -255,50 +281,93 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 	return 0, errors.New("failed to initialize roblox process")
 }
 
+//export GoFrameCallback
+func GoFrameCallback(id C.int, data *C.uchar, length C.size_t, width, height, stride C.int) {
+	buf := C.GoBytes(unsafe.Pointer(data), C.int(length))
+
+	img := &image.RGBA{}
+	img.Rect = image.Rect(0, 0, int(width), int(height))
+	img.Pix = buf
+	img.Stride = int(stride)
+
+	/*f, _ := os.Create("test.png")
+	png.Encode(f, img)
+	f.Close()*/
+
+	if singleton.windows[int(id)].ready.Load() {
+		singleton.windows[int(id)].output <- img
+	}
+}
+
+//export GoErrorCallback
+func GoErrorCallback(id C.int, data *C.char) {
+	err := C.GoString(data)
+	fmt.Printf("Received error for window ID %d: %v\n", int(id), err)
+}
+
+func (w *windowBackend) StartCapture(id int) (<-chan *image.RGBA, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	win, err := w.getWindow(id)
+	if err != nil {
+		return nil, err
+	}
+
+	frameCbPtr := C.getFrameCallbackPtr()
+	errorCbPtr := C.getErrorCallbackPtr()
+	controller := C.CreateCaptureController(C.int(id), win.win.hwnd, frameCbPtr, errorCbPtr)
+	if controller == nil {
+		return nil, errors.New("failed to create capture controller")
+	}
+
+	output := make(chan *image.RGBA)
+	win.output = output
+
+	C.StartCaptureController(controller)
+
+	fmt.Printf("Capture started for window ID: %d\n", id)
+	win.controller = controller
+	win.ready.Store(true)
+	return output, nil
+}
+
+func (w *windowBackend) StopCapture(id int) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	win, err := w.getWindow(id)
+	if err != nil {
+		return
+	}
+	win.ready.Store(false)
+	if win.output != nil {
+		win.output <- nil
+	}
+	if win.controller != nil {
+		C.StopCaptureController(win.controller)
+	}
+}
+
 func (w *windowBackend) ActivateWindow(id int) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	win, err := w.getWindow(id)
 	if err != nil {
 		return err
 	}
 
-	C.activate_window(win)
+	C.activate_window(win.win)
 	return nil
 }
 
-func (w *windowBackend) Screenshot(id int) (*image.RGBA, error) {
-	win, err := w.getWindow(id)
-	if err != nil {
-		return nil, err
-	}
-
-	screen := (*C.Screenshot)(C.screenshot_window(win))
-	if screen == nil {
-		return nil, errors.New("failed to take screenshot")
-	}
-	data := C.GoBytes(unsafe.Pointer(screen.data), C.int(screen.len))
-	width, height, stride := C.ulong(screen.width), C.ulong(screen.height), C.ulong(screen.stride)
-
-	img := image.RGBA{}
-	img.Rect = image.Rect(0, 0, int(width), int(height))
-	img.Pix = data
-	img.Stride = int(stride)
-
-	/*f, _ := os.Create("test.png")
-	png.Encode(f, &img)
-	f.Close()*/
-
-	C.free(unsafe.Pointer(screen.data))
-	C.free(unsafe.Pointer(screen))
-	return &img, nil
-}
-
 func (w *windowBackend) GetFrame(id int) (*revimg.Frame, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	win, err := w.getWindow(id)
 	if err != nil {
 		return nil, err
 	}
 
-	cFrame := (*C.Frame)(C.get_window_frame(win))
+	cFrame := (*C.Frame)(C.get_window_frame(win.win))
 	if cFrame == nil || (cFrame.width == 0 && cFrame.height == 0) {
 		return nil, errors.New("failed to get window frame")
 	}
@@ -314,12 +383,14 @@ func (w *windowBackend) GetFrame(id int) (*revimg.Frame, error) {
 }
 
 func (w *windowBackend) SetFrame(id int, frame revimg.Frame) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	win, err := w.getWindow(id)
 	if err != nil {
 		return err
 	}
 
-	C.set_window_frame(win, C.int(frame.Width), C.int(frame.Height), C.int(frame.X), C.int(frame.Y))
+	C.set_window_frame(win.win, C.int(frame.Width), C.int(frame.Height), C.int(frame.X), C.int(frame.Y))
 	return nil
 }
 
@@ -353,3 +424,5 @@ func (w *windowBackend) DisplayCount() (int, error) {
 		return count, nil
 	}
 }
+
+func (w *windowBackend) SetRobloxLocation(loc string) {}

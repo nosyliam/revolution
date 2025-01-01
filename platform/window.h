@@ -264,7 +264,7 @@ typedef struct WindowCount {
 	int windowCount;
 } WindowCount;
 
-int get_display_count() {
+static int get_display_count() {
 	int displayCount = GetSystemMetrics(SM_CMONITORS);
 	if (displayCount <= 0) {
 		return 0;
@@ -272,7 +272,7 @@ int get_display_count() {
     return displayCount;
 }
 
-Screenshot* screenshot_window(const Window* window) {
+static Screenshot* screenshot_window(const Window* window) {
     if (!window || !window->hwnd) {
         printf("exit 1\n");
         return NULL;  // Invalid input
@@ -419,11 +419,11 @@ Screenshot* screenshot_window(const Window* window) {
     return screenshot;
 }
 
-void set_window_frame(const Window* window, const int width, const int height, const int x, const int y) {
+static void set_window_frame(const Window* window, const int width, const int height, const int x, const int y) {
     SetWindowPos(window->hwnd, HWND_TOP, x, y, width, height, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
-Frame* get_window_frame(const Window* window) {
+static Frame* get_window_frame(const Window* window) {
     RECT rect;
     if (GetWindowRect(window->hwnd, &rect)) {
         Frame *frame = malloc(sizeof(Frame));
@@ -437,11 +437,11 @@ Frame* get_window_frame(const Window* window) {
     }
 }
 
-void activate_window(const Window* window) {
+static void activate_window(const Window* window) {
   SetForegroundWindow(window->hwnd);
 }
 
-BOOL CALLBACK EnumDisplayMonitorsProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
+static BOOL CALLBACK EnumDisplayMonitorsProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
 	Frames* frames = (Frames*)dwData;
 	Frame* data = frames->frames;
 
@@ -473,7 +473,7 @@ BOOL CALLBACK EnumDisplayMonitorsProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT 
 	return TRUE;
 }
 
-Frames* get_display_frames() {
+static Frames* get_display_frames() {
 	// Get the number of displays
 	int displayCount = GetSystemMetrics(SM_CMONITORS);
 	if (displayCount <= 0) {
@@ -490,7 +490,7 @@ Frames* get_display_frames() {
 	return frames;
 }
 
-BOOL CALLBACK EnumWindowVisibleCountProc(HWND hwnd, LPARAM lParam) {
+static BOOL CALLBACK EnumWindowVisibleCountProc(HWND hwnd, LPARAM lParam) {
 	WindowCount* data = (WindowCount*)lParam;
 
 	DWORD windowPid = 0;
@@ -503,7 +503,7 @@ BOOL CALLBACK EnumWindowVisibleCountProc(HWND hwnd, LPARAM lParam) {
 	return TRUE;
 }
 
-BOOL CALLBACK EnumWindowHwndProc(HWND hwnd, LPARAM lParam) {
+static BOOL CALLBACK EnumWindowHwndProc(HWND hwnd, LPARAM lParam) {
 	Window* window = (Window*)lParam;
 
 	DWORD windowPid = 0;
@@ -518,7 +518,7 @@ BOOL CALLBACK EnumWindowHwndProc(HWND hwnd, LPARAM lParam) {
 	return TRUE;
 }
 
-int get_window_visible_count(int pid) {
+static int get_window_visible_count(int pid) {
 	WindowCount data = { 0 };
 	data.pid = pid;
 	data.windowCount = 0;
@@ -528,7 +528,7 @@ int get_window_visible_count(int pid) {
 	return data.windowCount;
 }
 
-Window* get_window_with_pid(int pid) {
+static Window* get_window_with_pid(int pid) {
 	Window* data = malloc(sizeof(Window));
 	data->pid = pid;
 	data->hwnd = NULL;

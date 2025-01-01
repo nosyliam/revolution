@@ -8,6 +8,8 @@ import (
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 	"image"
+	"image/png"
+	"os"
 	"sync"
 )
 
@@ -158,7 +160,15 @@ func (b *BuffDetector) Tick(origin *revimg.Point, screenshot *image.RGBA) {
 			break
 		}
 		tile := revimg.CropRGBA(screenshot, image.Rect((index*38)+origin.X, origin.Y+58, ((index+1)*38)+origin.X, origin.Y+96))
+		if index == 0 {
+			f, _ := os.Create("buff.png")
+			png.Encode(f, tile)
+			f.Close()
+		}
 		for kind := range BuffMetadataMap {
+			if kind == HasteCoconut {
+				continue
+			}
 			if _, ok := buffs[kind]; ok && kind != Haste {
 				continue
 			}

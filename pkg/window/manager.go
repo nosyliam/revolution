@@ -118,6 +118,7 @@ func (w *Window) StartCapture() error {
 						<-w.output
 					}
 				}
+				fmt.Println("inserting nil image")
 				w.output <- nil
 				dialog.Message("The screen capture mechanism has timed out.").Error()
 				return

@@ -91,8 +91,8 @@ func (s *Scheduler) Close() {
 	if s.close == nil {
 		return
 	}
-	s.macro.Root.Window.CloseOutput()
 	s.close <- struct{}{}
+	s.macro.Root.Window.CloseOutput()
 }
 
 func (s *Scheduler) Tick(frame *image.RGBA) {
@@ -124,11 +124,14 @@ func (s *Scheduler) Tick(frame *image.RGBA) {
 }
 
 func (s *Scheduler) Start() {
-	s.close = make(chan struct{})
+	s.close = make(chan struct{}, 1)
 	input := s.macro.Root.Window.Output()
 	for {
 		select {
 		case frame := <-input:
+			if len(s.close) == 1 {
+				continue
+			}
 			s.Tick(frame)
 			if frame == nil {
 				s.stop <- struct{}{}

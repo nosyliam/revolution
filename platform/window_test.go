@@ -5,8 +5,6 @@ import (
 	"github.com/nosyliam/revolution/pkg/image"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/stretchr/testify/assert"
-	"image/png"
-	"os"
 	"testing"
 	"time"
 )
@@ -23,7 +21,7 @@ func Test_Capture(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = WindowBackend.StartCapture(id)
 	assert.NoError(t, err)
-	time.Sleep(20 * time.Second)
+	time.Sleep(78 * time.Second)
 }
 
 func Test_Window(t *testing.T) {
@@ -45,10 +43,10 @@ func Test_Window(t *testing.T) {
 	err = WindowBackend.ActivateWindow(id)
 	assert.NoError(t, err)
 
-	//img, err := WindowBackend.Screenshot(id)
+	/*img, err := WindowBackend.Screenshot(id)
 	assert.NoError(t, err)
 
 	f, _ := os.Create("test.png")
 	png.Encode(f, img)
-	f.Close()
+	f.Close()*/
 }

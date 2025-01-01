@@ -1,6 +1,7 @@
 package macro
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
@@ -64,6 +65,7 @@ func (i *Interface) Start() {
 				i.Pause()
 			case <-i.pause:
 				if i.unpause != nil {
+					fmt.Println("unpause")
 					_ = i.State.SetPath("paused", false)
 					go i.Macro.Scheduler.Start()
 					i.unpause <- struct{}{}
