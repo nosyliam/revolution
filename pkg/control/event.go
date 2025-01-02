@@ -4,7 +4,12 @@ import (
 	"github.com/nosyliam/revolution/pkg/common"
 )
 
+type Event struct {
+	id int
+}
+
 type MouseMoveEvent struct {
+	Event
 	x, y int
 }
 
@@ -13,6 +18,7 @@ func (e *MouseMoveEvent) Execute(backend common.Backend) {
 }
 
 type MouseScrollEvent struct {
+	Event
 	x, y int
 }
 
@@ -21,8 +27,8 @@ func (e *MouseScrollEvent) Execute(backend common.Backend) {
 }
 
 type KeyDownEvent struct {
+	Event
 	key common.Key
-	id  int
 }
 
 func (e *KeyDownEvent) Execute(backend common.Backend) {
@@ -30,8 +36,8 @@ func (e *KeyDownEvent) Execute(backend common.Backend) {
 }
 
 type KeyUpEvent struct {
+	Event
 	key common.Key
-	id  int
 }
 
 func (e *KeyUpEvent) Execute(backend common.Backend) {

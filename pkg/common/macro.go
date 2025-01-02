@@ -3,8 +3,8 @@ package common
 import (
 	"context"
 	"github.com/nosyliam/revolution/pkg/config"
-	"github.com/nosyliam/revolution/pkg/detect"
 	"github.com/nosyliam/revolution/pkg/logging"
+	"github.com/nosyliam/revolution/pkg/movement"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
 )
@@ -42,7 +42,7 @@ type Macro struct {
 	MacroState *config.Object[config.MacroState]
 	Settings   *config.Object[config.Settings]
 	Database   *config.Object[config.AccountDatabase]
-	BuffDetect *detect.BuffDetector
+	BuffDetect *movement.BuffDetector
 	Logger     *logging.Logger
 	Window     *window.Window
 	WinManager *window.Manager
@@ -53,6 +53,7 @@ type Macro struct {
 	Action     func(Action) error
 	Status     func(string)
 	Pause      <-chan (<-chan struct{})
+	Stop       chan struct{}
 	Redirect   chan *RedirectExecution
 }
 
@@ -70,12 +71,14 @@ func (m *Macro) Copy() *Macro {
 		Settings:   m.Settings,
 		State:      m.State,
 		Database:   m.Database,
+		BuffDetect: m.BuffDetect,
 		Window:     m.Window,
 		WinManager: m.WinManager,
 		Scratch:    m.Scratch,
 		Subroutine: m.Subroutine,
 		Logger:     m.Logger,
 		Pause:      m.Pause,
+		Stop:       m.Stop,
 		Redirect:   m.Redirect,
 	}
 }

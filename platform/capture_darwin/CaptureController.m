@@ -135,7 +135,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
 
     NSError *addError = nil;
     BOOL didAdd = [self.stream addStreamOutput:self.streamOutput
-                                         type:SCStreamOutputTypeScreen
+                                          type:SCStreamOutputTypeScreen
                             sampleHandlerQueue:self.captureQueue
                                          error:&addError];
     if (!didAdd) {

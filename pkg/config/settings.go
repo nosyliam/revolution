@@ -46,6 +46,11 @@ type PlayerSettings struct {
 	MoveSpeed float64 `yaml:"moveSpeed" default:"16"`
 }
 
+type PatternSettings struct {
+	Overrides *List[PatternOverride] `yaml:"overrides"`
+	Active    *List[Pattern]         `yaml:"active"`
+}
+
 // Settings defines the configuration for an individual preset
 type Settings struct {
 	Name         string                   `yaml:"name" key:"true" lock:"default"`
@@ -53,6 +58,7 @@ type Settings struct {
 	Discord      *Object[DiscordSettings] `yaml:"discord"`
 	Window       *Object[WindowSettings]  `yaml:"window"`
 	Player       *Object[PlayerSettings]  `yaml:"player"`
+	Patterns     *Object[PatternSettings] `yaml:"patterns"`
 }
 
 type Tools struct {

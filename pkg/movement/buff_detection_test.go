@@ -1,4 +1,4 @@
-package detect
+package movement
 
 import (
 	"github.com/nosyliam/revolution/bitmaps"

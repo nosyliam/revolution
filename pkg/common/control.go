@@ -1,5 +1,10 @@
 package common
 
+import (
+	revimg "github.com/nosyliam/revolution/pkg/image"
+	"image"
+)
+
 type Key int
 type Receiver <-chan struct{}
 
@@ -7,7 +12,7 @@ var Send = struct{}{}
 
 const (
 	Forward Key = iota
-	BackKey
+	Backward
 	Left
 	Right
 	RotLeft
@@ -65,4 +70,15 @@ type Scheduler interface {
 
 type Event interface {
 	Execute(backend Backend)
+}
+
+type BuffDetector interface {
+	Tick(origin *revimg.Point, screenshot *image.RGBA)
+	MoveSpeed() float64
+	Watch() chan struct{}
+}
+
+type PatternLoader interface {
+	Start() error
+	Execute(pattern string) error
 }

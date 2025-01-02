@@ -1,9 +1,10 @@
-package pattern
+package movement
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
 	"io/ioutil"
@@ -20,23 +21,9 @@ import (
 	"github.com/yuin/gopher-lua/parse"
 )
 
-type Metadata struct {
-	Name string
-
-	Position, Length, Width, Distance int
-	RotateDirection, RotateCount      int
-	InvertFB, InvertLR                bool
-
-	BackpackPercentage int
-	Minutes            int
-	ShiftLock          bool
-	ReturnMethod       string
-	DriftComp          bool
-	GatherPattern      bool
-}
-
-func NewMetadataFromStatementList(stmts []ast.Stmt) (*Metadata, error) {
-	meta := &Metadata{
+func NewMetadataFromStatementList(stmts []ast.Stmt) (*config.PatternMetadata, string, error) {
+	name := "INVALID"
+	meta := &config.PatternMetadata{
 		ReturnMethod: "reset",
 	}
 	value := reflect.ValueOf(meta)
@@ -44,6 +31,13 @@ func NewMetadataFromStatementList(stmts []ast.Stmt) (*Metadata, error) {
 		if n, ok := stmt.(*ast.FuncCallStmt); ok {
 			if fc, ok := n.Expr.(*ast.FuncCallExpr); ok {
 				if fn, ok := fc.Func.(*ast.IdentExpr); ok {
+					if fn.Value == "SetName" { // Special case
+						if expr, ok := fc.Args[0].(*ast.StringExpr); ok {
+							name = expr.Value
+						} else {
+							return nil, "", errors.New("invalid argument for metadata call \"SetName\"")
+						}
+					}
 					field := value.FieldByName(strings.TrimPrefix(fn.Value, "Set"))
 					if !field.IsValid() {
 						continue
@@ -53,7 +47,7 @@ func NewMetadataFromStatementList(stmts []ast.Stmt) (*Metadata, error) {
 						if expr, ok := fc.Args[0].(*ast.StringExpr); ok {
 							field.SetString(expr.Value)
 						} else {
-							return nil, errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
+							return nil, "", errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
 						}
 					case reflect.Bool:
 						switch fc.Args[0].(type) {
@@ -62,25 +56,26 @@ func NewMetadataFromStatementList(stmts []ast.Stmt) (*Metadata, error) {
 						case *ast.FalseExpr:
 							field.SetBool(false)
 						default:
-							return nil, errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
+							return nil, "", errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
 						}
 					case reflect.Int:
 						if expr, ok := fc.Args[0].(*ast.NumberExpr); ok {
 							val, _ := strconv.Atoi(expr.Value)
 							field.SetInt(int64(val))
 						} else {
-							return nil, errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
+							return nil, "", errors.New(fmt.Sprintf("invalid argument for metadata call \"%s\"", fn.Value))
 						}
 					}
 				}
 			}
 		}
 	}
-	return meta, nil
+	return meta, name, nil
 }
 
 type Pattern struct {
-	Meta  *Metadata
+	Name  string
+	Meta  *config.PatternMetadata
 	Proto *lua.FunctionProto
 	Path  string
 }
@@ -97,6 +92,10 @@ func NewLoader() *Loader {
 	w, _ := fsnotify.NewWatcher()
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Loader{watcher: w, ctx: ctx, cancel: cancel, patterns: make(map[string]*Pattern)}
+}
+
+func (l *Loader) Execute(pattern string) error {
+	return nil
 }
 
 func (l *Loader) Start() error {
@@ -140,7 +139,7 @@ func (l *Loader) handleFileChange(path string) {
 			dialog.Message(fmt.Sprintf("Failed to parse Lua pattern at %s: %v", path, err)).Error()
 			return
 		}
-		metadata, err := NewMetadataFromStatementList(chunk)
+		metadata, name, err := NewMetadataFromStatementList(chunk)
 		if err != nil {
 			dialog.Message(fmt.Sprintf("Failed to extract metadata from Lua pattern at %s: %v", path, err)).Error()
 			return
@@ -151,7 +150,7 @@ func (l *Loader) handleFileChange(path string) {
 			return
 		}
 		l.mu.Lock()
-		l.patterns[metadata.Name] = &Pattern{
+		l.patterns[name] = &Pattern{
 			Meta:  metadata,
 			Proto: proto,
 			Path:  path,

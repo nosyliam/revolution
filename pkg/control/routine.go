@@ -17,12 +17,10 @@ type Routine struct {
 	redirectLoc *common.RedirectExecution
 	parent      *Routine
 
-	stop chan struct{}
-	err  chan<- string
+	err chan<- string
 }
 
 func (r *Routine) Copy(routine *Routine) {
-	r.stop = routine.stop
 	r.err = routine.err
 }
 
@@ -69,10 +67,10 @@ func (r *Routine) Execute() {
 					}
 				}
 			}
-			if len(r.stop) > 0 {
-				<-r.stop
+			if len(r.macro.Stop) > 0 {
+				<-r.macro.Stop
 				if r.depth != 0 {
-					r.stop <- struct{}{}
+					r.macro.Stop <- struct{}{}
 				}
 				return
 			}
@@ -105,14 +103,12 @@ func (r *Routine) Execute() {
 func ExecuteRoutine(
 	macro *common.Macro,
 	actions common.Actions,
-	stop chan struct{},
 	status chan<- string,
 	err chan<- string,
 ) {
 	routine := &Routine{
 		macro:   macro.Copy(),
 		actions: actions,
-		stop:    stop,
 		err:     err,
 		kind:    MainRoutineKind,
 	}

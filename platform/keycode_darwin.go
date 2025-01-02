@@ -8,7 +8,7 @@ import (
 
 var KeyCodeMap = map[Key]int{
 	Forward:  0x0D,
-	BackKey:  0x01,
+	Backward: 0x01,
 	Left:     0x00,
 	Right:    0x02,
 	RotLeft:  0x2B,

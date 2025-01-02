@@ -1,5 +1,5 @@
 .idea/
-ocrs/
+ocrs/**
 vendor/
 frontend/node_modules/
 frontend/dist/

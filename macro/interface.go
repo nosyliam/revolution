@@ -1,13 +1,12 @@
 package macro
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/control"
-	"github.com/nosyliam/revolution/pkg/detect"
 	"github.com/nosyliam/revolution/pkg/logging"
+	"github.com/nosyliam/revolution/pkg/movement"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/sqweek/dialog"
 )
@@ -32,6 +31,7 @@ type Interface struct {
 
 func (i *Interface) Start() {
 	pause := make(chan (<-chan struct{}), 1)
+	stop := make(chan struct{}, 1)
 	i.Macro = &common.Macro{
 		Account:    i.Account,
 		EventBus:   i.EventBus,
@@ -41,13 +41,13 @@ func (i *Interface) Start() {
 		Database:   i.Database,
 		Logger:     i.Logger,
 		WinManager: i.WinMgr,
-		BuffDetect: detect.NewBuffDetector(i.Settings, i.State),
+		BuffDetect: movement.NewBuffDetector(i.Settings),
 		Scratch:    config.NewScratch(),
 		Results:    &common.ActionResults{},
 		Pause:      pause,
+		Stop:       i.stop,
 		Redirect:   i.redirect,
 	}
-	stop := make(chan struct{}, 1)
 	i.Macro.Scheduler = NewScheduler(i.redirect, i.stop)
 
 	err := make(chan string, 1)
@@ -65,7 +65,6 @@ func (i *Interface) Start() {
 				i.Pause()
 			case <-i.pause:
 				if i.unpause != nil {
-					fmt.Println("unpause")
 					_ = i.State.SetPath("paused", false)
 					go i.Macro.Scheduler.Start()
 					i.unpause <- struct{}{}
@@ -91,7 +90,7 @@ func (i *Interface) Start() {
 	}()
 
 	main := common.Routines[routines.MainRoutineKind]
-	go control.ExecuteRoutine(i.Macro, main, stop, status, err)
+	go control.ExecuteRoutine(i.Macro, main, status, err)
 }
 
 func (i *Interface) SendError(err string) {

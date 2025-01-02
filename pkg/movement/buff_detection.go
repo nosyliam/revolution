@@ -1,4 +1,4 @@
-package detect
+package movement
 
 import (
 	"fmt"
@@ -24,24 +24,22 @@ type BuffDetector struct {
 	buffs           BuffMap
 	tick            int
 	settings        *config.Object[config.Settings]
-	state           *config.Object[config.MacroState]
 
 	newHash       string
 	confirmations int
 }
 
-func NewBuffDetector(settings *config.Object[config.Settings], state *config.Object[config.MacroState]) *BuffDetector {
+func NewBuffDetector(settings *config.Object[config.Settings]) *BuffDetector {
 	return &BuffDetector{
 		interrupts:      make(map[chan struct{}]bool),
 		hourlyHistogram: make(map[BuffType][]int),
 		settings:        settings,
-		state:           state,
 	}
 }
 
 // MoveSpeed returns the corrected player speed, factoring in all speed buffs
 func (b *BuffDetector) MoveSpeed() float64 {
-	speed := 33.35 //*config.Concrete[float64](b.settings, "player.moveSpeed")
+	speed := b.settings.Object().Player.Object().MoveSpeed
 	if b.buffs == nil {
 		return speed
 	}
@@ -71,28 +69,26 @@ func (b *BuffDetector) MoveSpeed() float64 {
 
 }
 
-// Combine generates a channel which combines the global macro interrupt with an interrupt for speed buff changes
-func (b *BuffDetector) Combine(interrupt <-chan struct{}) <-chan struct{} {
+// Watch creates a channel which will respond to changes in movespeed
+func (b *BuffDetector) Watch() chan struct{} {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	waiter := make(chan struct{})
 	b.interrupts[waiter] = true
-	combined := make(chan struct{})
+	output := make(chan struct{})
 	go func() {
+		<-waiter
+		b.mu.Lock()
+		delete(b.interrupts, waiter)
+		b.mu.Unlock()
 		select {
-		case <-interrupt:
-			b.mu.Lock()
-			delete(b.interrupts, waiter)
-			b.mu.Unlock()
-			combined <- struct{}{}
-		case <-waiter:
-			b.mu.Lock()
-			delete(b.interrupts, waiter)
-			b.mu.Unlock()
-			combined <- struct{}{}
+		case <-output:
+			return
+		default:
+			output <- struct{}{}
 		}
 	}()
-	return combined
+	return output
 }
 
 func DetectBuff(index int, kind BuffType, tile *image.RGBA) int {
@@ -177,7 +173,6 @@ func (b *BuffDetector) Tick(origin *revimg.Point, screenshot *image.RGBA) {
 				continue
 			}
 			if _, ok := buffs[Haste]; ok && kind == Haste {
-				fmt.Println("coconut detected", value)
 				buffs[HasteCoconut] = 1
 				continue
 			}
@@ -196,8 +191,6 @@ func (b *BuffDetector) Tick(origin *revimg.Point, screenshot *image.RGBA) {
 			b.mu.Lock()
 			b.buffs = buffs
 			b.mu.Unlock()
-			fmt.Println("MoveSpeed changed to", b.MoveSpeed())
-			fmt.Println(b.buffs)
 			for ch, _ := range b.interrupts {
 				ch <- struct{}{}
 			}

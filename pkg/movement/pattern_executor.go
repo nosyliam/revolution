@@ -1,7 +1,8 @@
-package pattern
+package movement
 
 import (
 	"fmt"
+	"github.com/nosyliam/revolution/pkg/common"
 	lua "github.com/yuin/gopher-lua"
 	"reflect"
 )
@@ -24,7 +25,7 @@ func GetDistance(L *lua.LState) int {
 	return 1
 }
 
-func ExecutePattern(pattern *Pattern, interrupt <-chan struct{}) {
+func ExecutePattern(pattern *Pattern, bus common.EventBus) {
 	L := lua.NewState()
 	defer L.Close()
 	for name, _ := range mappedDefaultFunctions {
@@ -34,7 +35,7 @@ func ExecutePattern(pattern *Pattern, interrupt <-chan struct{}) {
 }
 
 func init() {
-	t := reflect.TypeOf(Metadata{})
+	t := reflect.TypeOf(PatternMetadata{})
 	for i := 0; i < t.NumField(); i++ {
 		meta := t.Field(i)
 		mappedDefaultFunctions[meta.Name] = true
