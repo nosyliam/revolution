@@ -121,7 +121,8 @@ func DetectBuff(index int, kind BuffType, tile *image.RGBA) int {
 		if index == 0 {
 			count -= 1 // Left-most edge of the window may have pixel discoloration
 		}
-		// Detect the line of pixels at the bottom of the buff. These will always be consistent
+		// Detect the line of pixels at the bottom of the buff. These will always be consistent since
+		// they will always be present right up until the very last moment that the buff expires.
 		var detected = 0
 		for i := 0; i < 38; i++ {
 			if tile.RGBAAt(i, 37) == meta.PixelColor {

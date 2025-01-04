@@ -80,5 +80,7 @@ type BuffDetector interface {
 
 type PatternLoader interface {
 	Start() error
-	Execute(pattern string) error
+	Patterns() []string
+	Exists(pattern string) bool
+	Execute(macro *Macro, pattern string) error
 }

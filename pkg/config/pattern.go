@@ -16,6 +16,9 @@ type PatternMetadata struct {
 	ReturnMethod       string
 	DriftComp          bool
 	GatherPattern      bool
+
+	AutoUpdate bool
+	Version    int
 }
 
 type Pattern struct {

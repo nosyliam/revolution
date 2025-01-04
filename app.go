@@ -3,13 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/nosyliam/revolution/macro"
 	"github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/control"
+	"github.com/nosyliam/revolution/pkg/logging"
+	"github.com/nosyliam/revolution/pkg/movement"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"os"
 )
 
@@ -19,6 +23,7 @@ type Macro struct {
 	config    *Object[Config]
 	state     *Object[State]
 	database  *Object[AccountDatabase]
+	pattern   common.PatternLoader
 	runtime   *Runtime
 	eventBus  common.EventBus
 	backend   common.Backend
@@ -36,6 +41,7 @@ func NewMacro(
 	return &Macro{
 		windowMgr:  window.NewWindowManager(windowBackend),
 		eventBus:   control.NewEventBus(controlBackend),
+		pattern:    movement.NewLoader(),
 		backend:    controlBackend,
 		interfaces: make(map[string]*macro.Interface),
 	}
@@ -65,6 +71,11 @@ func (m *Macro) startup(ctx context.Context) {
 		dialog.Message(errors.Wrap(err, "Failed to load account database").Error()).Error()
 		os.Exit(1)
 	}
+	if err := m.pattern.Start(); err != nil {
+		dialog.Message(errors.Wrap(err, "Failed to start pattern loader").Error()).Error()
+		os.Exit(1)
+	}
+	go m.eventBus.Start()
 
 	presets := *Concrete[[]*Object[Settings]](m.config, "presets")
 	var accounts = make(map[string]*Object[Settings])
@@ -111,11 +122,49 @@ func (m *Macro) startup(ctx context.Context) {
 			preset,
 			macroState,
 			m.database,
+			m.pattern,
 			m.windowMgr,
 			m.eventBus,
 			m.backend,
 		)
 	}
+
+	runtime.EventsOn(ctx, "command", func(data ...interface{}) {
+		var args = []string{data[0].(string)}
+		for _, arg := range data[1:] {
+			args = append(args, arg.(string))
+		}
+		if ok := m.ReceiveCommand(args...); ok {
+			return
+		}
+		active := m.state.Object().Config.Object().ActiveAccount
+		if ifc, ok := m.interfaces[active]; ok && ifc.Macro != nil {
+			ifc.Command() <- args
+		} else if !ok {
+			if ifc = m.interfaces["default"]; ifc.Macro != nil {
+				ifc.Command() <- args
+			} else {
+				runtime.EventsEmit(ctx, "console", color.RedString("Macro must be started to use this command!"))
+			}
+		}
+	})
+}
+
+func (m *Macro) ReceiveCommand(args ...string) bool {
+	handlers := map[string]func(args ...string){
+		"listpatterns": func(args ...string) {
+			logging.Console(AppContext, logging.Info, "Available Patterns:")
+			for _, name := range m.pattern.Patterns() {
+				logging.Console(AppContext, logging.Info, fmt.Sprintf("  %s", name))
+			}
+			logging.Console(AppContext, logging.Info, "\r\n")
+		},
+	}
+	if _, ok := handlers[args[0]]; !ok {
+		return false
+	}
+	go handlers[args[0]](args[1:]...)
+	return true
 }
 
 func (m *Macro) Start(instance string) {

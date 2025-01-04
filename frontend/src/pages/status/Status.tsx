@@ -1,16 +1,16 @@
-import {Box, Group, Paper, rem, Stack, Tabs} from "@mantine/core";
+import {Box, Group, Paper, rem, px, Stack, Tabs} from "@mantine/core";
 import React, {useState} from "react";
 import FloatingSelector from "../../components/FloatingSelector";
 import {IconChartBarPopular, IconLogs, IconWebhook} from "@tabler/icons-react";
 import Console from "./Console";
 
 export default function Status() {
-    const iconStyle = { width: rem(16), height: rem(16) };
+    const iconStyle = { width: rem(16), height: rem(16), marginRight: px(-3) };
 
     return (
         <Group style={{height: '100%', flexWrap: 'nowrap'}} gap={8}>
             <Console />
-            <Paper shadow="xs" style={{height: '100%', flexGrow: 1}} p={4}>
+            <Paper shadow="xs" style={{height: '100%', flexGrow: 0, flexShrink: 1}} p={4}>
                 <Stack gap={4} style={{height: '100%'}}>
                     <Box style={{flexGrow: 1, height: '100%'}}>
                     </Box>

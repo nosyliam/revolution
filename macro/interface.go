@@ -1,6 +1,7 @@
 package macro
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
@@ -17,6 +18,7 @@ type Interface struct {
 	State    *config.Object[config.MacroState]
 	Settings *config.Object[config.Settings]
 	Database *config.Object[config.AccountDatabase]
+	Pattern  common.PatternLoader
 	WinMgr   *window.Manager
 	Logger   *logging.Logger
 	Macro    *common.Macro
@@ -27,6 +29,44 @@ type Interface struct {
 	stop     chan struct{}
 	quit     chan struct{}
 	redirect chan *common.RedirectExecution
+
+	command chan []string
+}
+
+func (i *Interface) Command() chan<- []string {
+	return i.command
+}
+
+func (i *Interface) ReceiveCommands() {
+	for {
+		cmd := <-i.command
+		if i.Macro == nil || cmd == nil {
+			for len(cmd) > 0 {
+				<-i.command
+			}
+			return
+		}
+		handlers := map[string]func(args ...string){
+			"listpatterns": func(args ...string) {
+				i.Macro.Console(logging.Info, "Available Patterns:")
+			},
+			"execpattern": func(args ...string) {
+				if i.Macro.Window == nil {
+					i.Macro.Console(logging.Error, "Macro not started!")
+					return
+				}
+				if !i.Macro.Pattern.Exists(args[0]) {
+					i.Macro.Console(logging.Error, fmt.Sprintf("Pattern \"%s\" does not exist!", args[0]))
+					return
+				}
+				i.Macro.Console(logging.Success, "Pattern successfully executed")
+				if err := i.Macro.Pattern.Execute(i.Macro, args[0]); err != nil {
+					i.Macro.Console(logging.Error, fmt.Sprintf("Pattern \"%s\" failed: %v", args[0], err))
+				}
+			},
+		}
+		go handlers[cmd[0]](cmd[1:]...)
+	}
 }
 
 func (i *Interface) Start() {
@@ -42,6 +82,7 @@ func (i *Interface) Start() {
 		Logger:     i.Logger,
 		WinManager: i.WinMgr,
 		BuffDetect: movement.NewBuffDetector(i.Settings),
+		Pattern:    i.Pattern,
 		Scratch:    config.NewScratch(),
 		Results:    &common.ActionResults{},
 		Pause:      pause,
@@ -83,11 +124,14 @@ func (i *Interface) Start() {
 					i.Macro.Window.Dissociate()
 				}
 				i.Macro.Scheduler.Close()
+				i.command <- nil
 				i.Macro = nil
 				return
 			}
 		}
 	}()
+
+	go i.ReceiveCommands()
 
 	main := common.Routines[routines.MainRoutineKind]
 	go control.ExecuteRoutine(i.Macro, main, status, err)
@@ -128,6 +172,7 @@ func NewInterface(
 	settings *config.Object[config.Settings],
 	state *config.Object[config.MacroState],
 	database *config.Object[config.AccountDatabase],
+	pattern common.PatternLoader,
 	winMgr *window.Manager,
 	eventBus common.EventBus,
 	backend common.Backend,
@@ -137,6 +182,7 @@ func NewInterface(
 		Backend:  backend,
 		Settings: settings,
 		Database: database,
+		Pattern:  pattern,
 		Logger:   logging.NewLogger(account, settings),
 		State:    state,
 		WinMgr:   winMgr,

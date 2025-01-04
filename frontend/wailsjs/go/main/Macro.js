@@ -22,6 +22,10 @@ export function PauseAll() {
   return window['go']['main']['Macro']['PauseAll']();
 }
 
+export function ReceiveCommand(arg1) {
+  return window['go']['main']['Macro']['ReceiveCommand'](arg1);
+}
+
 export function SetAccountPreset(arg1, arg2) {
   return window['go']['main']['Macro']['SetAccountPreset'](arg1, arg2);
 }

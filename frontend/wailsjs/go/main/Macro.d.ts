@@ -11,6 +11,8 @@ export function Pause(arg1:string):Promise<void>;
 
 export function PauseAll():Promise<void>;
 
+export function ReceiveCommand(arg1:Array<string>):Promise<boolean>;
+
 export function SetAccountPreset(arg1:string,arg2:string):Promise<string>;
 
 export function Start(arg1:string):Promise<void>;

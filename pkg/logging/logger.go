@@ -13,6 +13,7 @@ type LogLevel string
 const (
 	Info    LogLevel = "INFO"
 	Warning LogLevel = "WARNING"
+	Success LogLevel = "SUCCESS"
 	Error   LogLevel = "ERROR"
 )
 

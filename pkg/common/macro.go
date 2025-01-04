@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/logging"
-	"github.com/nosyliam/revolution/pkg/movement"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
 )
@@ -42,7 +41,8 @@ type Macro struct {
 	MacroState *config.Object[config.MacroState]
 	Settings   *config.Object[config.Settings]
 	Database   *config.Object[config.AccountDatabase]
-	BuffDetect *movement.BuffDetector
+	BuffDetect BuffDetector
+	Pattern    PatternLoader
 	Logger     *logging.Logger
 	Window     *window.Window
 	WinManager *window.Manager
@@ -55,6 +55,10 @@ type Macro struct {
 	Pause      <-chan (<-chan struct{})
 	Stop       chan struct{}
 	Redirect   chan *RedirectExecution
+}
+
+func (m *Macro) Console(level logging.LogLevel, text string) {
+	logging.Console(AppContext, level, text)
 }
 
 func (m *Macro) Copy() *Macro {
@@ -72,6 +76,7 @@ func (m *Macro) Copy() *Macro {
 		State:      m.State,
 		Database:   m.Database,
 		BuffDetect: m.BuffDetect,
+		Pattern:    m.Pattern,
 		Window:     m.Window,
 		WinManager: m.WinManager,
 		Scratch:    m.Scratch,

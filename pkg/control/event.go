@@ -9,7 +9,6 @@ type Event struct {
 }
 
 type MouseMoveEvent struct {
-	Event
 	x, y int
 }
 
@@ -18,7 +17,6 @@ func (e *MouseMoveEvent) Execute(backend common.Backend) {
 }
 
 type MouseScrollEvent struct {
-	Event
 	x, y int
 }
 

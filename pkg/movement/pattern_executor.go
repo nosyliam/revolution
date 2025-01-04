@@ -3,6 +3,7 @@ package movement
 import (
 	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
+	"github.com/nosyliam/revolution/pkg/config"
 	lua "github.com/yuin/gopher-lua"
 	"reflect"
 )
@@ -25,17 +26,17 @@ func GetDistance(L *lua.LState) int {
 	return 1
 }
 
-func ExecutePattern(pattern *Pattern, bus common.EventBus) {
+func ExecutePattern(pattern *Pattern, macro *common.Macro) error {
 	L := lua.NewState()
 	defer L.Close()
 	for name, _ := range mappedDefaultFunctions {
 		L.SetGlobal(fmt.Sprintf("Set%s", name), L.NewFunction(NoopFunction))
 	}
-
+	return nil
 }
 
 func init() {
-	t := reflect.TypeOf(PatternMetadata{})
+	t := reflect.TypeOf(config.PatternMetadata{})
 	for i := 0; i < t.NumField(); i++ {
 		meta := t.Field(i)
 		mappedDefaultFunctions[meta.Name] = true

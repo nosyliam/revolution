@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -23,7 +23,8 @@ import (
 
 func NewMetadataFromStatementList(stmts []ast.Stmt) (*config.PatternMetadata, string, error) {
 	name := "INVALID"
-	meta := &config.PatternMetadata{
+	meta := config.PatternMetadata{
+		AutoUpdate:   true,
 		ReturnMethod: "reset",
 	}
 	value := reflect.ValueOf(meta)
@@ -31,12 +32,17 @@ func NewMetadataFromStatementList(stmts []ast.Stmt) (*config.PatternMetadata, st
 		if n, ok := stmt.(*ast.FuncCallStmt); ok {
 			if fc, ok := n.Expr.(*ast.FuncCallExpr); ok {
 				if fn, ok := fc.Func.(*ast.IdentExpr); ok {
-					if fn.Value == "SetName" { // Special case
+					if fn.Value == "DisableAutoUpdate" {
+						meta.AutoUpdate = false
+						continue
+					}
+					if fn.Value == "SetName" {
 						if expr, ok := fc.Args[0].(*ast.StringExpr); ok {
 							name = expr.Value
 						} else {
 							return nil, "", errors.New("invalid argument for metadata call \"SetName\"")
 						}
+						continue
 					}
 					field := value.FieldByName(strings.TrimPrefix(fn.Value, "Set"))
 					if !field.IsValid() {
@@ -70,7 +76,7 @@ func NewMetadataFromStatementList(stmts []ast.Stmt) (*config.PatternMetadata, st
 			}
 		}
 	}
-	return meta, name, nil
+	return &meta, name, nil
 }
 
 type Pattern struct {
@@ -94,15 +100,86 @@ func NewLoader() *Loader {
 	return &Loader{watcher: w, ctx: ctx, cancel: cancel, patterns: make(map[string]*Pattern)}
 }
 
-func (l *Loader) Execute(pattern string) error {
-	return nil
+func (l *Loader) Patterns() []string {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	var names []string
+	for name := range l.patterns {
+		names = append(names, name)
+	}
+	return names
+}
+
+func (l *Loader) Exists(patternName string) bool {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	_, ok := l.patterns[patternName]
+	return ok
+}
+
+func (l *Loader) Execute(macro *common.Macro, patternName string) error {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	pattern, ok := l.patterns[patternName]
+	if !ok {
+		return errors.Errorf("no such pattern: %s", patternName)
+	}
+	return ExecutePattern(pattern, macro)
 }
 
 func (l *Loader) Start() error {
 	os.MkdirAll("patterns", 0755)
+	os.MkdirAll("patterns/misc", 0755)
+	os.MkdirAll("patterns/edges", 0755)
 	err := l.watcher.Add("patterns")
 	if err != nil {
 		return err
+	}
+	err = l.watcher.Add("patterns/misc")
+	if err != nil {
+		return err
+	}
+	err = l.watcher.Add("patterns/edges")
+	if err != nil {
+		return err
+	}
+	err = filepath.Walk("patterns", func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			l.handleFileChange(path)
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	for name, data := range embeddedPatterns {
+		if pattern, ok := l.patterns[name]; ok {
+			if pattern.Meta.AutoUpdate && pattern.Meta.Version < data.Version {
+				file, err := os.OpenFile(filepath.Join("patterns", data.Path), os.O_WRONLY|os.O_TRUNC, 0644)
+				if err != nil {
+					return errors.New(fmt.Sprintf("failed to open pattern for auto-update: %s", data.Path))
+				}
+				_, err = file.Write(data.Data)
+				if err != nil {
+					return errors.New(fmt.Sprintf("failed to write embedded pattern for auto-update: %s", data.Path))
+				}
+				l.handleFileChange(data.Path)
+			}
+		} else {
+			file, err := os.Create(filepath.Join("patterns", data.Path))
+			if err != nil {
+				return errors.New(fmt.Sprintf("failed to create embedded pattern: %s", data.Path))
+			}
+			_, err = file.Write(data.Data)
+			if err != nil {
+				return errors.New(fmt.Sprintf("failed to write embedded pattern: %s", data.Path))
+			}
+			_ = file.Close()
+			l.handleFileChange(data.Path)
+		}
 	}
 	go l.run()
 	return nil
@@ -130,7 +207,7 @@ func (l *Loader) handleFileChange(path string) {
 		return
 	}
 	if strings.HasSuffix(strings.ToLower(filepath.Ext(path)), ".lua") {
-		data, err := ioutil.ReadFile(path)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return
 		}
@@ -160,8 +237,6 @@ func (l *Loader) handleFileChange(path string) {
 }
 
 func (l *Loader) Retrieve(pattern string) (*Pattern, error) {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
 	p, ok := l.patterns[pattern]
 	if !ok {
 		return nil, fmt.Errorf("pattern not found: %s", pattern)

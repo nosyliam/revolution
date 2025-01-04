@@ -16,14 +16,14 @@ type eventBusImpl struct {
 
 func (e *eventBusImpl) KeyDown(pid int, key common.Key) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&KeyDownEvent{key, pid}, ch}
+	e.queue <- event{&KeyDownEvent{Event{pid}, key}, ch}
 	return ch
 
 }
 
 func (e *eventBusImpl) KeyUp(pid int, key common.Key) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&KeyUpEvent{key, pid}, ch}
+	e.queue <- event{&KeyUpEvent{Event{pid}, key}, ch}
 	return ch
 }
 
