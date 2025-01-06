@@ -202,19 +202,25 @@ static void activate_window(const Window* window) {
 }
 
 static int get_window_count(pid_t pid) {
-	AXUIElementRef application = AXUIElementCreateApplication(pid);
-	if (application == 0) {return 0;}
-
-	CFArrayRef windows = NULL;
-	AXUIElementCopyAttributeValues(application, kAXWindowsAttribute, 0, 1024, &windows);
-
-	if (windows != NULL) {
-	    CFRelease(windows);
-	    CFRelease(application);
-		return CFArrayGetCount(windows);
+    AXUIElementRef application = AXUIElementCreateApplication(pid);
+    if (application == NULL) {
+        return 0;
     }
+
+    CFArrayRef windows = NULL;
+    if (AXUIElementCopyAttributeValues(application, kAXWindowsAttribute, 0, 1024, &windows) != kAXErrorSuccess) {
+        CFRelease(application);
+        return 0;
+    }
+
+    int count = 0;
+    if (windows != NULL) {
+        count = CFArrayGetCount(windows);
+        CFRelease(windows);
+    }
+
     CFRelease(application);
-    return 0;
+    return count;
 }
 
 static Window* get_window_with_pid(pid_t pid) {

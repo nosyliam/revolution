@@ -102,7 +102,7 @@ func (s *Scheduler) Tick(frame *image.RGBA) {
 	// If we're not opening the window or unwinding a redirect, check the Roblox window
 	if opening := s.macro.Scratch.Stack[0] == string(routines.OpenRobloxRoutineKind); !opening && !s.macro.Scratch.Redirect {
 		if s.macro.Root.Window == nil {
-			s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
+			s.macro.SetRedirect(routines.OpenRobloxRoutineKind)
 			return
 		}
 		// Fix window every 5 ticks to avoid expensive CGo calls
@@ -110,7 +110,7 @@ func (s *Scheduler) Tick(frame *image.RGBA) {
 			if err := s.macro.Root.Window.Fix(); err != nil {
 				s.macro.Action(Error("Failed to adjust Roblox! Re-opening")(Status))
 				s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to re-open", err)(Discord))
-				s.redirect <- &common.RedirectExecution{Routine: routines.OpenRobloxRoutineKind}
+				s.macro.SetRedirect(routines.OpenRobloxRoutineKind)
 				return
 			}
 		}

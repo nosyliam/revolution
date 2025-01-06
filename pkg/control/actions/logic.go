@@ -67,6 +67,15 @@ func (a *conditionalAction) Execute(macro *common.Macro) error {
 				if err := exec(macro); err != nil {
 					return err
 				}
+				if len(macro.Redirect) > 0 {
+					return <-macro.Redirect
+				}
+				if len(macro.Stop) > 0 {
+					return nil
+				}
+				if len(macro.Pause) > 0 {
+					<-<-macro.Pause
+				}
 				if macro.Scratch.LoopState.Unwind != nil {
 					return nil
 				}
@@ -183,6 +192,9 @@ func (a *loopAction) Execute(macro *common.Macro) error {
 				}
 				if len(macro.Redirect) > 0 {
 					return <-macro.Redirect
+				}
+				if len(macro.Stop) > 0 {
+					return nil
 				}
 				if len(macro.Pause) > 0 {
 					<-<-macro.Pause

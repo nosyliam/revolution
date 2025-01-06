@@ -181,7 +181,6 @@ func (r *Runtime) Start() {
 }
 
 func NewRuntime(ctx context.Context) *Runtime {
-	AppContext = ctx
 	app := &Runtime{roots: make(map[string]Reactive)}
 	ready := make(chan bool)
 	runtime.EventsOnce(ctx, "ready", func(...interface{}) {

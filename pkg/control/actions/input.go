@@ -8,8 +8,8 @@ type mouseMoveAction struct {
 	x, y int
 }
 
-func (a *mouseMoveAction) Execute(deps *common.Macro) error {
-	<-deps.EventBus.MoveMouse(a.x, a.y)
+func (a *mouseMoveAction) Execute(macro *common.Macro) error {
+	<-macro.EventBus.MoveMouse(macro, a.x, a.y)
 	return nil
 }
 

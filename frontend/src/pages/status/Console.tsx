@@ -3,9 +3,60 @@ import {Terminal} from 'xterm';
 import {XTerm} from './XTerm';
 import './Console.css';
 import {EventsEmit, EventsOn} from "../../../wailsjs/runtime";
+import {Simulate} from "react-dom/test-utils";
+import input = Simulate.input;
 
 type CommandFunction = (...args: string[]) => string | null | undefined | void;
 type CommandsMap = Record<string, CommandFunction>;
+
+function processTextForTerminal(inputText: string, terminal: any, maxColumns = 35) {
+    const ansiRegex = /\x1B\[[0-9;]*m/g;
+    const stripAnsi = (text: string) => text.replace(ansiRegex, '');
+    const visibleLength = (text: string) => stripAnsi(text).length;
+
+    const tokens = inputText.split(/(\s+)/);
+    const lines = [''];
+
+    for (let token of tokens) {
+        const lastLine = lines[lines.length - 1];
+        const candidate = lastLine + token;
+
+        if (/^\s*$/.test(token) || visibleLength(candidate) <= maxColumns) {
+            lines[lines.length - 1] = candidate;
+        } else {
+            while (visibleLength(token) > maxColumns) {
+                const [head, tail] = chunkByVisibleLength(token, maxColumns, ansiRegex);
+                lines.push(head);
+                token = tail;
+            }
+            lines.push(token);
+        }
+    }
+
+    lines.forEach(line => terminal.writeln(line));
+}
+
+function chunkByVisibleLength(str: string, maxLen: number, ansiRegex: RegExp) {
+    let result = '';
+    let visibleCount = 0;
+    for (let i = 0; i < str.length; i++) {
+        // If we hit an ANSI escape, copy it verbatim without counting toward visible length
+        if (str[i] === '\x1B') {
+            const match = str.slice(i).match(ansiRegex);
+            if (match) {
+                result += match[0];
+                i += match[0].length - 1;
+                continue;
+            }
+        }
+        result += str[i];
+        visibleCount++;
+        if (visibleCount === maxLen) {
+            return [result, str.slice(i + 1)];
+        }
+    }
+    return [result, ''];
+}
 
 const commandsMap: CommandsMap = {
     help: () =>
@@ -74,7 +125,7 @@ const Console: React.FC = () => {
         terminal.writeln('Type "help" to see all commands.\r\n');
 
         EventsOn('console', (text: string) => {
-            terminal.writeln(text)
+            processTextForTerminal(text, terminal)
         })
     };
 

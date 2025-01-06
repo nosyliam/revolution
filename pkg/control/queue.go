@@ -14,28 +14,28 @@ type eventBusImpl struct {
 	backend common.Backend
 }
 
-func (e *eventBusImpl) KeyDown(pid int, key common.Key) common.Receiver {
+func (e *eventBusImpl) KeyDown(macro *common.Macro, key common.Key) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&KeyDownEvent{Event{pid}, key}, ch}
+	e.queue <- event{&KeyDownEvent{Event{macro.Root.Window}, key}, ch}
 	return ch
 
 }
 
-func (e *eventBusImpl) KeyUp(pid int, key common.Key) common.Receiver {
+func (e *eventBusImpl) KeyUp(macro *common.Macro, key common.Key) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&KeyUpEvent{Event{pid}, key}, ch}
+	e.queue <- event{&KeyUpEvent{Event{macro.Root.Window}, key}, ch}
 	return ch
 }
 
-func (e *eventBusImpl) MoveMouse(x, y int) common.Receiver {
+func (e *eventBusImpl) MoveMouse(macro *common.Macro, x, y int) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&MouseMoveEvent{x, y}, ch}
+	e.queue <- event{&MouseMoveEvent{Event{macro.Root.Window}, x, y}, ch}
 	return ch
 }
 
-func (e *eventBusImpl) ScrollMouse(x, y int) common.Receiver {
+func (e *eventBusImpl) ScrollMouse(macro *common.Macro, x, y int) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&MouseScrollEvent{x, y}, ch}
+	e.queue <- event{&MouseScrollEvent{Event{macro.Root.Window}, x, y}, ch}
 	return ch
 }
 
@@ -50,10 +50,6 @@ func (e *eventBusImpl) Start() {
 	}
 }
 
-func (e *eventBusImpl) Close() {
-	close(e.queue)
-}
-
 func NewEventBus(backend common.Backend) common.EventBus {
-	return &eventBusImpl{backend: backend}
+	return &eventBusImpl{backend: backend, queue: make(chan event, 1)}
 }

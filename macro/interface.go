@@ -3,6 +3,7 @@ package macro
 import (
 	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
+	"github.com/nosyliam/revolution/macro/routines/develop"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/control"
@@ -38,6 +39,7 @@ func (i *Interface) Command() chan<- []string {
 }
 
 func (i *Interface) ReceiveCommands() {
+	fmt.Println("receiving")
 	for {
 		cmd := <-i.command
 		if i.Macro == nil || cmd == nil {
@@ -47,22 +49,26 @@ func (i *Interface) ReceiveCommands() {
 			return
 		}
 		handlers := map[string]func(args ...string){
-			"listpatterns": func(args ...string) {
-				i.Macro.Console(logging.Info, "Available Patterns:")
-			},
 			"execpattern": func(args ...string) {
+				if len(args) != 1 {
+					common.Console(logging.Error, "Expected a pattern name!")
+					return
+				}
 				if i.Macro.Window == nil {
-					i.Macro.Console(logging.Error, "Macro not started!")
+					common.Console(logging.Error, "Macro not started!")
 					return
 				}
 				if !i.Macro.Pattern.Exists(args[0]) {
-					i.Macro.Console(logging.Error, fmt.Sprintf("Pattern \"%s\" does not exist!", args[0]))
+					common.Console(logging.Error, fmt.Sprintf("Pattern \"%s\" does not exist!", args[0]))
 					return
 				}
-				i.Macro.Console(logging.Success, "Pattern successfully executed")
-				if err := i.Macro.Pattern.Execute(i.Macro, args[0]); err != nil {
-					i.Macro.Console(logging.Error, fmt.Sprintf("Pattern \"%s\" failed: %v", args[0], err))
+				i.Macro.Scratch.Set("PatternToExecute", args[0])
+				if err := i.Macro.SetRedirect(develop.ExecuteDevelopmentPatternRouteKind); err != nil {
+					common.Console(logging.Error, err.Error())
+					return
 				}
+				common.Console(logging.Success, "Pattern successfully queued for execution")
+				i.Unpause()
 			},
 		}
 		go handlers[cmd[0]](cmd[1:]...)
@@ -70,6 +76,7 @@ func (i *Interface) ReceiveCommands() {
 }
 
 func (i *Interface) Start() {
+	i.redirect = make(chan *common.RedirectExecution, 1)
 	pause := make(chan (<-chan struct{}), 1)
 	stop := make(chan struct{}, 1)
 	i.Macro = &common.Macro{
@@ -105,26 +112,58 @@ func (i *Interface) Start() {
 				i.SendError(errStr)
 				i.Pause()
 			case <-i.pause:
+				i.Macro.Lock()
 				if i.unpause != nil {
 					_ = i.State.SetPath("paused", false)
-					go i.Macro.Scheduler.Start()
+					if i.Macro.Window != nil {
+						go i.Macro.Scheduler.Start()
+					}
+					if len(i.unpause) > 0 {
+						<-i.unpause
+					}
 					i.unpause <- struct{}{}
 					i.unpause = nil
+					for _, watcher := range i.Macro.UnpauseWatchers {
+						watcher <- struct{}{}
+					}
+					i.Macro.UnpauseWatchers = nil
+					i.Macro.Unlock()
 					continue
 				}
-				_ = i.State.SetPath("paused", true)
 				i.Macro.Scheduler.Close()
 				i.unpause = make(chan struct{}, 1)
-				pause <- i.unpause
+				if len(pause) == 0 {
+					pause <- i.unpause
+				}
+				for _, watcher := range i.Macro.Watchers {
+					ch := make(chan struct{}, 1)
+					i.Macro.UnpauseWatchers = append(i.Macro.UnpauseWatchers, ch)
+					if len(watcher) == 0 {
+						watcher <- ch
+					}
+				}
+				i.Macro.Unlock()
 			case <-i.stop:
 				_ = i.State.SetPath("running", false)
 				_ = i.State.SetPath("status", "Ready")
-				stop <- struct{}{}
+				i.Macro.Lock()
 				if i.Macro.Window != nil {
 					i.Macro.Window.Dissociate()
 				}
+				for _, watcher := range i.Macro.UnpauseWatchers {
+					watcher <- struct{}{}
+				}
+				for _, watcher := range i.Macro.Watchers {
+					if len(watcher) == 0 {
+						watcher <- nil
+					}
+				}
+				if len(stop) == 0 {
+					stop <- struct{}{}
+				}
 				i.Macro.Scheduler.Close()
 				i.command <- nil
+				i.Macro.Unlock()
 				i.Macro = nil
 				return
 			}
@@ -188,8 +227,8 @@ func NewInterface(
 		WinMgr:   winMgr,
 		Account:  account,
 
-		pause:    make(chan struct{}, 1),
-		stop:     make(chan struct{}, 1),
-		redirect: make(chan *common.RedirectExecution, 1),
+		pause:   make(chan struct{}, 1),
+		stop:    make(chan struct{}, 1),
+		command: make(chan []string, 1),
 	}
 }

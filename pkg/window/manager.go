@@ -26,6 +26,13 @@ type Window struct {
 	err        error
 }
 
+func (w *Window) Activate() error {
+	if err := w.backend.ActivateWindow(w.id); err != nil {
+		w.err = err
+	}
+	return w.err
+}
+
 func (w *Window) PID() int {
 	return w.id
 }
@@ -118,7 +125,6 @@ func (w *Window) StartCapture() error {
 						<-w.output
 					}
 				}
-				fmt.Println("inserting nil image")
 				w.output <- nil
 				dialog.Message("The screen capture mechanism has timed out.").Error()
 				return

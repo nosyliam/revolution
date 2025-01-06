@@ -1,6 +1,8 @@
-SetName("test_pattern")
+SetName("test")
 
-Walk(30, Forward)
-Walk(30, Left)
-Walk(30, Backward)
-Walk(30, Right)
+WalkAsync(Direction.Forward, 50)
+Sleep(200)
+KeyPress(Key.RotLeft)
+Walk(Direction.Right, 20)
+Walk(Direction.Backward, 20)
+Walk(Direction.Left, 20)

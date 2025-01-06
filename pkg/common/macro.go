@@ -1,11 +1,12 @@
 package common
 
 import (
-	"context"
+	"fmt"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
+	"sync"
 )
 
 var (
@@ -14,14 +15,19 @@ var (
 	RetrySignal     = errors.New("retry")     // Retry the current action
 	StepBackSignal  = errors.New("step back") // Step back to the last action
 
-	AppContext context.Context
 )
+
+func Console(level logging.LogLevel, text string) {
+	logging.Console(config.AppContext, level, text)
+}
 
 type RedirectExecution struct {
 	Routine RoutineKind
 }
 
-func (e RedirectExecution) Error() string { return "redirect" }
+func (e RedirectExecution) Error() string {
+	return fmt.Sprintf("redirect to %s", e.Routine)
+}
 
 type (
 	RoutineKind        string
@@ -30,6 +36,8 @@ type (
 )
 
 type Macro struct {
+	sync.Mutex
+
 	Root *Macro
 
 	Account    string
@@ -55,10 +63,61 @@ type Macro struct {
 	Pause      <-chan (<-chan struct{})
 	Stop       chan struct{}
 	Redirect   chan *RedirectExecution
+
+	Watchers        []chan (<-chan struct{})
+	UnpauseWatchers []chan<- struct{}
 }
 
-func (m *Macro) Console(level logging.LogLevel, text string) {
-	logging.Console(AppContext, level, text)
+// Watch returns channel which outputs a channel or a nil value whenever the macro is paused or stopped.
+// If a new channel is received, it indicates that the macro is paused and that the channel should be used to wait for unpause.
+// This function must be used in asynchronous operations that are executed outside the routine loop.
+func (m *Macro) Watch() <-chan (<-chan struct{}) {
+	if m.Root != nil {
+		return m.Root.Watch()
+	}
+	m.Lock()
+	defer m.Unlock()
+	ch := make(chan (<-chan struct{}), 1)
+	m.Watchers = append(m.Watchers, ch)
+	return ch
+}
+
+func (m *Macro) Unwatch(ch <-chan (<-chan struct{})) {
+	if m.Root != nil {
+		m.Root.Unwatch(ch)
+		return
+	}
+	m.Lock()
+	defer m.Unlock()
+	for i, c := range m.Watchers {
+		if c == ch {
+			m.Watchers = append(m.Watchers[:i], m.Watchers[i+1:]...)
+			return
+		}
+	}
+}
+
+func (m *Macro) SetRedirect(routine RoutineKind) error {
+	if m.Root != nil {
+		return m.Root.SetRedirect(routine)
+	}
+	m.Lock()
+	defer m.Unlock()
+	for _, watcher := range m.UnpauseWatchers {
+		watcher <- struct{}{}
+	}
+	m.UnpauseWatchers = nil
+	for _, watcher := range m.Watchers {
+		if len(watcher) == 0 {
+			watcher <- nil
+		}
+	}
+	if len(m.Redirect) == 0 {
+		m.Redirect <- &RedirectExecution{routine}
+		return nil
+	} else {
+		return errors.New("A redirect operation is already taking place!")
+	}
 }
 
 func (m *Macro) Copy() *Macro {

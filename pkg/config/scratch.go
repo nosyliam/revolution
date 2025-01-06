@@ -5,6 +5,7 @@ type variableType int
 const (
 	intVariableType variableType = iota
 	boolVariableType
+	stringVariableType
 )
 
 type variable struct {
@@ -43,6 +44,8 @@ func (s *Scratch) Set(name string, value interface{}) {
 		s.variables[name] = &variable{Type: intVariableType, value: val}
 	case bool:
 		s.variables[name] = &variable{Type: boolVariableType, value: val}
+	case string:
+		s.variables[name] = &variable{Type: stringVariableType, value: val}
 	}
 }
 
@@ -62,8 +65,10 @@ func (s *Scratch) Increment(name string) {
 	switch val.Type {
 	case intVariableType:
 		val.value = val.Int() + 1
+	case stringVariableType:
+		fallthrough
 	case boolVariableType:
-		panic("cannot increment a bool")
+		panic("invalid variable type for increment")
 	}
 }
 
@@ -75,8 +80,11 @@ func (s *Scratch) Subtract(name string, value int) {
 	switch val.Type {
 	case intVariableType:
 		val.value = val.Int() - value
+	case stringVariableType:
+		fallthrough
 	case boolVariableType:
-		panic("cannot increment a bool")
+		panic("invalid variable type for increment")
+
 	}
 }
 
@@ -88,8 +96,10 @@ func (s *Scratch) Add(name string, value int) {
 	switch val.Type {
 	case intVariableType:
 		val.value = val.Int() - value
+	case stringVariableType:
+		fallthrough
 	case boolVariableType:
-		panic("cannot increment a bool")
+		panic("invalid variable type for add")
 	}
 }
 
@@ -103,6 +113,8 @@ func (s *Scratch) Reset(name string) {
 		val.value = 0
 	case boolVariableType:
 		val.value = false
+	case stringVariableType:
+		val.value = ""
 	}
 }
 

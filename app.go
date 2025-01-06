@@ -132,6 +132,9 @@ func (m *Macro) startup(ctx context.Context) {
 	runtime.EventsOn(ctx, "command", func(data ...interface{}) {
 		var args = []string{data[0].(string)}
 		for _, arg := range data[1:] {
+			if arg == nil {
+				continue
+			}
 			args = append(args, arg.(string))
 		}
 		if ok := m.ReceiveCommand(args...); ok {
@@ -140,11 +143,11 @@ func (m *Macro) startup(ctx context.Context) {
 		active := m.state.Object().Config.Object().ActiveAccount
 		if ifc, ok := m.interfaces[active]; ok && ifc.Macro != nil {
 			ifc.Command() <- args
-		} else if !ok {
+		} else {
 			if ifc = m.interfaces["default"]; ifc.Macro != nil {
 				ifc.Command() <- args
 			} else {
-				runtime.EventsEmit(ctx, "console", color.RedString("Macro must be started to use this command!"))
+				runtime.EventsEmit(ctx, "console", color.RedString("Macro must be started to use this command!\r\n"))
 			}
 		}
 	})

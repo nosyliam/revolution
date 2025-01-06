@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"regexp"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -40,6 +41,7 @@ type windowData struct {
 	win        *C.Window
 	controller C.CaptureControllerRef
 	output     chan<- *image.RGBA
+	ready      atomic.Bool
 }
 
 type windowBackend struct {
@@ -251,14 +253,24 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 			return 0, errors.New("failed to start installer")
 		}
 
+		var pid = 0
+
 		for j := 0; j < 500; j++ {
-			if pid, err := findRunningInstance(true); err != nil {
+			if pid, err = findRunningInstance(true); err != nil {
 				return 0, err
 			} else if pid != -1 {
+				break
+			}
+			<-time.After(10 * time.Millisecond)
+		}
+
+		for i := 0; i < 1000; i++ {
+			if int((C.int)(C.get_window_count(C.int(pid)))) == 1 {
 				return pid, nil
 			}
 			<-time.After(10 * time.Millisecond)
 		}
+
 		<-time.After(1 * time.Second)
 	}
 
@@ -266,6 +278,8 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 }
 
 func (w *windowBackend) ActivateWindow(id int) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	win, err := w.getWindow(id)
 	if err != nil {
 		return err
@@ -285,7 +299,13 @@ func GoFrameCallback(id C.int, data *C.uchar, length C.size_t, width, height, st
 	img.Pix = buf
 	img.Stride = int(stride)
 
-	singleton.windows[int(id)].output <- img
+	/*f, _ := os.Create("test.png")
+	png.Encode(f, img)
+	f.Close()*/
+
+	if win, ok := singleton.windows[int(id)]; ok && win.ready.Load() {
+		win.output <- img
+	}
 }
 
 func (w *windowBackend) StartCapture(id int) (<-chan *image.RGBA, error) {
@@ -313,6 +333,7 @@ func (w *windowBackend) StartCapture(id int) (<-chan *image.RGBA, error) {
 	}
 
 	fmt.Printf("Capture started for window ID: %d\n", id)
+	win.ready.Store(true)
 	win.controller = controller
 	return output, nil
 }
@@ -324,10 +345,12 @@ func (w *windowBackend) StopCapture(id int) {
 	if err != nil {
 		return
 	}
+	win.ready.Store(false)
 	if win.output != nil {
 		win.output <- nil
 	}
 	if win.controller != nil {
+		fmt.Println("stopping capture")
 		C.StopCapture(win.controller)
 	}
 }

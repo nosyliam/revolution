@@ -1,6 +1,7 @@
 package common
 
 import (
+	"github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"image"
 )
@@ -55,10 +56,10 @@ type Backend interface {
 
 type EventBus interface {
 	Start()
-	KeyDown(pid int, key Key) Receiver
-	KeyUp(pid int, key Key) Receiver
-	MoveMouse(x, y int) Receiver
-	ScrollMouse(x, y int) Receiver
+	KeyDown(window *Macro, key Key) Receiver
+	KeyUp(macro *Macro, key Key) Receiver
+	MoveMouse(macro *Macro, x, y int) Receiver
+	ScrollMouse(macro *Macro, x, y int) Receiver
 }
 
 type Scheduler interface {
@@ -82,5 +83,5 @@ type PatternLoader interface {
 	Start() error
 	Patterns() []string
 	Exists(pattern string) bool
-	Execute(macro *Macro, pattern string) error
+	Execute(macro *Macro, meta *config.PatternMetadata, pattern string) error
 }

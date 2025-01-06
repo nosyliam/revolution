@@ -34,6 +34,13 @@ func openWindow(macro *Macro) error {
 	}
 }
 
+func fixWindow(macro *Macro) error {
+	if err := macro.Root.Window.Fix(); err != nil {
+		return err
+	}
+	return nil
+}
+
 var LoadingImage = ImageSteps{
 	SelectCoordinate(Change, 0, 30, 0, 150),
 	Variance(4),
@@ -91,6 +98,11 @@ var OpenRobloxRoutine = Actions{
 			),
 			Else(),
 			Condition(
+				If(ExecError(fixWindow)),
+				Error("Failed to fix window!")(Status, Discord),
+				Continue(),
+			),
+			Condition(
 				If(ExecError(func(macro *Macro) error {
 					return macro.Root.Window.StartCapture()
 				})),
@@ -106,7 +118,7 @@ var OpenRobloxRoutine = Actions{
 					Continue(1),
 				),
 				Condition(
-					If(False(Capturing)),
+					If(Or(False(Capturing), ExecError(fixWindow))),
 					Error("Failed to capture Roblox!")(Status, Discord),
 					Sleep(5).Seconds(),
 					Continue(1),
@@ -135,7 +147,7 @@ var OpenRobloxRoutine = Actions{
 					Continue(1),
 				),
 				Condition(
-					If(False(Capturing)),
+					If(Or(False(Capturing), ExecError(fixWindow))),
 					Error("Failed to screenshot BSS!")(Status, Discord),
 					Sleep(5).Seconds(),
 					Continue(1),

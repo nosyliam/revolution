@@ -117,14 +117,18 @@ func (l *Loader) Exists(patternName string) bool {
 	return ok
 }
 
-func (l *Loader) Execute(macro *common.Macro, patternName string) error {
+func (l *Loader) Execute(macro *common.Macro, meta *config.PatternMetadata, patternName string) error {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
 	pattern, ok := l.patterns[patternName]
 	if !ok {
 		return errors.Errorf("no such pattern: %s", patternName)
 	}
-	return ExecutePattern(pattern, macro)
+	if meta == nil {
+		meta = pattern.Meta
+	}
+	ExecutePattern(pattern, meta, macro)
+	return nil
 }
 
 func (l *Loader) Start() error {

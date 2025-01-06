@@ -294,8 +294,8 @@ func GoFrameCallback(id C.int, data *C.uchar, length C.size_t, width, height, st
 	png.Encode(f, img)
 	f.Close()*/
 
-	if singleton.windows[int(id)].ready.Load() {
-		singleton.windows[int(id)].output <- img
+	if win, ok := singleton.windows[int(id)]; ok && win.ready.Load() {
+		win.output <- img
 	}
 }
 
