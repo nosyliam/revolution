@@ -130,6 +130,7 @@ func (i *Interface) Start() {
 					i.Macro.Unlock()
 					continue
 				}
+				_ = i.State.SetPath("paused", true)
 				i.Macro.Scheduler.Close()
 				i.unpause = make(chan struct{}, 1)
 				if len(pause) == 0 {

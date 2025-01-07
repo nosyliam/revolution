@@ -11,6 +11,7 @@ import tabClasses from "./Tab.module.css"
 import React from "react";
 import Tools from "../pages/tools/Tools";
 import Status from "../pages/status/Status";
+import Settings from "../pages/settings/Settings";
 
 export default function MacroTabs() {
     return (
@@ -43,6 +44,9 @@ export default function MacroTabs() {
                     </Tabs.Panel>
                     <Tabs.Panel value="status" style={{height: '100%'}}>
                         <Status />
+                    </Tabs.Panel>
+                    <Tabs.Panel value="settings" style={{height: '100%'}}>
+                        <Settings />
                     </Tabs.Panel>
                 </Box>
             </Tabs>

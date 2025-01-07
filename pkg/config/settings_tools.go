@@ -9,3 +9,12 @@ type JellyTool struct {
 	StopGifted      bool          `yaml:"stopGifted"`
 	StopMythic      bool          `yaml:"stopMythic"`
 }
+
+type AltSync struct {
+	AutoStartRelay bool `yaml:"autoStartRelay"`
+}
+
+type VicHop struct {
+	Enabled bool   `yaml:"enabled"`
+	Role    string `yaml:"role"` // Main, Passive, or Searcher
+}

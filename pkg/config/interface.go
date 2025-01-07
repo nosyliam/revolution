@@ -28,6 +28,10 @@ type reactiveObject interface {
 	object() interface{}
 }
 
+type reactiveList interface {
+	initialize(meta reflect.StructField)
+}
+
 type config struct {
 	path string
 	file Savable
@@ -52,7 +56,7 @@ func (c *config) errPanic(err string) {
 	panic(fmt.Sprintf("%s: %s", c.path, err))
 }
 
-func (c *config) setField(field reflect.Value, chain chain, index int, value interface{}) error {
+func (c *config) setField(meta reflect.StructField, field reflect.Value, chain chain, index int, value interface{}) error {
 	if obj, ok := field.Interface().(Reactive); ok {
 		if index+1 == len(chain) {
 			return errors.New("cannot set an object value")
@@ -90,6 +94,11 @@ func (c *config) setField(field reflect.Value, chain chain, index int, value int
 		c.file.Runtime().Set(path, value.(float64))
 	default:
 		return errors.New("unsupported value")
+	}
+	if meta.Tag.Get("yaml") != "" {
+		if err := c.file.Save(); err != nil {
+			return errors.Wrap(err, "failed to save to file")
+		}
 	}
 	return nil
 }
@@ -137,6 +146,7 @@ func (c *config) getConcreteField(field reflect.Value, chain chain, index int) (
 
 type List[T any] struct {
 	config
+	meta       reflect.StructField
 	prim       []T
 	obj        []*Object[T]
 	index      map[string]*Object[T]
@@ -256,7 +266,7 @@ func (c *List[T]) Set(chain chain, index int, value interface{}) error {
 			return c.errPath(fmt.Sprintf("cannot modify object key \"%s\"", chain[index].val))
 		}
 		if val, ok := c.index[chain[index].val]; ok {
-			return c.setField(reflect.ValueOf(val), chain, index, value)
+			return c.setField(c.meta, reflect.ValueOf(val), chain, index, value)
 		} else {
 			return c.errPath(fmt.Sprintf("invalid key \"%s\"", chain[index].val))
 		}
@@ -276,7 +286,7 @@ func (c *List[T]) Set(chain chain, index int, value interface{}) error {
 	}
 
 	field := reflect.ValueOf(slice).Index(idx)
-	return c.setField(field, chain, index, value)
+	return c.setField(c.meta, field, chain, index, value)
 }
 
 func (c *List[T]) Get(chain chain, index int) (interface{}, error) {
@@ -373,6 +383,11 @@ func (c *List[T]) Append(chain chain, index int, value interface{}) error {
 		c.prim = append(c.prim, value.(T))
 		path := fmt.Sprintf("%s[%d]", c.path, len(c.prim)-1)
 		c.file.Runtime().Set(path, value)
+		if c.meta.Tag.Get("yaml") != "" {
+			if err := c.file.Save(); err != nil {
+				return errors.Wrap(err, "failed to save to file")
+			}
+		}
 		return nil
 	}
 
@@ -394,7 +409,13 @@ func (c *List[T]) Append(chain chain, index int, value interface{}) error {
 		c.file.Runtime().Append(path, false, false)
 		_ = cfo.Initialize(path, c.file)
 	}
+
 	c.obj = append(c.obj, cfo)
+	if c.meta.Tag.Get("yaml") != "" {
+		if err := c.file.Save(); err != nil {
+			return errors.Wrap(err, "failed to save to file")
+		}
+	}
 
 	return nil
 }
@@ -456,6 +477,11 @@ func (c *List[T]) Delete(chain chain, index int) error {
 		}
 	}
 	c.file.Runtime().Delete(fmt.Sprintf("%s[%s]", c.path, chain[index].val))
+	if c.meta.Tag.Get("yaml") != "" {
+		if err := c.file.Save(); err != nil {
+			return errors.Wrap(err, "failed to save to file")
+		}
+	}
 	return nil
 }
 
@@ -485,6 +511,10 @@ func (c *List[T]) list() interface{} {
 	} else {
 		return c.obj
 	}
+}
+
+func (c *List[T]) initialize(meta reflect.StructField) {
+	c.meta = meta
 }
 
 type Object[T any] struct {
@@ -567,9 +597,15 @@ func (c *Object[T]) Initialize(path string, file Savable) error {
 			if cfg, ok := field.Interface().(Reactive); ok {
 				_ = cfg.Initialize(fieldPath, file)
 			}
+			if cfg, ok := field.Interface().(reactiveList); ok {
+				cfg.initialize(meta)
+			}
 		} else if field.Kind() == reflect.Ptr && meta.Type.Elem().Kind() == reflect.Struct {
 			if cfg, ok := field.Interface().(Reactive); ok {
 				_ = cfg.Initialize(fieldPath, file)
+			}
+			if cfg, ok := field.Interface().(reactiveList); ok {
+				cfg.initialize(meta)
 			}
 		} else {
 			if meta.Tag.Get("key") == "true" {
@@ -593,8 +629,8 @@ func (c *Object[T]) Set(chain chain, index int, value interface{}) error {
 	for i := 0; i < val.NumField(); i++ {
 		field := val.Field(i)
 		meta := t.Field(i)
-		if (meta.Tag.Get("yaml") == chain[index].val || meta.Tag.Get("state") == chain[index].val) && field.CanSet() {
-			return c.setField(field, chain, index, value)
+		if getFieldTag(meta.Tag) == chain[index].val && field.CanSet() {
+			return c.setField(meta, field, chain, index, value)
 		}
 	}
 

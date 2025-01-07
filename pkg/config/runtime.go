@@ -118,12 +118,7 @@ func (r *Runtime) Listen() {
 		}
 		r.activeEvent = ct
 		defer r.eventEpilogue()
-		if r.handleEventError(
-			"Set",
-			r.roots[getRoot(path)].Set(mustCompilePath(getPath(path)), 0, data[1]),
-		) {
-			r.handleError("Save", r.roots[getRoot(path)].File().Save())
-		}
+		r.handleEventError("Set", r.roots[getRoot(path)].Set(mustCompilePath(getPath(path)), 0, data[1]))
 	})
 	_ = runtime.EventsOn(AppContext, "append_client", func(data ...interface{}) {
 		path := data[0].(string)
@@ -138,12 +133,7 @@ func (r *Runtime) Listen() {
 		}
 		r.activeEvent = ct
 		defer r.eventEpilogue()
-		if r.handleEventError(
-			"Append",
-			r.roots[getRoot(path)].Append(mustCompilePath(getPath(path)), 0, data[1]),
-		) {
-			r.handleError("Save", r.roots[getRoot(path)].File().Save())
-		}
+		r.handleEventError("Append", r.roots[getRoot(path)].Append(mustCompilePath(getPath(path)), 0, data[1]))
 	})
 	_ = runtime.EventsOn(AppContext, "delete_client", func(data ...interface{}) {
 		path := data[0].(string)
@@ -158,12 +148,7 @@ func (r *Runtime) Listen() {
 		}
 		r.activeEvent = ct
 		defer r.eventEpilogue()
-		if r.handleEventError(
-			"Delete",
-			r.roots[getRoot(path)].Delete(mustCompilePath(getPath(path)), 0),
-		) {
-			r.handleError("Save", r.roots[getRoot(path)].File().Save())
-		}
+		r.handleEventError("Delete", r.roots[getRoot(path)].Delete(mustCompilePath(getPath(path)), 0))
 	})
 }
 

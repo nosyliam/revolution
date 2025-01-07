@@ -60,7 +60,7 @@ interface Reactive {
     Receive(path: Path, event: Event): void
 
     // Return the reactive object at the given path
-    Object(path: Path): Object
+    Object(path: Path | string): Object
 }
 
 interface PathComponent {
@@ -159,6 +159,7 @@ export class Object implements Reactive {
         let data: Field = this.values[field] || {value: value}
         data.dispatch && data.dispatch(value)
         this.values[field] = {...data, value: value}
+        console.log(this.Field(field))
         this.runtime.Emit(this.Field(field), {op: "set", value: value}, previousValue)
     }
 
@@ -212,7 +213,10 @@ export class Object implements Reactive {
         }
     }
 
-    Object(path: Path): Object {
+    Object(path: Path | string): Object {
+        if (typeof path == 'string') {
+            path = new Path(path)
+        }
         if (path.final) {
             return this
         }
@@ -361,6 +365,13 @@ export class List<T extends ListValue> implements Reactive {
 
     Object(path: Path): Object {
         const index = this.index(path)
+        if (path.peekFinal) {
+            if (this.keyed) {
+                return (this.values[index] as KeyedObject).object
+            } else {
+                return this.values[index] as Object
+            }
+        }
         return (this.values[index] as Object).Object(path.increment())
     }
 
@@ -374,6 +385,15 @@ export class Runtime {
     private roots: { [name: string]: Reactive } = {};
     private events: { [id: number]: HistoricalEvent } = {};
     private counter: number = 0;
+
+    private account: string = '';
+    private accountPresets: Record<string, string>  = {};
+    private preset_: string = 'Default';
+    private preset?: Object;
+    private dispatchPreset: Map<string, Dispatch<Object>> = new Map();
+    private dispatchState: Map<string, Dispatch<Object>> = new Map();
+
+    private defaultPreset: string = '';
 
     private disconnected: boolean = false;
     private dispatchDisconnected?: Dispatch<boolean>;
@@ -409,12 +429,42 @@ export class Runtime {
             this.disconnected = false
             this.dispatchDisconnected!(false)
         }
+        if (event.op == 'set') {
+            if (path.value == 'state' && path.finalize().value == 'activeAccount') {
+                this.account = event.value as string
+                console.log('account', this.account)
+                if (this.account == 'Default') {
+                    this.setPreset(this.defaultPreset)
+                } else {
+                    this.setPreset(this.accountPresets[this.account])
+                }
+            } else if (path.reset().value == 'state' && path.finalize().value == 'defaultPreset') {
+                this.defaultPreset = event.value as string
+                console.log('default', this.defaultPreset)
+                if (this.account == 'Default') {
+                    this.setPreset(this.defaultPreset)
+                }
+            } else if (path.reset().value == 'database' && path.finalize().value == 'preset') {
+                this.accountPresets[path.decrement().value] = event.value as string
+                if (this.account != 'Default') {
+                    this.setPreset(this.accountPresets[this.account])
+                }
+            }
+            path.reset()
+        }
         let history: HistoricalEvent
         if (Boolean(history = this.events[event.id!])) {
             clearTimeout(history.timeout)
             return
         }
         this.roots[path.value].Receive(path.increment(), event)
+    }
+
+    private setPreset(preset: string) {
+        this.preset_ = preset
+        this.dispatchPreset.forEach((d) => {
+            d(this.presetObject(preset))
+        })
     }
 
     private rollbackEvent(id: number) {
@@ -473,6 +523,20 @@ export class Runtime {
         }
         path.reset()
         return this.roots[path.value].Object(path.increment())
+    }
+
+    private presetObject(key: string): Object {
+        console.log(new Path(`presets[${key}]`))
+        return this.roots['settings'].Object(`presets[${key}]`)
+    }
+
+    public Preset(): Object {
+        const id = new Error().stack || ""
+        if (id == "")
+            throw Error("Missing stack!")
+        const [preset, setPreset] = useState(this.presetObject(this.preset_))
+        this.dispatchPreset.set(id, setPreset)
+        return preset
     }
 }
 

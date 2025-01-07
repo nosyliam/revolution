@@ -2,7 +2,7 @@ import {Box, Group, Stack} from "@mantine/core";
 import {IconPlayerPauseFilled, IconPlayerPlayFilled, IconPlayerStopFilled} from '@tabler/icons-react';
 import ActionButton from "./ActionButton";
 import React, {useContext} from "react";
-import Switcher from "./Switcher";
+import {AccountSwitcher, PresetSwitcher} from "./Switcher";
 import TextContainer from "./TextContainer";
 import {KeyedObject, RuntimeContext} from "../../hooks/useRuntime";
 import {Pause, Start, Stop} from "../../../wailsjs/go/main/Macro";
@@ -18,13 +18,6 @@ export default function State() {
 
     const activeData = index[activeAccount]
     const loadCheck = (macros.length == 0 ? true : undefined) || (activeData == undefined ? true : undefined)
-
-    const start = (macro: string) => {
-    }
-    const pause = (macro: string) => {
-    }
-    const stop = (macro: string) => {
-    }
 
     return (
         <Box p={6}>
@@ -53,8 +46,8 @@ export default function State() {
                     </Group>
                 </Stack>
                 <Stack gap={4} style={{flexGrow: 1}}>
-                    <Switcher type="Preset"/>
-                    <Switcher type="Account"/>
+                    <PresetSwitcher/>
+                    <AccountSwitcher/>
                 </Stack>
             </Group>
         </Box>

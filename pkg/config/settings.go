@@ -66,7 +66,6 @@ type Tools struct {
 }
 
 type Config struct {
-	Test    int                 `yaml:"test"`
 	Presets *List[Settings]     `yaml:"presets"`
 	Windows *List[WindowConfig] `yaml:"windows"`
 	Tools   *Object[Tools]      `yaml:"tools"`

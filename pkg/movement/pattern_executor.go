@@ -206,6 +206,10 @@ func LuaQuerySetting(L *lua.LState) int {
 	return 1
 }
 
+func LuaPerformDetection(L *lua.LState) {
+	// macro := L.Context().Value("macro").(*common.Macro)
+}
+
 func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *common.Macro) {
 	L := lua.NewState()
 	defer L.Close()

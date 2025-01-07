@@ -83,12 +83,12 @@ func (m *Macro) startup(ctx context.Context) {
 	// Find the default preset for the default account (no join url; deep-link only)
 	var defaultPresetName = *Concrete[string](m.state, "config.defaultPreset")
 	if defaultPresetName == "" {
-		defaultPresetName = "default"
+		defaultPresetName = "Default"
 	}
 	if def := Concrete[*Object[Settings]](m.config, "presets[%s]", defaultPresetName); def != nil {
-		accounts["default"] = *def
+		accounts["Default"] = *def
 	} else {
-		accounts["default"] = presets[0]
+		accounts["Default"] = presets[0]
 		if err := m.config.SetPath("defaultPreset", presets[0].Object().Name); err != nil {
 			m.exitError(errors.Wrap(err, "failed to set default preset"))
 		}
@@ -144,7 +144,7 @@ func (m *Macro) startup(ctx context.Context) {
 		if ifc, ok := m.interfaces[active]; ok && ifc.Macro != nil {
 			ifc.Command() <- args
 		} else {
-			if ifc = m.interfaces["default"]; ifc.Macro != nil {
+			if ifc = m.interfaces["Default"]; ifc.Macro != nil {
 				ifc.Command() <- args
 			} else {
 				runtime.EventsEmit(ctx, "console", color.RedString("Macro must be started to use this command!\r\n"))
@@ -219,7 +219,7 @@ func (m *Macro) SetAccountPreset(account, name string) string {
 		return fmt.Sprintf("Failed to find account \"%s\"", account)
 	}
 	if preset := Concrete[*Object[Settings]](m.config, "presets[%s]", name); preset != nil {
-		if account != "default" {
+		if account != "Default" {
 			if err := m.database.SetPathf(name, "accounts[%s].preset", account); err != nil {
 				return "Failed to set active preset"
 			}
