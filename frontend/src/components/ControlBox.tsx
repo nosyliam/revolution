@@ -4,6 +4,8 @@ import React from "react";
 interface ControlBoxProps {
     title?: string
     description?: string
+    height?: number
+    grow?: boolean
     leftAction?: React.ReactNode
 }
 
@@ -15,6 +17,8 @@ export default function(props: React.PropsWithChildren<ControlBoxProps>) {
             flexDirection: 'row',
             alignItems: 'center',
             padding: '4px',
+            flexGrow: props.grow ? 1 : undefined,
+            height: props.height ? `${props.height}px` : undefined
         }}>
             {props.leftAction ?? <Text fz={14} ml={4}>{ props.title }</Text>}
             <div style={{flexGrow: 1}}/>

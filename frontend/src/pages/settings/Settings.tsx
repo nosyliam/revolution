@@ -9,7 +9,9 @@ export default function Settings() {
     const pages: {[key: string]: React.ReactNode} = {
         "Macro": <Macro/>,
         "Game": <Game/>,
-        "Networking": <Networking/>
+        "Networking": <Networking/>,
+        "Presets": <></>,
+        "Accounts": <></>
     }
     const [active, setActive] = useState(0)
 

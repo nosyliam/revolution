@@ -59,16 +59,22 @@ type Settings struct {
 	Window       *Object[WindowSettings]  `yaml:"window"`
 	Player       *Object[PlayerSettings]  `yaml:"player"`
 	Patterns     *Object[PatternSettings] `yaml:"patterns"`
+	VicHop       *Object[VicHop]          `yaml:"vicHop"`
 }
 
 type Tools struct {
 	JellyTool *Object[JellyTool] `yaml:"jellyTool"`
 }
 
+type Networking struct {
+	AutoConnect bool `yaml:"autoConnect"`
+}
+
 type Config struct {
 	Presets *List[Settings]     `yaml:"presets"`
 	Windows *List[WindowConfig] `yaml:"windows"`
 	Tools   *Object[Tools]      `yaml:"tools"`
+	DevMode bool                `yaml:"devMode"`
 }
 
 func NewConfig(runtime *Runtime) (*Object[Config], error) {

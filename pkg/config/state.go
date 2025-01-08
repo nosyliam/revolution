@@ -17,8 +17,10 @@ type LoopState struct {
 type MacroNetworkingConfig struct {
 	AvailableRelays     *List[string] `state:"availableRelays" yaml:"-"`
 	ConnectedIdentities *List[string] `state:"connectedIdentities" yaml:"-"`
-	ConnectingIdentity  string        `state:"connectingIdentity" yaml:"-"`
+	ConnectedIdentity   string        `state:"connectedIdentity" yaml:"-"`
 	RelayIdentity       string        `state:"relayIdentity" yaml:"-"`
+	RelayStarting       bool          `state:"relayStarting" yaml:"-"`
+	RelayActive         bool          `state:"relayActive" yaml:"-"`
 }
 
 type MacroState struct {
@@ -46,10 +48,18 @@ type NetworkingConfig struct {
 	HistoricalIdentities *List[string] `yaml:"historicalIdentities"`
 }
 
+type VicHopVersion struct {
+	DatasetVersion     string `state:"datasetVersion"`
+	DownloadingDataset string `state:"downloadingDataset"`
+	UpToDate           string `state:"upToDate"`
+}
+
 type State struct {
-	Config     *Object[StateConfig] `yaml:"config"`
-	Macros     *List[MacroState]    `yaml:"macros"`
-	Networking *NetworkingConfig    `yaml:"networking"`
+	Config     *Object[StateConfig]      `yaml:"config"`
+	Networking *Object[NetworkingConfig] `yaml:"networking"`
+	Macros     *List[MacroState]         `yaml:"macros"`
+
+	VicHop *Object[VicHopVersion] `state:"vicHop" yaml:"-"`
 }
 
 func NewState(runtime *Runtime) (*Object[State], error) {

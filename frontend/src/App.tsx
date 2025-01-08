@@ -31,7 +31,7 @@ function App() {
     }, [disconnected])
 
     return (
-        <MantineProvider>
+        <MantineProvider theme={theme}>
             <Flex
                 direction="column"
                 style={{height: viewport.height, position: 'relative'}}

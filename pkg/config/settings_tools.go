@@ -15,6 +15,7 @@ type AltSync struct {
 }
 
 type VicHop struct {
-	Enabled bool   `yaml:"enabled"`
-	Role    string `yaml:"role"` // Main, Passive, or Searcher
+	Enabled   bool   `yaml:"enabled"`
+	Role      string `yaml:"role"` // Main, Passive, or Searcher
+	ServerHop bool   `yaml:"serverHop"`
 }
