@@ -6,8 +6,9 @@ import ControlBox from "../../components/ControlBox";
 export default function Game() {
     const runtime = useContext(RuntimeContext)
     const preset = runtime.Preset()
+    console.log('render', preset)
     const player = preset.Object("player")
-    const moveSpeed = player.Value<number>("moveSpeed", 16)
+    const moveSpeed = player.Value("moveSpeed", 16)
 
     return (
         <Stack style={{height: '100%', flexGrow: 1, gap: 4}}>

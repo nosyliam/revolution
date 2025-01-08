@@ -53,7 +53,7 @@ type PatternSettings struct {
 
 // Settings defines the configuration for an individual preset
 type Settings struct {
-	Name         string                   `yaml:"name" key:"true" lock:"default"`
+	Name         string                   `yaml:"name" key:"true"`
 	LogVerbosity int                      `yaml:"logVerbosity"`
 	Discord      *Object[DiscordSettings] `yaml:"discord"`
 	Window       *Object[WindowSettings]  `yaml:"window"`
@@ -78,10 +78,10 @@ func NewConfig(runtime *Runtime) (*Object[Config], error) {
 	}
 	obj := settings.Object()
 	if obj.LengthPath("presets") == 0 {
-		_ = obj.AppendPath("presets[default]")
+		_ = obj.AppendPath("presets[Default]")
 	}
 	if obj.LengthPath("windows") == 0 {
-		_ = obj.AppendPath("windows[default]")
+		_ = obj.AppendPath("windows[Default]")
 	}
 	return obj, nil
 }

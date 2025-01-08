@@ -1,5 +1,6 @@
 import React, {createContext, useEffect, useState} from "react";
 import {EventsEmit, EventsOn} from "../../wailsjs/runtime";
+import {flushSync} from "react-dom";
 
 interface BaseEvent {
     id?: number
@@ -61,6 +62,9 @@ interface Reactive {
 
     // Return the reactive object at the given path
     Object(path: Path | string): Object
+
+    // Flush all values to the frontend by calling every dispatcher down the object tree
+    Flush(): void
 }
 
 interface PathComponent {
@@ -113,6 +117,10 @@ export class Path extends String {
 
     public get value(): string {
         return this.components[this.index].val
+    }
+
+    public get brackets(): boolean {
+        return this.components[this.index].brackets
     }
 
     public get final(): boolean {
@@ -221,9 +229,28 @@ export class Object implements Reactive {
             return this
         }
         if (!this.objects[path.value]) {
+            if (!path.peekFinal) {
+                if (path.increment().brackets) {
+                    path.decrement()
+                    this.objects[path.value] = new List(this.path.extend(path.value, true), this.runtime)
+                    return this.objects[path.value].Object(path.increment())
+                }
+                path.decrement()
+            }
             this.objects[path.value] = new Object(this.path.extend(path.value), this.runtime)
         }
         return this.objects[path.value].Object(path.increment())
+    }
+
+    Flush() {
+        for (const value of globalThis.Object.values(this.values)) {
+            if (value.dispatch) {
+                value.dispatch(value.value)
+            }
+        }
+        for (const object of globalThis.Object.values(this.objects)) {
+            object.Flush()
+        }
     }
 
     public Field(field: string): Path {
@@ -264,7 +291,6 @@ export class List<T extends ListValue> implements Reactive {
     public Values(reactive?: boolean): T[] {
         if (reactive)
             this.reactive = true
-        reactive && console.log('initialize', this.values)
         const [values, dispatch] = useState<T[]>(this.values)
         useEffect(() => {
             this.dispatch = dispatch
@@ -280,7 +306,7 @@ export class List<T extends ListValue> implements Reactive {
         if (this.primitive) {
             this.values = [...this.values, value! as T]
         } else if (this.keyed) {
-            object =  {key: key!, object: new Object(this.Key(key!), this.runtime)}
+            object = {key: key!, object: new Object(this.Key(key!), this.runtime)}
             this.values = [...this.values, object as T]
         } else {
             object = new Object(this.Key(key!), this.runtime)
@@ -339,13 +365,13 @@ export class List<T extends ListValue> implements Reactive {
             case "append":
                 if (path.value == '_init')
                     return
-                console.log('append', String(path), event)
                 if (this.keyed) {
+                    if (this.values.findIndex((v) => (v as KeyedObject).key == path.value) != -1)
+                        return
                     (this.values as KeyedObject[]) = [...(this.values as KeyedObject[]), {
                         key: path.value,
                         object: new Object(path, this.runtime)
                     }]
-                    console.log('dispatching', this.values.slice())
                 } else if (!this.primitive) {
                     (this.values as Object[]) = [...(this.values as Object[]), new Object(path, this.runtime)]
                 }
@@ -375,6 +401,16 @@ export class List<T extends ListValue> implements Reactive {
         return (this.values[index] as Object).Object(path.increment())
     }
 
+    Flush() {
+        if (this.dispatch)
+            this.dispatch(this.values)
+        if (!this.primitive) {
+            for (const value of this.values) {
+                (value as Object).Flush()
+            }
+        }
+    }
+
     public Key(field: string | number): Path {
         return new Path(`${this.path}[${field}]`)
     }
@@ -386,10 +422,9 @@ export class Runtime {
     private events: { [id: number]: HistoricalEvent } = {};
     private counter: number = 0;
 
-    private account: string = '';
-    private accountPresets: Record<string, string>  = {};
-    private preset_: string = 'Default';
-    private preset?: Object;
+    private account: string = 'Default';
+    private accountPresets: Record<string, string> = {};
+    private preset: string = 'Default';
     private dispatchPreset: Map<string, Dispatch<Object>> = new Map();
     private dispatchState: Map<string, Dispatch<Object>> = new Map();
 
@@ -424,15 +459,11 @@ export class Runtime {
         window.pathObject = Path
     }
 
-    Receive(path: Path, event: Event): void {
-        if (this.disconnected) {
-            this.disconnected = false
-            this.dispatchDisconnected!(false)
-        }
+    private processCriticalEvent(path: Path, event: Event) {
         if (event.op == 'set') {
             if (path.value == 'state' && path.finalize().value == 'activeAccount') {
                 this.account = event.value as string
-                console.log('account', this.account)
+                this.dispatchState.forEach((d) => d(this.stateObject(this.account)))
                 if (this.account == 'Default') {
                     this.setPreset(this.defaultPreset)
                 } else {
@@ -440,7 +471,6 @@ export class Runtime {
                 }
             } else if (path.reset().value == 'state' && path.finalize().value == 'defaultPreset') {
                 this.defaultPreset = event.value as string
-                console.log('default', this.defaultPreset)
                 if (this.account == 'Default') {
                     this.setPreset(this.defaultPreset)
                 }
@@ -450,8 +480,16 @@ export class Runtime {
                     this.setPreset(this.accountPresets[this.account])
                 }
             }
-            path.reset()
         }
+        path.reset()
+    }
+
+    Receive(path: Path, event: Event): void {
+        if (this.disconnected) {
+            this.disconnected = false
+            this.dispatchDisconnected!(false)
+        }
+        this.processCriticalEvent(path, event)
         let history: HistoricalEvent
         if (Boolean(history = this.events[event.id!])) {
             clearTimeout(history.timeout)
@@ -461,10 +499,12 @@ export class Runtime {
     }
 
     private setPreset(preset: string) {
-        this.preset_ = preset
-        this.dispatchPreset.forEach((d) => {
-            d(this.presetObject(preset))
+        const object = this.presetObject(preset)
+        this.preset = preset
+        flushSync(() => {
+            this.dispatchPreset.forEach((d) => d(object))
         })
+        object.Flush()
     }
 
     private rollbackEvent(id: number) {
@@ -526,17 +566,39 @@ export class Runtime {
     }
 
     private presetObject(key: string): Object {
-        console.log(new Path(`presets[${key}]`))
         return this.roots['settings'].Object(`presets[${key}]`)
+    }
+
+    private stateObject(key: string): Object {
+        const state = this.roots['state'].Object(`macros[${key}]`)
+        if (!state) {
+            this.Receive(new Path(`state.macros[${key}]`), {
+                id: -1,
+                op: "append",
+                primitive: false,
+                keyed: true
+            })
+            return this.stateObject(key)
+        }
+        return state
     }
 
     public Preset(): Object {
         const id = new Error().stack || ""
         if (id == "")
             throw Error("Missing stack!")
-        const [preset, setPreset] = useState(this.presetObject(this.preset_))
+        const [preset, setPreset] = useState(this.presetObject(this.preset))
         this.dispatchPreset.set(id, setPreset)
         return preset
+    }
+
+    public State(): Object {
+        const id = new Error().stack || ""
+        if (id == "")
+            throw Error("Missing stack!")
+        const [state, setState] = useState(this.stateObject(this.account))
+        this.dispatchState.set(id, setState)
+        return state
     }
 }
 

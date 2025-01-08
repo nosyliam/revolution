@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/sqweek/dialog"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"os"
 	"sync"
 	"time"
 )
@@ -181,8 +180,8 @@ func NewRuntime(ctx context.Context) *Runtime {
 			app.Start()
 			return
 		case <-time.After(time.Second * 10):
-			dialog.Message("UI failed to start! Please contact the developer for assistance").Error()
-			os.Exit(1)
+			//dialog.Message("UI failed to start! Please contact the developer for assistance").Error()
+			//os.Exit(1)
 		}
 	}()
 	return app

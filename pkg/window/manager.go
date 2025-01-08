@@ -404,10 +404,10 @@ func (m *Manager) reserveWindow(settings *WindowConfig, sz WindowSize) (*WindowC
 	return settings, nil
 }
 
-func (m *Manager) OpenWindow(accountName string, db, settings Reactive, ignoreLink bool) (*Window, error) {
+func (m *Manager) OpenWindow(accountName string, db Reactive, settings *Object[Settings], ignoreLink bool) (*Window, error) {
 	var joinOptions = JoinOptions{}
 	var windowConfig *WindowConfig
-	if accountName != "default" {
+	if accountName != "Default" {
 		account := Concrete[Account](db, "accounts[%s]", accountName)
 		if account == nil {
 			return nil, errors.New(fmt.Sprintf("Account %s not found", accountName))
@@ -434,8 +434,10 @@ func (m *Manager) OpenWindow(accountName string, db, settings Reactive, ignoreLi
 	}
 	if windowConfig == nil {
 		if id := Concrete[string](settings, "window.windowConfigId"); *id != "" && *id != "default" {
-			if windowConfig = Concrete[WindowConfig](settings, "windows[%s]", *id); windowConfig == nil {
+			if windowConfigValue, err := settings.GetPathf("windows[%s]", *id); err != nil {
 				return nil, errors.New(fmt.Sprintf("Window configuration %s does not exist", *id))
+			} else {
+				windowConfig = windowConfigValue.(*WindowConfig)
 			}
 		}
 	}

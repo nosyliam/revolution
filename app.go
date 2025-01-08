@@ -117,6 +117,7 @@ func (m *Macro) startup(ctx context.Context) {
 		} else {
 			macroState = *state
 		}
+		macroState.SetPath("status", "Ready")
 		m.interfaces[name] = macro.NewInterface(
 			name,
 			preset,
