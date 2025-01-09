@@ -71,10 +71,11 @@ type Networking struct {
 }
 
 type Config struct {
-	Presets *List[Settings]     `yaml:"presets"`
-	Windows *List[WindowConfig] `yaml:"windows"`
-	Tools   *Object[Tools]      `yaml:"tools"`
-	DevMode bool                `yaml:"devMode"`
+	Presets    *List[Settings]     `yaml:"presets"`
+	Windows    *List[WindowConfig] `yaml:"windows"`
+	Tools      *Object[Tools]      `yaml:"tools"`
+	Networking *Object[Networking] `yaml:"networking"`
+	DevMode    bool                `yaml:"devMode"`
 }
 
 func NewConfig(runtime *Runtime) (*Object[Config], error) {

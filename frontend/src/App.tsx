@@ -1,7 +1,8 @@
 import "@mantine/core/styles.css";
-import {Flex, MantineProvider, Overlay, Tabs} from "@mantine/core";
+import {ModalsProvider} from '@mantine/modals';
+import {Flex, MantineProvider, Overlay} from "@mantine/core";
 import {theme} from "./theme";
-import {Path, RuntimeContext} from "./hooks/useRuntime";
+import {RuntimeContext} from "./hooks/useRuntime";
 import {useContext, useEffect, useState} from "react";
 import State from "./control/command/State";
 import Macro from "./control/Macro";
@@ -32,22 +33,25 @@ function App() {
 
     return (
         <MantineProvider theme={theme}>
-            <Flex
-                direction="column"
-                style={{height: viewport.height, position: 'relative'}}
-            >
-                { disconnected && <Overlay color="#000" fz="30" fw={600} c="gray.3" backgroundOpacity={0.6} pb={30} style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                }}>
-                    Connecting to Backend... ({ disconnectTimer.toFixed(1) })
-                </Overlay>}
-                <Macro/>
-                <State/>
-            </Flex>
+            <ModalsProvider>
+                <Flex
+                    direction="column"
+                    style={{height: viewport.height, position: 'relative'}}
+                >
+                    {disconnected &&
+                        <Overlay color="#000" fz="30" fw={600} c="gray.3" backgroundOpacity={0.6} pb={30} style={{
+                            position: 'absolute',
+                            inset: 0,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                        }}>
+                            Connecting to Backend... ({disconnectTimer.toFixed(1)})
+                        </Overlay>}
+                    <Macro/>
+                    <State/>
+                </Flex>
+            </ModalsProvider>
         </MantineProvider>
     )
 }
