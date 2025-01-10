@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	. "github.com/nosyliam/revolution/pkg/common"
+	"github.com/nosyliam/revolution/pkg/config"
 )
 
 type MessageKindEnumerator []MessageKind
@@ -11,9 +12,8 @@ type MessageKindEnumerator []MessageKind
 var MessageKinds = MessageKindEnumerator{
 	RegistrationMessageKind,
 	AckRegistrationMessageKind,
+	AckSetRoleMessageKind,
 	SetRoleMessageKind,
-	QueryMainAccountMessageKind,
-	MainAccountMessageKind,
 	VicDetectMessageKind,
 	NightDetectMessageKind,
 }
@@ -24,12 +24,12 @@ func (m *MessageKindEnumerator) Determine(data interface{}) MessageKind {
 		return RegistrationMessageKind
 	case AckRegistrationMessage:
 		return AckRegistrationMessageKind
+	case ConnectedIdentitiesMessage:
+		return ConnectedIdentitiesMessageKind
 	case SetRoleMessage:
 		return SetRoleMessageKind
-	case QueryMainAccountMessage:
-		return QueryMainAccountMessageKind
-	case MainAccountMessage:
-		return MainAccountMessageKind
+	case AckSetRoleMessage:
+		return AckSetRoleMessageKind
 	case VicDetectMessage:
 		return VicDetectMessageKind
 	case NightDetectMessage:
@@ -42,7 +42,19 @@ type RegistrationMessage struct {
 	Identity string
 }
 
+type AckRegistrationMessage struct {
+	Error string
+}
+
+type ConnectedIdentitiesMessage struct {
+	Identities []config.NetworkIdentity
+}
+
 type SetRoleMessage struct {
+	Role string
+}
+
+type AckSetRoleMessage struct {
 	Role string
 }
 
@@ -58,10 +70,6 @@ type NightDetectMessage struct {
 }
 
 type EmptyMessage struct{}
-
-type AckRegistrationMessage EmptyMessage
-type QueryMainAccountMessage EmptyMessage
-type MainAccountMessage EmptyMessage
 
 func SubscribeMessage[T any](macro *Macro, kind MessageKind, callback func(message *T)) {
 	watcher := macro.Network.Client.Subscribe(kind)

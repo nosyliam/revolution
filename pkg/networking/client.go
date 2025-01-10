@@ -42,12 +42,12 @@ func NewClient(state *config.Object[config.MacroState], logger *logging.Logger) 
 	for _, kind := range MessageKinds {
 		client.watchers[kind] = make(map[subscriber]bool)
 	}
-	_ = state.SetPath("networking.identity", client.Identity())
+	state.SetPath("networking.identity", client.Identity())
 	return client
 }
 
 func (c *Client) Identity() string {
-	return getIdentity()
+	return getIdentity() + "/" + c.state.Object().AccountName
 }
 
 func (c *Client) Subscribe(kind MessageKind) <-chan *Message {
@@ -87,7 +87,7 @@ func (c *Client) Send(receiver string, content interface{}) {
 	}
 	c.mu.Lock()
 	if _, err = c.conn.Write(append(serialized, '\n')); err != nil {
-		_ = c.logger.Log(0, logging.Error, fmt.Sprintf("Failed to write to relay: %v", err))
+		c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: failed to write to relay: %v", err))
 		defer c.Disconnect()
 	}
 	c.mu.Unlock()
@@ -97,24 +97,24 @@ func (c *Client) Broadcast(content interface{}) {
 	c.Send(BroadcastReceiver, content)
 }
 
-func (c *Client) Connect(relay config.NetworkIdentity) {
+func (c *Client) Connect(address string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.conn != nil {
-		return
+		return nil
 	}
 
-	_ = c.state.SetPath("networking.connectingAddress", relay.Address)
-	defer c.state.SetPath("networking.connectingAddress", "")
-	conn, err := net.Dial("tcp", relay.Address)
+	_ = c.state.SetPath("networking.connectingAddress", address)
+	conn, err := net.Dial("tcp", address)
 	if err != nil {
-		dialog.Message(fmt.Sprintf("Failed to connect to %s: %v", relay.Address, err))
-		return
+		dialog.Message(fmt.Sprintf("Failed to connect to %s: %v", address, err))
+		_ = c.state.SetPath("networking.connectingAddress", "")
+		return err
 	}
 
-	_ = c.state.SetPath("networking.connectedAddress", relay.Address)
 	c.conn = conn
+	return nil
 }
 
 func (c *Client) Start() {
@@ -132,17 +132,28 @@ func (c *Client) Start() {
 
 		c.Send(RelayReceiver, RegistrationMessage{Identity: c.Identity()})
 		select {
-		case <-c.SubscribeOnce(AckRegistrationMessageKind):
-			break
-		case <-time.After(10 * time.Second):
-			c.logger.Log(0, logging.Error, "Failed to connect to relay: no registration acknowledgement received!")
-			if err := c.Disconnect(); err != nil {
-				c.logger.Log(0, logging.Error, fmt.Sprintf("Failed to disconnect from relay: %v", err))
+		case message := <-c.SubscribeOnce(AckRegistrationMessageKind):
+			var ack AckRegistrationMessage
+			if err := json.Unmarshal([]byte(message.Content), &ack); err != nil {
+				c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: failed to unmarshal registration acknowledgement: %v", err))
+				c.Disconnect()
 				continue
 			}
+			if ack.Error != "" {
+				dialog.Message(fmt.Sprintf("Failed to connect to relay: %s", ack.Error))
+				c.Disconnect()
+				continue
+			}
+			break
+		case <-time.After(10 * time.Second):
+			c.logger.Log(0, logging.Error, "[Client]: failed to connect to relay: no registration acknowledgement received!")
+			c.Disconnect()
+			continue
 		case <-c.stop:
 			return
 		}
+		c.state.SetPath("networking.connectingAddress", c.conn.RemoteAddr().String())
+		c.state.SetPath("networking.connectingAddress", "")
 		c.listenForMessages()
 	}
 }
@@ -152,12 +163,12 @@ func (c *Client) Close() {
 	c.stop <- struct{}{}
 }
 
-func (c *Client) Disconnect() error {
+func (c *Client) Disconnect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.conn == nil {
-		return nil
+		return
 	}
 
 	conn := c.conn
@@ -169,8 +180,10 @@ func (c *Client) Disconnect() error {
 		}
 	}
 
-	_ = c.state.SetPath("networking.connectedAddress", "")
-	return conn.Close()
+	c.state.SetPath("networking.connectedAddress", "")
+	if err := conn.Close(); err != nil {
+		c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: error when disconnecting from relay: %v", err))
+	}
 }
 
 func (c *Client) discoverRelays() {
@@ -181,7 +194,7 @@ func (c *Client) discoverRelays() {
 
 		resolver, err := zeroconf.NewResolver(nil)
 		if err != nil {
-			c.logger.Log(0, logging.Error, fmt.Sprintf("Failed to create resolver: %v", err))
+			c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: failed to create resolver: %v", err))
 			<-time.After(5 * time.Second)
 			continue
 		}
@@ -206,7 +219,7 @@ func (c *Client) discoverRelays() {
 				cancel()
 				return
 			}
-			status := c.state.Object().Networking
+			status := c.state.Object().Networking.Object()
 			var removedIdentities []string
 			var existingIdentities = make(map[string]bool)
 			status.AvailableRelays.ForEach(func(id *config.NetworkIdentity) {
@@ -230,13 +243,12 @@ func (c *Client) discoverRelays() {
 
 		err = resolver.Browse(ctx, "_revolution._tcp", "local.", entries)
 		if err != nil {
-			c.logger.Log(0, logging.Error, fmt.Sprintf("Failed to browse for relays: %v", err))
+			c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: failed to browse for relays: %v", err))
 			<-time.After(5 * time.Second)
 		}
 
 		<-ctx.Done()
-		cancel()
-		close(entries)
+
 		select {
 		case <-time.After(5 * time.Second):
 			continue
@@ -251,11 +263,11 @@ func (c *Client) listenForMessages() {
 	for scanner.Scan() {
 		var msg Message
 		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
-			c.logger.Log(0, logging.Warning, fmt.Sprintf("Received invalid message from relay: %v", err))
+			c.logger.Log(0, logging.Warning, fmt.Sprintf("[Client]: received invalid message from relay: %v", err))
 			continue
 		}
 		if _, ok := c.watchers[msg.Kind]; !ok {
-			c.logger.Log(0, logging.Warning, "Received invalid message type from relay!")
+			c.logger.Log(0, logging.Warning, "[Client]: received invalid message type from relay!")
 			continue
 		}
 		for sub := range c.watchers[msg.Kind] {

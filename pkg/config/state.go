@@ -17,9 +17,12 @@ type LoopState struct {
 type NetworkIdentity struct {
 	Address  string `yaml:"address" key:"true"`
 	Identity string `yaml:"identity"`
+	Role     string `yaml:"role"`
 }
 
 type MacroNetworkingConfig struct {
+	SavedRelays *List[NetworkIdentity] `yaml:"savedRelays"`
+
 	AvailableRelays     *List[NetworkIdentity] `state:"availableRelays" yaml:"-"`
 	ConnectedIdentities *List[NetworkIdentity] `state:"connectedIdentities" yaml:"-"`
 	ConnectingAddress   string                 `state:"connectedIdentity" yaml:"-"`
@@ -45,17 +48,13 @@ type MacroState struct {
 	BaseOriginX  int `state:"baseOriginX" yaml:"-"`
 	BaseOriginY  int `state:"baseOriginY" yaml:"-"`
 
-	Networking *MacroNetworkingConfig `yaml:"networking"`
+	Networking *Object[MacroNetworkingConfig] `yaml:"networking"`
 }
 
 type StateConfig struct {
 	CodeStatus    string `state:"codeStatus" default:"pending" yaml:"-"`
 	DefaultPreset string `yaml:"defaultPreset" default:"default"`
 	ActiveAccount string `yaml:"activeAccount,omitempty" default:"default"`
-}
-
-type NetworkingConfig struct {
-	SavedRelays *List[NetworkIdentity] `yaml:"savedRelays"`
 }
 
 type VicHopStatistics struct {
@@ -68,9 +67,8 @@ type VicHopVersion struct {
 }
 
 type State struct {
-	Config     *Object[StateConfig]      `yaml:"config"`
-	Networking *Object[NetworkingConfig] `yaml:"networking"`
-	Macros     *List[MacroState]         `yaml:"macros"`
+	Config *Object[StateConfig] `yaml:"config"`
+	Macros *List[MacroState]    `yaml:"macros"`
 
 	VicHop *Object[VicHopVersion] `state:"vicHop" yaml:"-"`
 }

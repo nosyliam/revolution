@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"reflect"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 )
@@ -113,6 +114,7 @@ func (c *config) getField(field reflect.Value, chain chain, index int) (interfac
 		return obj.Get(chain, index+1)
 	}
 	if len(chain)-1 != index {
+		debug.PrintStack()
 		return nil, c.errPath("cannot index a primitive value")
 	}
 	switch field.Kind() {

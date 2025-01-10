@@ -7,7 +7,9 @@ type MessageKind int
 const (
 	RegistrationMessageKind MessageKind = iota
 	AckRegistrationMessageKind
+	ConnectedIdentitiesMessageKind
 	SetRoleMessageKind
+	AckSetRoleMessageKind
 	QueryMainAccountMessageKind
 	MainAccountMessageKind
 	VicDetectMessageKind
@@ -15,11 +17,21 @@ const (
 	UnknownMessageKind
 )
 
+type ClientRole int
+
+const (
+	MainClientRole     ClientRole = iota
+	SearcherClientRole ClientRole = iota
+	PassiveClientRole  ClientRole = iota
+)
+
 type Message struct {
 	Kind     MessageKind
 	Sender   string
 	Receiver string
 	Content  string
+
+	Data string `json:"-"`
 }
 
 type Network struct {

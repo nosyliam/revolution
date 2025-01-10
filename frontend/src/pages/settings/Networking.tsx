@@ -1,5 +1,5 @@
 import React, {useContext, useState} from "react";
-import {KeyedObject, Object, RuntimeContext} from "../../hooks/useRuntime";
+import {KeyedObject, RuntimeContext} from "../../hooks/useRuntime";
 import {
     Box,
     Button,
@@ -18,7 +18,6 @@ import ControlBox from "../../components/ControlBox";
 import {modals} from '@mantine/modals';
 import {
     IconForbid,
-    IconForbid2,
     IconForbidFilled,
     IconNetwork,
     IconPlus,
@@ -32,7 +31,6 @@ export default function Networking() {
     const [hoveredIndex, setHoveredIndex] = useState("")
     const [actionHovered, setActionHovered] = useState(false)
     const runtime = useContext(RuntimeContext)
-    const state = runtime.Object("state.networking")
     const macroState = runtime.State()
     const settings = runtime.Object("settings.networking")
     const networking = macroState.Object("networking")
@@ -41,19 +39,12 @@ export default function Networking() {
 
     let relayStarting = networking.Value("relayStarting", false)
     let relayActive = networking.Value("relayActive", false)
-    let connectedIdentities = networking.List<string>("connectedIdentities")
+    let connectedIdentities = networking.List<KeyedObject>("connectedIdentities").Values(true)
 
-    let identity: any = networking.Value("identity", "Unknown/Unknown")
+    let identity = networking.Value("identity", "Unknown/Unknown")
     let connectedIdentity = networking.Value("connectedIdentity", "")
     let availableRelays = networking.List<KeyedObject>("availableRelays").Values(true)
-    console.log(state.List<KeyedObject>("savedRelays"))
-    let savedRelays = state.List<KeyedObject>("savedRelays").Values(true)
-
-
-
-    // @ts-ignore
-    relayActive = false
-    identity = 'Liam\'s MacBook Air/Liam/Default'
+    let savedRelays = networking.List<KeyedObject>("savedRelays").Values(true)
 
     const identityShorthand = identity.split('/').slice(-2).join('/')
 
@@ -66,15 +57,6 @@ export default function Networking() {
         address: v.object.Concrete<string>("address"),
         identity: v.object.Concrete<string>("identity")
     }))
-
-    mappedRelays = [
-        {address: '1', identity: 'Liam\'s Mac/Liam/Default'},
-        {address: '2', identity: 'Liam\'s PC/Macro 1/Default'},
-        {address: '3', identity: 'Liam\'s PC/Macro 2/Default'},
-        {address: '4', identity: 'Liam\'s PC/Macro 3/Default'},
-        {address: '6', identity: 'Liam\'s PC/Macro 4/Default'},
-        {address: '7', identity: 'Liam\'s PC/Macro 5/Default'},
-    ]
 
     const mappedRelayRows = mappedRelays.map((relay) => {
         const saved = !relayActive && mappedSavedRelays.findIndex((r) => r.address == relay.address) != -1
@@ -89,9 +71,9 @@ export default function Networking() {
             if (relayActive) {
             } else {
                 if (saved) {
-                    state.List<KeyedObject>("savedRelays").Delete(relay.address!)
+                    macroState.List<KeyedObject>("savedRelays").Delete(relay.address!)
                 } else {
-                    const item = state.List<KeyedObject>("savedRelays").Append(relay.address!) as KeyedObject
+                    const item = macroState.List<KeyedObject>("savedRelays").Append(relay.address!) as KeyedObject
                     item.object.Set("identity", relay.identity!)
                 }
             }
