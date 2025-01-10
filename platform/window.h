@@ -104,20 +104,25 @@ static Frames* get_display_frames() {
     frames->frames = data;
 
     for (int i = 0; i < count; i++) {
-    	CGRect bounds = CGDisplayBounds(displays[i]);
+        CGFloat scaleFactor = 1.0;
+        CGDisplayModeRef mode = CGDisplayCopyDisplayMode(displays[i]);
+        size_t pixelWidth = CGDisplayModeGetPixelWidth(mode);
+        size_t pointWidth = CGDisplayModeGetWidth(mode);
 
-    	CGImageRef image = NULL;
-    	CGRect screenCaptureRect = CGRectMake(0, 0, CGDisplayPixelsWide(displays[i]), CGDisplayPixelsHigh(displays[i]));
-    	image = CGDisplayCreateImageForRect(displays[i], screenCaptureRect);
+        if (pointWidth != 0) {
+            scaleFactor = (CGFloat)pixelWidth / (CGFloat)pointWidth;
+        }
+
+        CFRelease(mode);
+    	CGRect bounds = CGDisplayBounds(displays[i]);
 
     	Frame *frame = malloc(sizeof(Frame));
     	frame->width = (int)bounds.size.width;
     	frame->height = (int)bounds.size.height;
     	frame->x = bounds.origin.x;
     	frame->y = bounds.origin.y;
-    	frame->scale = CGImageGetWidth(image) / CGDisplayPixelsWide(displays[i]);
+    	frame->scale = scaleFactor;
     	data[i] = *frame;
-    	CFRelease(image);
     }
 
     return frames;
@@ -143,45 +148,51 @@ static void set_window_frame(const Window* window, const int width, const int he
 }
 
 static Frame* get_window_frame(const Window* window) {
-	CFTypeRef sizeStorage;
-	AXError result = AXUIElementCopyAttributeValue(window->window, (CFStringRef)kAXSizeAttribute, &sizeStorage);
+    if (!window || !window->window) {
+        return NULL;
+    }
 
-	CGSize size;
-	if (result == kAXErrorSuccess) {
-		if (!AXValueGetValue(sizeStorage, kAXValueCGSizeType, (void *)&size)) {
-			size = CGSizeZero;
-		}
-	}
-	else {
-		size = CGSizeZero;
-	}
+    CFTypeRef sizeStorage = NULL;
+    CFTypeRef positionStorage = NULL;
+    Frame* frame = NULL;
 
-	if (sizeStorage)
-		CFRelease(sizeStorage);
+    AXError result = AXUIElementCopyAttributeValue(window->window,
+                                                   (CFStringRef)kAXSizeAttribute,
+                                                   &sizeStorage);
 
-	CFTypeRef positionStorage;
-	result = AXUIElementCopyAttributeValue(window->window, (CFStringRef)kAXPositionAttribute, &positionStorage);
+    CGSize size = CGSizeZero;
+    if (result == kAXErrorSuccess && sizeStorage) {
+        if (!AXValueGetValue(sizeStorage, kAXValueCGSizeType, (void *)&size)) {
+            size = CGSizeZero;
+        }
+        CFRelease(sizeStorage);
+        sizeStorage = NULL;
+    }
 
-	CGPoint topLeft;
-	if (result == kAXErrorSuccess) {
-		if (!AXValueGetValue(positionStorage, kAXValueCGPointType, (void *)&topLeft)) {
-			topLeft = CGPointZero;
-		}
-	}
-	else {
-		topLeft = CGPointZero;
-	}
+    result = AXUIElementCopyAttributeValue(window->window,
+                                           (CFStringRef)kAXPositionAttribute,
+                                           &positionStorage);
 
-	if (positionStorage)
-		CFRelease(positionStorage);
+    CGPoint topLeft = CGPointZero;
+    if (result == kAXErrorSuccess && positionStorage) {
+        if (!AXValueGetValue(positionStorage, kAXValueCGPointType, (void *)&topLeft)) {
+            topLeft = CGPointZero;
+        }
+        CFRelease(positionStorage);
+        positionStorage = NULL;
+    }
 
-	Frame* frame = malloc(sizeof(Frame));
-	frame->width = size.width;
-	frame->height = size.height;
-	frame->x = topLeft.x;
-	frame->y = topLeft.y;
+    frame = (Frame*)malloc(sizeof(Frame));
+    if (!frame) {
+        return NULL;
+    }
 
-	return frame;
+    frame->width = size.width;
+    frame->height = size.height;
+    frame->x = topLeft.x;
+    frame->y = topLeft.y;
+
+    return frame;
 }
 
 static void activate_window(const Window* window) {

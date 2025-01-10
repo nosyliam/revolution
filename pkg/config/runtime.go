@@ -10,9 +10,10 @@ import (
 )
 
 type event struct {
-	path, op         string
-	primitive, keyed bool
-	value            interface{}
+	path, op  string
+	primitive bool
+	key       string
+	value     interface{}
 }
 
 type waitingEvent struct {
@@ -76,12 +77,12 @@ func (r *Runtime) Set(path string, value interface{}) {
 	runtime.EventsEmit(AppContext, "set", path, r.activeEvent, value)
 }
 
-func (r *Runtime) Append(path string, primitive bool, keyed bool) {
+func (r *Runtime) Append(path string, primitive bool, key string) {
 	if !r.ready {
-		r.events = append(r.events, event{path: path, op: "append", primitive: primitive, keyed: keyed})
+		r.events = append(r.events, event{path: path, op: "append", primitive: primitive, key: key})
 		return
 	}
-	runtime.EventsEmit(AppContext, "append", path, r.activeEvent, primitive, keyed)
+	runtime.EventsEmit(AppContext, "append", path, r.activeEvent, primitive, key)
 }
 
 func (r *Runtime) Delete(path string) {
@@ -158,7 +159,7 @@ func (r *Runtime) Start() {
 		case "set":
 			runtime.EventsEmit(AppContext, "set", evt.path, -1, evt.value)
 		case "append":
-			runtime.EventsEmit(AppContext, "append", evt.path, -1, evt.primitive, evt.keyed)
+			runtime.EventsEmit(AppContext, "append", evt.path, -1, evt.primitive, evt.key)
 		}
 	}
 	r.events = nil
@@ -168,6 +169,7 @@ func NewRuntime(ctx context.Context) *Runtime {
 	app := &Runtime{roots: make(map[string]Reactive)}
 	ready := make(chan bool)
 	runtime.EventsOnce(ctx, "ready", func(...interface{}) {
+		fmt.Println("ready")
 		app.ready = true
 		for len(app.roots) != 3 {
 			<-time.After(100 * time.Millisecond)

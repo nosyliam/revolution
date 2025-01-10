@@ -1,5 +1,5 @@
 import React, {useContext, useState} from "react";
-import {KeyedObject, RuntimeContext} from "../../hooks/useRuntime";
+import {KeyedObject, Object, RuntimeContext} from "../../hooks/useRuntime";
 import {
     Box,
     Button,
@@ -32,9 +32,10 @@ export default function Networking() {
     const [hoveredIndex, setHoveredIndex] = useState("")
     const [actionHovered, setActionHovered] = useState(false)
     const runtime = useContext(RuntimeContext)
-    const state = runtime.State()
+    const state = runtime.Object("state.networking")
+    const macroState = runtime.State()
     const settings = runtime.Object("settings.networking")
-    const networking = state.Object("networking")
+    const networking = macroState.Object("networking")
 
     const autoConnect = settings.Value("autoConnect", false)
 
@@ -45,12 +46,22 @@ export default function Networking() {
     let identity: any = networking.Value("identity", "Unknown/Unknown")
     let connectedIdentity = networking.Value("connectedIdentity", "")
     let availableRelays = networking.List<KeyedObject>("availableRelays").Values(true)
+    console.log(state.List<KeyedObject>("savedRelays"))
+    let savedRelays = state.List<KeyedObject>("savedRelays").Values(true)
+
+
 
     // @ts-ignore
-    relayActive = true
+    relayActive = false
     identity = 'Liam\'s MacBook Air/Liam/Default'
 
     const identityShorthand = identity.split('/').slice(-2).join('/')
+
+    let mappedSavedRelays = savedRelays.map((v) => ({
+        address: v.object.Concrete<string>("address"),
+        identity: v.object.Concrete<string>("identity")
+    }))
+
     let mappedRelays = availableRelays.map((v) => ({
         address: v.object.Concrete<string>("address"),
         identity: v.object.Concrete<string>("identity")
@@ -66,11 +77,24 @@ export default function Networking() {
     ]
 
     const mappedRelayRows = mappedRelays.map((relay) => {
+        const saved = !relayActive && mappedSavedRelays.findIndex((r) => r.address == relay.address) != -1
         const actionStyle: React.CSSProperties = {
-            display: hoveredIndex == relay.address ? 'inherit' : 'none',
+            display: hoveredIndex == relay.address || saved ? 'inherit' : 'none',
             position: 'absolute',
             bottom: 8,
             right: 8
+        }
+
+        const action = () => {
+            if (relayActive) {
+            } else {
+                if (saved) {
+                    state.List<KeyedObject>("savedRelays").Delete(relay.address!)
+                } else {
+                    const item = state.List<KeyedObject>("savedRelays").Append(relay.address!) as KeyedObject
+                    item.object.Set("identity", relay.identity!)
+                }
+            }
         }
 
         return (
@@ -96,9 +120,9 @@ export default function Networking() {
                             {relay.identity!.split('/').slice(-2).join('/')}
                         </Text>
                     </Tooltip>
-                    <UnstyledButton onPointerEnter={() => setActionHovered(true)} onPointerLeave={() => setActionHovered(false)}>
+                    <UnstyledButton onPointerEnter={() => setActionHovered(true)} onPointerLeave={() => setActionHovered(false)} onClick={action}>
                         {relayActive ? (actionHovered ? <IconForbidFilled size={18} style={actionStyle}/> : <IconForbid size={18} style={actionStyle}/>)
-                            : <IconStar size={18} style={{...actionStyle, stroke: 'goldenrod'}} fill={actionHovered ? 'goldenrod' : 'none'}/>}
+                            : <IconStar size={18} style={{...actionStyle, stroke: 'goldenrod'}} fill={actionHovered || saved ? 'goldenrod' : 'none'}/>}
                     </UnstyledButton>
                 </Table.Td>
             </Table.Tr>

@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 	"io"
@@ -56,7 +55,7 @@ func (f *File[T]) Save() error {
 	_ = f.file.Truncate(0)
 	_, _ = f.file.Seek(0, 0)
 	_, err = f.file.Write(data)
-	fmt.Println("save", string(data))
+	//fmt.Println("save", string(data))
 	if err != nil {
 		return errors.Wrap(err, "failed to write")
 	}

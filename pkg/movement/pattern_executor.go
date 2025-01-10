@@ -55,6 +55,8 @@ func registerKeys(L *lua.LState) {
 	L.SetField(dirTable, "Right", newKeyUD(common.Right))
 	L.SetField(dirTable, "RotLeft", newKeyUD(common.RotLeft))
 	L.SetField(dirTable, "RotRight", newKeyUD(common.RotRight))
+	L.SetField(dirTable, "RotDown", newKeyUD(common.RotDown))
+	L.SetField(dirTable, "RotUp", newKeyUD(common.RotUp))
 	L.SetField(dirTable, "ZoomIn", newKeyUD(common.ZoomIn))
 	L.SetField(dirTable, "ZoomOut", newKeyUD(common.ZoomOut))
 	L.SetField(dirTable, "E", newKeyUD(common.E))
@@ -206,8 +208,9 @@ func LuaQuerySetting(L *lua.LState) int {
 	return 1
 }
 
-func LuaPerformDetection(L *lua.LState) {
+func LuaPerformDetection(L *lua.LState) int {
 	// macro := L.Context().Value("macro").(*common.Macro)
+	return 0
 }
 
 func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *common.Macro) {
@@ -228,6 +231,7 @@ func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *commo
 	L.SetGlobal("KeyPress", L.NewFunction(LuaKeyPress))
 	L.SetGlobal("QueryState", L.NewFunction(LuaQueryState))
 	L.SetGlobal("QuerySetting", L.NewFunction(LuaQuerySetting))
+	L.SetGlobal("PerformDetection", L.NewFunction(LuaPerformDetection))
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = context.WithValue(ctx, "macro", macro)
 	L.SetContext(ctx)

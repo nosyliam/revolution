@@ -143,9 +143,11 @@ func (m *Macro) startup(ctx context.Context) {
 		}
 		active := m.state.Object().Config.Object().ActiveAccount
 		if ifc, ok := m.interfaces[active]; ok && ifc.Macro != nil {
+			fmt.Println("sending command")
 			ifc.Command() <- args
 		} else {
 			if ifc = m.interfaces["Default"]; ifc.Macro != nil {
+				fmt.Println("sending command")
 				ifc.Command() <- args
 			} else {
 				runtime.EventsEmit(ctx, "console", color.RedString("Macro must be started to use this command!\r\n"))

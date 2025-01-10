@@ -9,6 +9,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/control"
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/movement"
+	"github.com/nosyliam/revolution/pkg/networking"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/sqweek/dialog"
 )
@@ -25,6 +26,8 @@ type Interface struct {
 	Macro    *common.Macro
 	Account  string
 
+	NetworkClient *networking.Client
+
 	pause    chan struct{}
 	unpause  chan struct{}
 	stop     chan struct{}
@@ -39,11 +42,13 @@ func (i *Interface) Command() chan<- []string {
 }
 
 func (i *Interface) ReceiveCommands() {
-	fmt.Println("receiving")
+	for len(i.command) > 0 {
+		<-i.command
+	}
 	for {
 		cmd := <-i.command
 		if i.Macro == nil || cmd == nil {
-			for len(cmd) > 0 {
+			for len(i.command) > 0 {
 				<-i.command
 			}
 			return
@@ -79,6 +84,7 @@ func (i *Interface) Start() {
 	i.redirect = make(chan *common.RedirectExecution, 1)
 	pause := make(chan (<-chan struct{}), 1)
 	stop := make(chan struct{}, 1)
+	err := make(chan string, 1)
 	i.Macro = &common.Macro{
 		Account:    i.Account,
 		EventBus:   i.EventBus,
@@ -93,12 +99,12 @@ func (i *Interface) Start() {
 		Scratch:    config.NewScratch(),
 		Results:    &common.ActionResults{},
 		Pause:      pause,
+		Error:      err,
 		Stop:       i.stop,
 		Redirect:   i.redirect,
 	}
 	i.Macro.Scheduler = NewScheduler(i.redirect, i.stop)
 
-	err := make(chan string, 1)
 	status := make(chan string)
 
 	_ = i.State.SetPath("running", true)
@@ -217,7 +223,7 @@ func NewInterface(
 	eventBus common.EventBus,
 	backend common.Backend,
 ) *Interface {
-	return &Interface{
+	ifc := &Interface{
 		EventBus: eventBus,
 		Backend:  backend,
 		Settings: settings,
@@ -230,6 +236,9 @@ func NewInterface(
 
 		pause:   make(chan struct{}, 1),
 		stop:    make(chan struct{}, 1),
-		command: make(chan []string, 1),
+		command: make(chan []string, 100),
 	}
+	ifc.NetworkClient = networking.NewClient(state, ifc.Logger)
+	ifc.Start()
+	return ifc
 }

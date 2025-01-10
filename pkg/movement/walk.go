@@ -47,9 +47,11 @@ func walk(direction Direction, distance float64, macro *common.Macro, async bool
 		for remaining > 0 {
 			change := macro.BuffDetect.Watch()
 			speed := macro.BuffDetect.MoveSpeed()
+			duration := time.Duration((remaining / speed) * float64(time.Second))
+			fmt.Println("Speed", speed, remaining, "Duration", duration)
 			start := time.Now()
 			select {
-			case <-time.After(time.Duration(remaining/speed) * time.Second):
+			case <-time.After(duration):
 				<-macro.EventBus.KeyUp(macro, common.Key(direction))
 				if !async {
 					finish <- struct{}{}

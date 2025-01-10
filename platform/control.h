@@ -40,16 +40,31 @@ void scroll_mouse(int x, int y) {
 }
 
 void send_key_event(int pid, bool down, int key) {
-        CGEventRef keyEvent = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)key, down);
-        assert(keyEvent != NULL);
+    CGEventRef eventDown, eventUp;
+    bool isFn = key == 0x74 || key == 0x75;
 
-        CGEventSetType(keyEvent, down ? kCGEventKeyDown : kCGEventKeyUp);
-        if (pid == 0) {
-            CGEventPost(kCGSessionEventTap, keyEvent);
-        } else {
-            CGEventPostToPid(pid, keyEvent);
-        }
-        CFRelease(keyEvent);
+    if (isFn) {
+        eventDown = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)63, true);
+        CGEventPost(kCGHIDEventTap, eventDown);
+        CFRelease(eventDown);
+    }
+
+    CGEventRef keyEvent = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)key, down);
+    assert(keyEvent != NULL);
+
+    CGEventSetType(keyEvent, down ? kCGEventKeyDown : kCGEventKeyUp);
+    if (pid == 0) {
+        CGEventPost(kCGSessionEventTap, keyEvent);
+    } else {
+        CGEventPostToPid(pid, keyEvent);
+    }
+    CFRelease(keyEvent);
+
+    if (isFn) {
+        eventUp = CGEventCreateKeyboardEvent(NULL, (CGKeyCode)63, false);
+        CGEventPost(kCGHIDEventTap, eventUp);
+        CFRelease(eventUp);
+    }
 }
 
 #endif

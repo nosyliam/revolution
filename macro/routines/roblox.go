@@ -68,7 +68,7 @@ var HoneyOffsetImage = ImageSteps{
 
 var RobloxOffsetImage = ImageSteps{
 	SelectCoordinate(Change, 0, 0, 300, 300),
-	Variance(0),
+	Variance(2),
 	Direction(0),
 	Search("roblox").Find(),
 }
@@ -158,7 +158,7 @@ var OpenRobloxRoutine = Actions{
 							Image(LoadingImage...).NotFound(),
 							Image(ScienceImage...).Found(),
 						), GreaterThan(V[int](Offset), 0))),
-						Info("Game Loaded: %d", V[int](Offset))(Status, Discord),
+						Info("Game Loaded")(Status, Discord),
 						Break(),
 						If(Image(DisconnectImage...).Found()),
 						Info("Disconnected during reconnect!")(Status, Discord),

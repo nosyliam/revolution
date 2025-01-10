@@ -49,6 +49,7 @@ type Macro struct {
 	MacroState *config.Object[config.MacroState]
 	Settings   *config.Object[config.Settings]
 	Database   *config.Object[config.AccountDatabase]
+	Network    *Network
 	BuffDetect BuffDetector
 	Pattern    PatternLoader
 	Logger     *logging.Logger
@@ -62,6 +63,7 @@ type Macro struct {
 	Status     func(string)
 	Pause      <-chan (<-chan struct{})
 	Stop       chan struct{}
+	Error      chan string
 	Redirect   chan *RedirectExecution
 
 	Watchers        []chan (<-chan struct{})

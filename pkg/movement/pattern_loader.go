@@ -101,8 +101,8 @@ func NewLoader() *Loader {
 }
 
 func (l *Loader) Patterns() []string {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	var names []string
 	for name := range l.patterns {
 		names = append(names, name)
@@ -111,16 +111,16 @@ func (l *Loader) Patterns() []string {
 }
 
 func (l *Loader) Exists(patternName string) bool {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	_, ok := l.patterns[patternName]
 	return ok
 }
 
 func (l *Loader) Execute(macro *common.Macro, meta *config.PatternMetadata, patternName string) error {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
+	l.mu.Lock()
 	pattern, ok := l.patterns[patternName]
+	l.mu.Unlock()
 	if !ok {
 		return errors.Errorf("no such pattern: %s", patternName)
 	}
@@ -206,6 +206,10 @@ func (l *Loader) run() {
 }
 
 func (l *Loader) handleFileChange(path string) {
+	if filepath.Ext(path) != ".lua" {
+		return
+	}
+	fmt.Println("Loading new pattern at", path)
 	fi, err := os.Stat(path)
 	if err != nil || fi.IsDir() {
 		return

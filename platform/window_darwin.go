@@ -299,10 +299,6 @@ func GoFrameCallback(id C.int, data *C.uchar, length C.size_t, width, height, st
 	img.Pix = buf
 	img.Stride = int(stride)
 
-	/*f, _ := os.Create("test.png")
-	png.Encode(f, img)
-	f.Close()*/
-
 	if win, ok := singleton.windows[int(id)]; ok && win.ready.Load() {
 		win.output <- img
 	}

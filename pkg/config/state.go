@@ -14,17 +14,18 @@ type LoopState struct {
 	Index  []int
 }
 
-type RelayIdentity struct {
+type NetworkIdentity struct {
 	Address  string `yaml:"address" key:"true"`
 	Identity string `yaml:"identity"`
 }
 
 type MacroNetworkingConfig struct {
-	AvailableRelays     *List[RelayIdentity] `state:"availableRelays" yaml:"-"`
-	ConnectedIdentities *List[string]        `state:"connectedIdentities" yaml:"-"`
-	ConnectedIdentity   string               `state:"connectedIdentity" yaml:"-"`
-	RelayStarting       bool                 `state:"relayStarting" yaml:"-"`
-	RelayActive         bool                 `state:"relayActive" yaml:"-"`
+	AvailableRelays     *List[NetworkIdentity] `state:"availableRelays" yaml:"-"`
+	ConnectedIdentities *List[NetworkIdentity] `state:"connectedIdentities" yaml:"-"`
+	ConnectingAddress   string                 `state:"connectedIdentity" yaml:"-"`
+	ConnectedAddress    string                 `state:"connectedIdentity" yaml:"-"`
+	RelayStarting       bool                   `state:"relayStarting" yaml:"-"`
+	RelayActive         bool                   `state:"relayActive" yaml:"-"`
 
 	Identity string `state:"identity" yaml:"-"`
 }
@@ -54,7 +55,7 @@ type StateConfig struct {
 }
 
 type NetworkingConfig struct {
-	SavedRelays *List[RelayIdentity] `yaml:"savedRelays"`
+	SavedRelays *List[NetworkIdentity] `yaml:"savedRelays"`
 }
 
 type VicHopStatistics struct {

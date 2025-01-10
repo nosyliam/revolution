@@ -202,6 +202,22 @@ func (c *List[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+func (c *List[T]) ForEach(callback func(*T)) {
+	if c.prim != nil {
+		for _, v := range c.prim {
+			callback(&v)
+		}
+	} else if c.index != nil {
+		for _, obj := range c.index {
+			callback(obj.obj)
+		}
+	} else {
+		for _, obj := range c.obj {
+			callback(obj.obj)
+		}
+	}
+}
+
 func (c *List[T]) Initialize(path string, file Savable) error {
 	c.file = file
 	if c.prim == nil && c.obj == nil {
@@ -225,24 +241,24 @@ func (c *List[T]) Initialize(path string, file Savable) error {
 	c.path = path
 	if c.obj != nil {
 		if c.key != "" {
-			c.file.Runtime().Append(fmt.Sprintf("%s[_init]", path), false, true)
+			c.file.Runtime().Append(fmt.Sprintf("%s[_init]", path), false, c.keySz)
 		} else {
-			c.file.Runtime().Append(fmt.Sprintf("%s[_init]", path), false, false)
+			c.file.Runtime().Append(fmt.Sprintf("%s[_init]", path), false, "")
 		}
 		for n, obj := range c.obj {
 			if c.key != "" {
 				key := reflect.ValueOf(*obj.obj).FieldByName(c.key).String()
 				listPath := fmt.Sprintf("%s[%s]", path, key)
-				c.file.Runtime().Append(listPath, false, true)
+				c.file.Runtime().Append(listPath, false, c.keySz)
 				_ = obj.Initialize(listPath, file)
 			} else {
 				listPath := fmt.Sprintf("%s[%d]", path, n)
-				c.file.Runtime().Append(listPath, false, false)
+				c.file.Runtime().Append(listPath, false, c.keySz)
 				_ = obj.Initialize(fmt.Sprintf("%s[%d]", path, n), file)
 			}
 		}
 	} else if c.prim != nil {
-		c.file.Runtime().Append(fmt.Sprintf("%s[_init]", path), true, false)
+		c.file.Runtime().Append(fmt.Sprintf("%s[_init]", path), true, c.keySz)
 		for i, value := range c.prim {
 			c.file.Runtime().Set(fmt.Sprintf("%s[%d]", path, i), value)
 
@@ -398,7 +414,7 @@ func (c *List[T]) Append(chain chain, index int, value interface{}) error {
 			return c.errPath(fmt.Sprintf("key \"%s\" already exists", key))
 		}
 		path := fmt.Sprintf("%s[%s]", c.path, chain[index].val)
-		c.file.Runtime().Append(path, false, true)
+		c.file.Runtime().Append(path, false, c.keySz)
 		_ = cfo.Initialize(path, c.file)
 		ref := reflect.ValueOf(cfo.obj)
 		ref.Elem().FieldByName(c.key).SetString(key)
@@ -406,7 +422,7 @@ func (c *List[T]) Append(chain chain, index int, value interface{}) error {
 		c.index[key] = cfo
 	} else {
 		path := fmt.Sprintf("%s[%d]", c.path, len(c.obj))
-		c.file.Runtime().Append(path, false, false)
+		c.file.Runtime().Append(path, false, c.keySz)
 		_ = cfo.Initialize(path, c.file)
 	}
 
@@ -779,6 +795,14 @@ func (c *Object[T]) GetObjectPath(path string) (interface{}, error) {
 
 func (c *Object[T]) AppendPath(path string) error {
 	chain, err := compilePath(path)
+	if err != nil {
+		return nil
+	}
+	return c.Append(chain, 0, nil)
+}
+
+func (c *Object[T]) AppendPathf(path string, args ...interface{}) error {
+	chain, err := compilePath(fmt.Sprintf(path, args...))
 	if err != nil {
 		return nil
 	}

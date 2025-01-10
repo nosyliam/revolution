@@ -14,7 +14,7 @@ interface SetEvent {
 interface AppendEvent {
     op: "append"
     primitive: boolean
-    keyed: boolean
+    key?: string
     value?: Value
 }
 
@@ -162,13 +162,13 @@ export class Object implements Reactive {
         return value as T
     }
 
-    public Set<T extends Value>(field: string, value: T) {
+    public Set<T extends Value>(field: string, value: T, noEmit?: boolean) {
         const previousValue = this.values[field]?.value
         let data: Field = this.values[field] || {value: value}
         data.dispatch && data.dispatch(value)
         this.values[field] = {...data, value: value}
-        console.log(this.Field(field))
-        this.runtime.Emit(this.Field(field), {op: "set", value: value}, previousValue)
+        if (!noEmit)
+            this.runtime.Emit(this.Field(field), {op: "set", value: value}, previousValue)
     }
 
     public List<T extends ListValue>(field: string): List<T> {
@@ -212,11 +212,14 @@ export class Object implements Reactive {
                         this.objects[path.value] = new List(this.path.extend(path.value), this.runtime)
                     let list = this.objects[path.value] as List<any>
                     list.primitive = event.primitive
-                    list.keyed = event.keyed
+                    list.keyField = event.key
                 } else {
                     path.decrement()
+                    if (!this.objects[path.value])
+                        this.objects[path.value] = new Object(this.path.extend(path.value), this.runtime)
                 }
             case "delete":
+                console.log(String(path), path.value, this.objects)
                 this.objects[path.value].Receive(path.increment(), event)
         }
     }
@@ -267,8 +270,7 @@ export class List<T extends ListValue> implements Reactive {
     private reactive?: boolean = false
 
     public primitive: boolean | undefined = undefined;
-    public keyed: boolean = false;
-
+    public keyField?: string = '';
 
     constructor(path: Path, runtime: Runtime) {
         this.path = path;
@@ -280,7 +282,7 @@ export class List<T extends ListValue> implements Reactive {
             path = new Path(path)
         }
         let index: number;
-        if (this.keyed) {
+        if (this.keyField) {
             index = (this.values as KeyedObject[]).findIndex((v) => v.key == (path as Path).value)
         } else {
             index = Number((path as Path).value)
@@ -301,12 +303,14 @@ export class List<T extends ListValue> implements Reactive {
         return values as T[]
     }
 
-    public Append(key?: string, value?: Value) {
+    public Append(key?: string, value?: Value): ListValue | undefined {
         let object: ListValue | undefined = value
         if (this.primitive) {
             this.values = [...this.values, value! as T]
-        } else if (this.keyed) {
-            object = {key: key!, object: new Object(this.Key(key!), this.runtime)}
+        } else if (this.keyField) {
+            const reactive = new Object(this.Key(key!), this.runtime)
+            reactive.Set(this.keyField, key!, true);
+            object = {key: key!, object: reactive}
             this.values = [...this.values, object as T]
         } else {
             object = new Object(this.Key(key!), this.runtime)
@@ -316,9 +320,10 @@ export class List<T extends ListValue> implements Reactive {
         this.runtime.Emit(this.Key(key || this.values.length - 1), {
             op: "append",
             primitive: this.primitive!,
-            keyed: this.keyed!,
+            key: this.keyField,
             value: value
         }, object)
+        return object
     }
 
     public Delete(key: string | number) {
@@ -331,7 +336,7 @@ export class List<T extends ListValue> implements Reactive {
     Receive(path: Path, event: Event): void {
         const index = this.index(path)
         if (!path.peekFinal) {
-            if (this.keyed) {
+            if (this.keyField) {
                 (this.values[index] as KeyedObject).object.Receive(path.increment(), event)
                 if (this.reactive)
                     this.dispatch && this.dispatch([...this.values])
@@ -363,14 +368,16 @@ export class List<T extends ListValue> implements Reactive {
                 this.dispatch && this.dispatch([...this.values])
                 break;
             case "append":
-                if (path.value == '_init')
+                if (path.value == "_init")
                     return
-                if (this.keyed) {
+                if (this.keyField) {
                     if (this.values.findIndex((v) => (v as KeyedObject).key == path.value) != -1)
                         return
+                    const object = new Object(path, this.runtime)
+                    object.Set(this.keyField, path.value, true);
                     (this.values as KeyedObject[]) = [...(this.values as KeyedObject[]), {
                         key: path.value,
-                        object: new Object(path, this.runtime)
+                        object: object
                     }]
                 } else if (!this.primitive) {
                     (this.values as Object[]) = [...(this.values as Object[]), new Object(path, this.runtime)]
@@ -392,7 +399,7 @@ export class List<T extends ListValue> implements Reactive {
     Object(path: Path): Object {
         const index = this.index(path)
         if (path.peekFinal) {
-            if (this.keyed) {
+            if (this.keyField) {
                 return (this.values[index] as KeyedObject).object
             } else {
                 return this.values[index] as Object
@@ -442,11 +449,11 @@ export class Runtime {
             op: "set",
             value: value
         }))
-        EventsOn("append", (path: string, id: number, primitive: boolean, keyed: boolean) => this.Receive(new Path(path), {
+        EventsOn("append", (path: string, id: number, primitive: boolean, key: string) => this.Receive(new Path(path), {
             id: id,
             op: "append",
             primitive: primitive,
-            keyed: keyed
+            key: key == "" ? undefined : key
         }))
         EventsOn("delete", (path: string, id: number) => this.Receive(new Path(path), {
             id: id,
@@ -576,7 +583,7 @@ export class Runtime {
                 id: -1,
                 op: "append",
                 primitive: false,
-                keyed: true
+                key: "accountName"
             })
             return this.stateObject(key)
         }

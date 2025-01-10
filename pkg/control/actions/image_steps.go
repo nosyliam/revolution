@@ -501,6 +501,12 @@ func (s *search) Find() Step {
 			if ctx.defVariance != 0 && variance == 0 && !ctx.varianceSet {
 				variance = ctx.defVariance
 			}
+			screenshot := ctx.macro.Root.Window.Screenshot()
+			if screenshot == nil {
+				ctx.exit = true
+				ctx.lastResult = make([]image.Point, 0)
+				return
+			}
 			points, err := image.ImageSearch(
 				Registry.Get(bitmap),
 				ctx.macro.Root.Window.Screenshot(),
