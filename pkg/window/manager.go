@@ -203,7 +203,6 @@ func (m *Manager) adjustDisplays() error {
 		m.displayCount = count
 	}
 	if len(m.reservedWindows) > m.displayCount {
-		fmt.Println("adjusting display count")
 		for i := len(m.reservedWindows); i > m.displayCount; i-- {
 			for _, id := range m.reservedWindows[i-1] {
 				if id != nil {

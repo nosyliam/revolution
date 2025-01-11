@@ -53,8 +53,8 @@ type MacroState struct {
 
 type StateConfig struct {
 	CodeStatus    string `state:"codeStatus" default:"pending" yaml:"-"`
-	DefaultPreset string `yaml:"defaultPreset" default:"default"`
-	ActiveAccount string `yaml:"activeAccount,omitempty" default:"default"`
+	DefaultPreset string `yaml:"defaultPreset" default:"Default"`
+	ActiveAccount string `yaml:"activeAccount,omitempty" default:"Default"`
 }
 
 type VicHopStatistics struct {

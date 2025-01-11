@@ -13,7 +13,7 @@ export default function Game() {
         <Stack style={{height: '100%', flexGrow: 1, gap: 4}}>
             <ControlBox title="Player Movespeed">
                 <NumberInput w={150} size="xs" value={moveSpeed}
-                             onChange={(value) => player.Set<number>("moveSpeed", value as number)}/>
+                             onChange={(value) => player.Set<number>("moveSpeed", Number(value))}/>
             </ControlBox>
         </Stack>
     )

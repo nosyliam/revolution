@@ -239,6 +239,6 @@ func NewInterface(
 		command: make(chan []string, 100),
 	}
 	ifc.NetworkClient = networking.NewClient(state, ifc.Logger)
-	ifc.NetworkClient.Start()
+	go ifc.NetworkClient.Start()
 	return ifc
 }

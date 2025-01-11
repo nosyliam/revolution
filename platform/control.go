@@ -12,12 +12,20 @@ var ControlBackend common.Backend = &controlBackend{}
 
 type controlBackend struct{}
 
-func (c controlBackend) KeyDown(pid int, key common.Key) {
-	C.send_key_event(C.int(pid), true, C.int(KeyCodeMap[key]))
+func (c controlBackend) KeyDown(_ int, key common.Key) {
+	var extended = 0
+	if key == common.RotUp || key == common.RotDown {
+		extended = 1
+	}
+	C.send_key_event(C.int(extended), true, C.int(KeyCodeMap[key]))
 }
 
-func (c controlBackend) KeyUp(pid int, key common.Key) {
-	C.send_key_event(C.int(pid), false, C.int(KeyCodeMap[key]))
+func (c controlBackend) KeyUp(_ int, key common.Key) {
+	var extended = 0
+	if key == common.RotUp || key == common.RotDown {
+		extended = 1
+	}
+	C.send_key_event(C.int(extended), false, C.int(KeyCodeMap[key]))
 }
 
 func (c controlBackend) MoveMouse(x, y int) {

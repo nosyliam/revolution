@@ -1,4 +1,4 @@
-import React, {useRef, useState} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
 import {Terminal} from 'xterm';
 import {XTerm} from './XTerm';
 import './Console.css';
@@ -97,7 +97,7 @@ const Console: React.FC = () => {
     const [initialized, setInitialized] = useState(false);
 
     // Initialize the terminal when the component mounts
-    const handleInit = (terminal: Terminal) => {
+    const handleInit = useCallback((terminal: Terminal) => {
         if (initialized)
             return
         setInitialized(true)
@@ -113,7 +113,7 @@ const Console: React.FC = () => {
             },
             disableStdin: true,
             cursorBlink: false,
-            // @ts-ignore
+            // @ts-expect-error: should be valid
             cursorStyle: 'none',
             scrollback: 1000,
             fontSize: 12,
@@ -127,7 +127,7 @@ const Console: React.FC = () => {
         EventsOn('console', (text: string) => {
             processTextForTerminal(text, terminal)
         })
-    };
+    }, []);
 
     const handleInput = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         const terminal = terminalRef.current;

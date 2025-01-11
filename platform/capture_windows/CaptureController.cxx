@@ -34,8 +34,6 @@ CaptureController::CaptureController(int id,
 }
 
 CaptureController::~CaptureController() {
-    StopCapture();
-    cleanupDuplication();
 }
 
 void CaptureController::StartCapture() {
@@ -49,10 +47,12 @@ void CaptureController::StartCapture() {
 }
 
 void CaptureController::StopCapture() {
+  	if (!running_) return;
     running_ = false;
     if (thread_.joinable()) {
-        //thread_.join();
+        thread_.join();
     }
+    cleanupDuplication();
 }
 
 bool CaptureController::initDuplication() {

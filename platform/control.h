@@ -71,6 +71,7 @@ void send_key_event(int pid, bool down, int key) {
 #if defined(IS_WINDOWS)
 #include <windows.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 void microsleep(int ms, int* interrupt) {
 
@@ -97,15 +98,26 @@ void scroll_mouse(int x, int y) {
     }
 }
 
-void send_key_event(int pid, bool down, int key) {
+void send_key_event(int extended, bool down, int key) {
     INPUT input = { 0 };
     input.type = INPUT_KEYBOARD;
-    input.ki.wVk = key;
 
-    if (!down) {
-        input.ki.dwFlags = KEYEVENTF_KEYUP;
+    input.ki.wScan = key;
+    input.ki.dwFlags = KEYEVENTF_SCANCODE;
+
+    if (extended) {
+        input.ki.dwFlags |= KEYEVENTF_EXTENDEDKEY;
     }
 
-    SendInput(1, &input, sizeof(INPUT));
+    if (!down) {
+        input.ki.dwFlags |= KEYEVENTF_KEYUP;
+    }
+
+    // Send the input event
+    UINT result = SendInput(1, &input, sizeof(INPUT));
+    if (result == 0) {
+        DWORD error = GetLastError();
+        printf("SendInput failed with error code: %lu\n", error);
+    }
 }
 #endif

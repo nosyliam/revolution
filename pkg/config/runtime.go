@@ -74,6 +74,7 @@ func (r *Runtime) Set(path string, value interface{}) {
 		r.events = append(r.events, event{path: path, op: "set", value: value})
 		return
 	}
+
 	runtime.EventsEmit(AppContext, "set", path, r.activeEvent, value)
 }
 

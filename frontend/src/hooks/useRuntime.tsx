@@ -400,6 +400,7 @@ export class List<T extends ListValue> implements Reactive {
         const index = this.index(path)
         if (path.peekFinal) {
             if (this.keyField) {
+                console.log(this.values, index)
                 return (this.values[index] as KeyedObject).object
             } else {
                 return this.values[index] as Object
@@ -427,6 +428,7 @@ export class Runtime {
     static RootNames: string[] = ["settings", "state", "database"]
     private roots: { [name: string]: Reactive } = {};
     private events: { [id: number]: HistoricalEvent } = {};
+    private processedEvents: number[] = [];
     private counter: number = 0;
 
     private account: string = 'Default';
@@ -498,7 +500,8 @@ export class Runtime {
         }
         this.processCriticalEvent(path, event)
         let history: HistoricalEvent
-        if (Boolean(history = this.events[event.id!])) {
+        if (Boolean(history = this.events[event.id!]) && !this.processedEvents.includes(event.id!)) {
+            this.processedEvents.push(event.id!)
             clearTimeout(history.timeout)
             return
         }

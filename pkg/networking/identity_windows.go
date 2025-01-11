@@ -5,6 +5,8 @@ package networking
 
 import (
 	"github.com/sqweek/dialog"
+	"os"
+	"os/user"
 	"syscall"
 )
 
@@ -26,23 +28,21 @@ func getComputerName() (string, error) {
 }
 
 func getUserName() (string, error) {
-	var size uint32 = 256
-	buf := make([]uint16, size)
-	err := syscall.GetUserName(&buf[0], &size)
+	u, err := user.Current()
 	if err != nil {
 		return "", err
 	}
-	return syscall.UTF16ToString(buf[:size]), nil
+	return u.Username, nil
 }
 
 func init() {
 	var err error
-	ComputerName, err = getMacComputerName()
+	ComputerName, err = getComputerName()
 	if err != nil {
 		dialog.Message("Failed to get computer name: %s", err.Error()).Error()
 		os.Exit(1)
 	}
-	UserName, err = getMacUserName()
+	UserName, err = getUserName()
 	if err != nil {
 		dialog.Message("Failed to get user name: %s", err.Error()).Error()
 		os.Exit(1)

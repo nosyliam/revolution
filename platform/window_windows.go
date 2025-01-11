@@ -15,8 +15,6 @@ package platform
 //static inline ErrorCallback getErrorCallbackPtr() {
 //    return (ErrorCallback)GoErrorCallback;
 //}
-// #cgo LDFLAGS: -lgdi32 -lshcore
-// #cgo LDFLAGS: -L./capture_windows -L./platform/capture_windows -lCaptureLib -ld3d11 -ldxgi -lstdc++
 import "C"
 
 import (

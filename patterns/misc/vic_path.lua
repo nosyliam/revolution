@@ -11,7 +11,7 @@ function goToCannon()
     Walk(Direction.Forward, 83.2)
 
     -- was: walk(50, "b")
-    Walk(Direction.Backward, 1.2)
+    Walk(Direction.Backward, 4)
 
     -- was: walk(3700, "r")
     Walk(Direction.Right, 96.2)

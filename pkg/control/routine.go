@@ -3,7 +3,6 @@ package control
 import (
 	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
-	"github.com/pkg/errors"
 )
 
 const MainRoutineKind common.RoutineKind = "main"
@@ -50,7 +49,7 @@ func (r *Routine) Execute() {
 					return
 				case nil:
 				default:
-					r.err <- errors.Wrap(err, "").Error()
+					r.err <- err.Error()
 					<-<-r.macro.Pause
 				}
 			}

@@ -4,6 +4,12 @@ package platform
 
 import (
 	. "github.com/nosyliam/revolution/pkg/common"
+	"syscall"
+)
+
+var (
+	user32            = syscall.NewLazyDLL("user32.dll")
+	procMapVirtualKey = user32.NewProc("MapVirtualKeyW")
 )
 
 var KeyCodeMap = map[Key]int{
@@ -31,4 +37,21 @@ var KeyCodeMap = map[Key]int{
 	Five:     0x35,
 	Six:      0x36,
 	Seven:    0x37,
+}
+
+func init() {
+	for key, vk := range KeyCodeMap {
+		sc := mapVirtualKey(uint32(vk), 0)
+
+		if key == RotUp || key == RotDown {
+			sc |= 0xE000
+		}
+
+		KeyCodeMap[key] = int(sc)
+	}
+}
+
+func mapVirtualKey(vk uint32, mapType uint32) uint32 {
+	ret, _, _ := procMapVirtualKey.Call(uintptr(vk), uintptr(mapType))
+	return uint32(ret)
 }

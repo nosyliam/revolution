@@ -53,6 +53,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
+		AlwaysOnTop: true,
 		Mac: &mac.Options{
 			TitleBar: &mac.TitleBar{
 				TitlebarAppearsTransparent: false,

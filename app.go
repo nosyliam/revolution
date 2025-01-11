@@ -106,8 +106,10 @@ func (m *Macro) startup(ctx context.Context) {
 		}
 	}
 
+	fmt.Println("accounts", accounts)
 	for name, preset := range accounts {
 		macroPath := fmt.Sprintf("macros[%s]", name)
+		fmt.Println("macroPath", macroPath)
 		var macroState *Object[MacroState]
 		if state := Concrete[*Object[MacroState]](m.state, macroPath); state == nil {
 			if err = m.state.AppendPath(macroPath); err != nil {
@@ -128,6 +130,7 @@ func (m *Macro) startup(ctx context.Context) {
 			m.eventBus,
 			m.backend,
 		)
+		fmt.Println("int init", m.interfaces)
 	}
 
 	runtime.EventsOn(ctx, "command", func(data ...interface{}) {
@@ -175,6 +178,7 @@ func (m *Macro) ReceiveCommand(args ...string) bool {
 
 func (m *Macro) Start(instance string) {
 	account := m.interfaces[instance]
+	fmt.Println(m.interfaces, account)
 	if *Concrete[bool](m.state, "macros[%s].paused", instance) {
 		account.Unpause()
 		return
@@ -289,7 +293,7 @@ func (m *Macro) DeletePreset(name string) string {
 
 	for _, ifc := range m.interfaces {
 		if ifc.Settings == preset {
-			if ifc.Account != "default" {
+			if ifc.Account != "Default" {
 				if err := m.database.SetPathf(presets[0].Object().Name, "accounts[%s].preset"); err != nil {
 					return "Failed to set active preset"
 				}

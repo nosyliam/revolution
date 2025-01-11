@@ -37,7 +37,7 @@ type WindowConfig struct {
 
 type WindowSettings struct {
 	WindowConfigID         string     `yaml:"windowConfigId"`
-	WindowSize             WindowSize `yaml:"windowSize" default:"fullscreen"`
+	WindowSize             WindowSize `yaml:"windowSize" default:"full"`
 	PrivateServerLink      string     `yaml:"privateServerLink,omitempty"`
 	FallbackToPublicServer bool       `yaml:"fallbackToPublicServer" default:"true"`
 }
