@@ -26,12 +26,14 @@ import {
     IconStar
 } from "@tabler/icons-react";
 import {useHover} from "@mantine/hooks";
+import {StartRelay, StopRelay} from "../../../wailsjs/go/main/Macro";
 
 export default function Networking() {
     const [hoveredIndex, setHoveredIndex] = useState("")
     const [actionHovered, setActionHovered] = useState(false)
     const runtime = useContext(RuntimeContext)
     const macroState = runtime.State()
+    const activeAccount = macroState.Value("accountName", "Default")
     const settings = runtime.Object("settings.networking")
     const networking = macroState.Object("networking")
 
@@ -41,8 +43,10 @@ export default function Networking() {
     let relayActive = networking.Value("relayActive", false)
     let connectedIdentities = networking.List<KeyedObject>("connectedIdentities").Values(true)
 
+    let connectingAddress = networking.Value("connectingAddress", false)
+    let connectedAddress = networking.Value("connectedAddress", false)
+
     let identity = networking.Value("identity", "Unknown/Unknown")
-    let connectedIdentity = networking.Value("connectedIdentity", "")
     let availableRelays = networking.List<KeyedObject>("availableRelays").Values(true)
     let savedRelays = networking.List<KeyedObject>("savedRelays").Values(true)
 
@@ -53,12 +57,21 @@ export default function Networking() {
         identity: v.object.Concrete<string>("identity")
     }))
 
+    let mappedConnectedIdentities = connectedIdentities.map((v) => ({
+        address: v.object.Concrete<string>("address"),
+        identity: v.object.Concrete<string>("identity")
+    }))
+    console.log(mappedConnectedIdentities)
+
     let mappedRelays = availableRelays.map((v) => ({
         address: v.object.Concrete<string>("address"),
         identity: v.object.Concrete<string>("identity")
     }))
+    console.log(mappedRelays)
 
-    const mappedRelayRows = mappedRelays.map((relay) => {
+    const showNetwork = relayActive || Boolean(connectedAddress)
+
+    const mappedRelayRows = (showNetwork ? mappedConnectedIdentities : mappedRelays).map((relay) => {
         const saved = !relayActive && mappedSavedRelays.findIndex((r) => r.address == relay.address) != -1
         const actionStyle: React.CSSProperties = {
             display: hoveredIndex == relay.address || saved ? 'inherit' : 'none',
@@ -68,7 +81,7 @@ export default function Networking() {
         }
 
         const action = () => {
-            if (relayActive) {
+            if (showNetwork) {
             } else {
                 if (saved) {
                     macroState.List<KeyedObject>("savedRelays").Delete(relay.address!)
@@ -162,8 +175,7 @@ export default function Networking() {
                     </ControlBox>
                     <ControlBox height={38} title="Relay">
                         <Button
-                            onClick={() => {
-                            }}
+                            onClick={() => relayActive ? StopRelay(activeAccount) : StartRelay(activeAccount)}
                             rightSection={relayActive ? <IconSquare size={18} fill="white"/> : <IconRocket size={18}/>}
                             color={relayActive ? 'green' : 'blue'}
                             w={100}
@@ -191,11 +203,11 @@ export default function Networking() {
                         borderBottom: `1px solid ${theme.colors.gray[4]}`,
                         height: '37px',
                     })}>
-                        <Text fw={500} fz={14} ml={6}>{relayActive ? 'Connected Identities' : 'Available Relays'}</Text>
+                        <Text fw={500} fz={14} ml={6}>{showNetwork ? 'Connected Identities' : 'Available Relays'}</Text>
                         <Box style={{flexGrow: 1}}/>
                         <Button
                             mr={4}
-                            disabled={relayActive}
+                            disabled={showNetwork}
                             radius="xl"
                             styles={{
                                 root: {

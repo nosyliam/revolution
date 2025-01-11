@@ -11,6 +11,7 @@ import (
 	"github.com/sqweek/dialog"
 	"io"
 	"net"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -24,20 +25,22 @@ type subscriber struct {
 }
 
 type Client struct {
-	stop     chan struct{}
-	mu       sync.Mutex
-	conn     net.Conn
-	watchers map[MessageKind]map[subscriber]bool
-	state    *config.Object[config.MacroState]
-	logger   *logging.Logger
+	stop       chan struct{}
+	disconnect chan struct{}
+	mu         sync.Mutex
+	conn       net.Conn
+	watchers   map[MessageKind]map[subscriber]bool
+	state      *config.Object[config.MacroState]
+	logger     *logging.Logger
 }
 
 func NewClient(state *config.Object[config.MacroState], logger *logging.Logger) *Client {
 	client := &Client{
-		stop:     make(chan struct{}),
-		watchers: make(map[MessageKind]map[subscriber]bool),
-		state:    state,
-		logger:   logger,
+		stop:       make(chan struct{}),
+		disconnect: make(chan struct{}),
+		watchers:   make(map[MessageKind]map[subscriber]bool),
+		state:      state,
+		logger:     logger,
 	}
 	for _, kind := range MessageKinds {
 		client.watchers[kind] = make(map[subscriber]bool)
@@ -131,6 +134,7 @@ func (c *Client) Start() {
 		}
 
 		c.Send(RelayReceiver, RegistrationMessage{Identity: c.Identity()})
+		go c.listenForMessages()
 		select {
 		case message := <-c.SubscribeOnce(AckRegistrationMessageKind):
 			var ack AckRegistrationMessage
@@ -152,9 +156,10 @@ func (c *Client) Start() {
 		case <-c.stop:
 			return
 		}
-		c.state.SetPath("networking.connectingAddress", c.conn.RemoteAddr().String())
+		fmt.Println("connected to relay")
+		c.state.SetPath("networking.connectedAddress", c.conn.RemoteAddr().String())
 		c.state.SetPath("networking.connectingAddress", "")
-		c.listenForMessages()
+		<-c.disconnect
 	}
 }
 
@@ -206,7 +211,13 @@ func (c *Client) discoverRelays() {
 			for entry := range results {
 				for _, txt := range entry.Text {
 					if strings.HasPrefix(txt, "identity=") {
-						identity := strings.TrimPrefix(txt, "identity=")
+						identity, err := url.QueryUnescape(strings.TrimPrefix(txt, "identity="))
+						if err != nil {
+							continue
+						}
+						if identity == c.Identity() {
+							continue
+						}
 						address := fmt.Sprintf("%s:%d", entry.AddrIPv4[0].String(), entry.Port)
 						identities[address] = &config.NetworkIdentity{
 							Identity: identity,
@@ -258,6 +269,44 @@ func (c *Client) discoverRelays() {
 	}
 }
 
+func (c *Client) handleConnectedIdentities(message Message) {
+	var data ConnectedIdentitiesMessage
+	if err := json.Unmarshal([]byte(message.Content), &data); err != nil {
+		c.logger.Log(0, logging.Warning, fmt.Sprintf("[Client]: failed to unserialize connected identities message: %v", err))
+		return
+	}
+	var identities = make(map[string]*config.NetworkIdentity)
+	for _, identity := range data.Identities {
+		identities[identity.Address] = &identity
+	}
+	var removedIdentities []string
+	var existingIdentities = make(map[string]bool)
+	status := c.state.Object().Networking.Object()
+	status.ConnectedIdentities.ForEach(func(id *config.NetworkIdentity) {
+		if _, ok := identities[id.Address]; !ok {
+			removedIdentities = append(removedIdentities, id.Address)
+		} else {
+			existingIdentities[id.Address] = true
+		}
+	})
+	for _, id := range removedIdentities {
+		c.state.DeletePathf("networking.connectedIdentities[%s]", id)
+	}
+	for address, id := range identities {
+		if _, ok := existingIdentities[address]; !ok {
+			c.state.AppendPathf("networking.connectedIdentities[%s]", address)
+			c.state.SetPathf(id.Identity, "networking.connectedIdentities[%s].identity", address)
+		}
+	}
+}
+
+func (c *Client) handleShutdown() {
+	status := c.state.Object().Networking.Object()
+	status.ConnectedIdentities.ForEach(func(id *config.NetworkIdentity) {
+		c.state.DeletePathf("networking.connectedIdentities[%s]", id.Address)
+	})
+}
+
 func (c *Client) listenForMessages() {
 	scanner := bufio.NewScanner(c.conn)
 	for scanner.Scan() {
@@ -266,14 +315,23 @@ func (c *Client) listenForMessages() {
 			c.logger.Log(0, logging.Warning, fmt.Sprintf("[Client]: received invalid message from relay: %v", err))
 			continue
 		}
-		if _, ok := c.watchers[msg.Kind]; !ok {
-			c.logger.Log(0, logging.Warning, "[Client]: received invalid message type from relay!")
+		switch msg.Kind {
+		case ConnectedIdentitiesMessageKind:
+			c.handleConnectedIdentities(msg)
 			continue
-		}
-		for sub := range c.watchers[msg.Kind] {
-			sub.ch <- &msg
-			if sub.once {
-				delete(c.watchers[msg.Kind], sub)
+		case ShutdownMessageKind:
+			c.handleShutdown()
+			break
+		default:
+			if _, ok := c.watchers[msg.Kind]; !ok {
+				c.logger.Log(0, logging.Warning, "[Client]: received invalid message type from relay!")
+				continue
+			}
+			for sub := range c.watchers[msg.Kind] {
+				sub.ch <- &msg
+				if sub.once {
+					delete(c.watchers[msg.Kind], sub)
+				}
 			}
 		}
 	}
@@ -281,4 +339,6 @@ func (c *Client) listenForMessages() {
 		c.logger.Log(0, logging.Error, fmt.Sprintf("Relay connection error: %v", err))
 	}
 	c.Disconnect()
+	fmt.Println("disconnecting")
+	c.disconnect <- struct{}{}
 }

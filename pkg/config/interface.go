@@ -837,7 +837,7 @@ func (c *Object[T]) LengthPath(path string) int {
 
 func compilePath(path string) (chain, error) {
 	var chains chain
-	regex := regexp.MustCompile(`(\w+)|\[(.*?)\]`)
+	regex := regexp.MustCompile(`(\w+)|\[((?:\[[^\]]*\]|[^\]])*)\]`)
 	matches := regex.FindAllStringSubmatch(path, -1)
 	if len(matches) == 0 {
 		return nil, errors.New("invalid path")

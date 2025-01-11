@@ -7,6 +7,7 @@ import (
 	"github.com/sqweek/dialog"
 	"os"
 	"os/user"
+	"strings"
 	"syscall"
 )
 
@@ -14,7 +15,7 @@ var ComputerName string
 var UserName string
 
 func getIdentity() string {
-	return ComputerName + "/" + UserName
+	return strings.Replace(ComputerName+"/"+UserName, "\\", "/")
 }
 
 func getComputerName() (string, error) {

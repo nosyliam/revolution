@@ -38,10 +38,18 @@ export function StartAll() {
   return window['go']['main']['Macro']['StartAll']();
 }
 
+export function StartRelay(arg1) {
+  return window['go']['main']['Macro']['StartRelay'](arg1);
+}
+
 export function Stop(arg1) {
   return window['go']['main']['Macro']['Stop'](arg1);
 }
 
 export function StopAll() {
   return window['go']['main']['Macro']['StopAll']();
+}
+
+export function StopRelay(arg1) {
+  return window['go']['main']['Macro']['StopRelay'](arg1);
 }

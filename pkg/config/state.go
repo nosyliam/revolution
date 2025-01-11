@@ -25,8 +25,8 @@ type MacroNetworkingConfig struct {
 
 	AvailableRelays     *List[NetworkIdentity] `state:"availableRelays" yaml:"-"`
 	ConnectedIdentities *List[NetworkIdentity] `state:"connectedIdentities" yaml:"-"`
-	ConnectingAddress   string                 `state:"connectedIdentity" yaml:"-"`
-	ConnectedAddress    string                 `state:"connectedIdentity" yaml:"-"`
+	ConnectingAddress   string                 `state:"connectedAddress" yaml:"-"`
+	ConnectedAddress    string                 `state:"connectedAddress" yaml:"-"`
 	RelayStarting       bool                   `state:"relayStarting" yaml:"-"`
 	RelayActive         bool                   `state:"relayActive" yaml:"-"`
 

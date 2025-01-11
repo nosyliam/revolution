@@ -82,7 +82,7 @@ export class Path extends String {
             this.components = components
             return
         }
-        const regex = /(\w+)|\[(.*?)\]/g;
+        const regex = /(\w+)|\[((?:\[[^\]]*\]|[^\]])*)\]/g;
 
         let match;
         while ((match = regex.exec(path)) !== null) {
@@ -219,7 +219,6 @@ export class Object implements Reactive {
                         this.objects[path.value] = new Object(this.path.extend(path.value), this.runtime)
                 }
             case "delete":
-                console.log(String(path), path.value, this.objects)
                 this.objects[path.value].Receive(path.increment(), event)
         }
     }
@@ -400,7 +399,6 @@ export class List<T extends ListValue> implements Reactive {
         const index = this.index(path)
         if (path.peekFinal) {
             if (this.keyField) {
-                console.log(this.values, index)
                 return (this.values[index] as KeyedObject).object
             } else {
                 return this.values[index] as Object

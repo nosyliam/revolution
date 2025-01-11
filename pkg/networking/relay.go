@@ -10,6 +10,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/pkg/errors"
 	"net"
+	"net/url"
 	"strings"
 	"sync"
 )
@@ -21,8 +22,8 @@ type Relay struct {
 	mu         sync.Mutex
 	client     *Client
 	server     *zeroconf.Server
+	listener   net.Listener
 	port       int
-	identity   string
 	identities map[string]net.Conn
 	roles      map[string]string
 	state      *config.Object[config.MacroState]
@@ -32,7 +33,7 @@ type Relay struct {
 
 func NewRelay(client *Client, state *config.Object[config.MacroState], logger *logging.Logger) *Relay {
 	return &Relay{
-		identity:   state.Object().AccountName,
+		client:     client,
 		port:       45645, // squid game?
 		identities: make(map[string]net.Conn),
 		state:      state,
@@ -41,36 +42,37 @@ func NewRelay(client *Client, state *config.Object[config.MacroState], logger *l
 }
 
 func (r *Relay) Identity() string {
-	return getIdentity()
+	return getIdentity() + "/" + r.state.Object().AccountName
 }
 
 func (r *Relay) Start() error {
+	var err error
 	defer r.state.SetPath("networking.relayStarting", false)
 	r.state.SetPath("networking.relayStarting", true)
-	listener, err := net.Listen("tcp", fmt.Sprintf(":45645"))
+	r.listener, err = net.Listen("tcp", fmt.Sprintf(":45645"))
 	if err != nil {
 		return err
 	}
-	defer listener.Close()
 
-	if err := r.client.Connect(listener.Addr().String()); err != nil {
+	if err := r.client.Connect(r.listener.Addr().String()); err != nil {
 		return errors.Wrap(err, "failed to connect to local relay")
 	}
 
-	txtRecords := []string{fmt.Sprintf("identity=%s", r.identity)}
-	r.server, err = zeroconf.Register("RelayService", "_relay._tcp", "local.", r.port, txtRecords, nil)
+	txtRecords := []string{fmt.Sprintf("identity=%s", url.QueryEscape(r.Identity()))}
+	r.server, err = zeroconf.Register("RevolutionMacro", "_revolution._tcp", "local.", r.port, txtRecords, nil)
 	if err != nil {
 		return errors.Wrap(err, "failed to start zeroconf")
 	}
 
 	r.state.SetPath("networking.relayActive", true)
+
 	go func() {
 		for {
 			select {
 			case <-r.stop:
 				return
 			default:
-				conn, err := listener.Accept()
+				conn, err := r.listener.Accept()
 				if err != nil {
 					if errors.Is(err, net.ErrClosed) || err.Error() == "use of closed network connection" {
 						return
@@ -88,7 +90,21 @@ func (r *Relay) Start() error {
 }
 
 func (r *Relay) Stop() {
-
+	var message = Message{
+		Kind:     ShutdownMessageKind,
+		Receiver: BroadcastReceiver,
+		Sender:   RelayReceiver,
+		Content:  "{}",
+	}
+	r.handleMessage(&message)
+	r.state.SetPath("networking.relayActive", false)
+	r.listener.Close()
+	r.server.Shutdown()
+	for _, conn := range r.identities {
+		conn.Close()
+	}
+	clear(r.identities)
+	clear(r.roles)
 }
 
 func (r *Relay) handleConnection(conn net.Conn) {
@@ -108,16 +124,25 @@ func (r *Relay) handleConnection(conn net.Conn) {
 	}
 
 	var registrationMessage RegistrationMessage
-	if err = json.Unmarshal([]byte(message.Content), &message); err != nil {
+	if err = json.Unmarshal([]byte(message.Content), &registrationMessage); err != nil {
 		r.logger.Log(0, logging.Warning, fmt.Sprintf("[Relay]: Failed to decode registration message from client %s", conn.RemoteAddr().String()))
 		conn.Close()
 		return
 	}
 
 	identity := registrationMessage.Identity
+	ack := Message{
+		Kind:     AckRegistrationMessageKind,
+		Receiver: identity,
+		Sender:   RelayReceiver,
+		Content:  "{}",
+	}
+
 	if _, ok := r.identities[identity]; ok {
-		data, _ := json.Marshal(AckRegistrationMessage{Error: fmt.Sprintf("The identity %s is already connected to this relay!", identity)})
-		conn.Write(data)
+		byteData, _ := json.Marshal(AckRegistrationMessage{Error: fmt.Sprintf("The identity \"%s\" is already connected to this relay!", identity)})
+		ack.Content = string(byteData)
+		msg, _ := json.Marshal(ack)
+		conn.Write(append(msg, "\r\n"...))
 		conn.Close()
 		return
 	}
@@ -126,6 +151,7 @@ func (r *Relay) handleConnection(conn net.Conn) {
 	r.identities[identity] = conn
 	r.mu.Unlock()
 
+	r.handleMessage(&ack)
 	r.broadcastIdentities()
 
 	defer func() {
@@ -146,7 +172,7 @@ func (r *Relay) handleConnection(conn net.Conn) {
 			r.logger.Log(0, logging.Warning, fmt.Sprintf("[Relay]: Failed to decode message from client %s: %v", identity, err))
 			continue
 		}
-		message.Data = line
+		message.Data = []byte(line)
 		r.mu.Lock()
 		r.handleMessage(&message)
 		r.mu.Unlock()
@@ -176,6 +202,9 @@ func (r *Relay) broadcastIdentities() {
 }
 
 func (r *Relay) handleMessage(message *Message) {
+	if string(message.Data) == "" {
+		message.Data, _ = json.Marshal(message)
+	}
 	switch message.Receiver {
 	case RelayReceiver:
 		if message.Kind == SetRoleMessageKind {
@@ -184,7 +213,7 @@ func (r *Relay) handleMessage(message *Message) {
 	case BroadcastReceiver:
 		for id, conn := range r.identities {
 			if id != message.Sender {
-				conn.Write([]byte(message.Data))
+				conn.Write(append(message.Data, "\r\n"...))
 			}
 		}
 		return
@@ -193,7 +222,7 @@ func (r *Relay) handleMessage(message *Message) {
 			role := strings.TrimPrefix(message.Receiver, "!")
 			for identity, idRole := range r.roles {
 				if idRole == role && identity != message.Sender {
-					r.identities[identity].Write([]byte(message.Data))
+					r.identities[identity].Write(append(message.Data, "\r\n"...))
 				}
 			}
 		} else {
@@ -202,7 +231,7 @@ func (r *Relay) handleMessage(message *Message) {
 					fmt.Sprintf("[Relay]: Failed to forward message from %s->%s: invalid receiver", message.Sender, message.Receiver))
 				return
 			} else {
-				conn.Write([]byte(message.Data))
+				fmt.Println(conn.Write(append(message.Data, "\r\n"...)))
 			}
 		}
 

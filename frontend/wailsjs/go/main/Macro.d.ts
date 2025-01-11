@@ -19,6 +19,10 @@ export function Start(arg1:string):Promise<void>;
 
 export function StartAll():Promise<void>;
 
+export function StartRelay(arg1:string):Promise<string>;
+
 export function Stop(arg1:string):Promise<void>;
 
 export function StopAll():Promise<void>;
+
+export function StopRelay(arg1:string):Promise<void>;

@@ -43,7 +43,7 @@ func (s *Logger) Child(name string) *Logger {
 }
 
 func (s *Logger) Log(verbosity int, level LogLevel, message string) error {
-	_ = fmt.Sprintf("[%s] %s: %s", time.Now().Format("hh:mm:ss"), level, message)
+	fmt.Printf("[%s] %s: %s\n", time.Now().Format("15:04:05"), level, message)
 	return nil
 }
 

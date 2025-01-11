@@ -220,6 +220,19 @@ func (m *Macro) StopAll() {
 	}
 }
 
+func (m *Macro) StartRelay(instance string) string {
+	account := m.interfaces[instance]
+	if err := account.NetworkRelay.Start(); err != nil {
+		return err.Error()
+	}
+	return ""
+}
+
+func (m *Macro) StopRelay(instance string) {
+	account := m.interfaces[instance]
+	account.NetworkRelay.Stop()
+}
+
 func (m *Macro) SetAccountPreset(account, name string) string {
 	ifc, ok := m.interfaces[account]
 	if !ok {
@@ -231,6 +244,7 @@ func (m *Macro) SetAccountPreset(account, name string) string {
 				return "Failed to set active preset"
 			}
 		} else {
+			fmt.Println("setting default preset")
 			if err := m.state.SetPath("config.defaultPreset", name); err != nil {
 				return "Failed to set active preset"
 			}

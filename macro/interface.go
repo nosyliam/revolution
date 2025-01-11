@@ -27,6 +27,7 @@ type Interface struct {
 	Account  string
 
 	NetworkClient *networking.Client
+	NetworkRelay  *networking.Relay
 
 	pause    chan struct{}
 	unpause  chan struct{}
@@ -239,6 +240,7 @@ func NewInterface(
 		command: make(chan []string, 100),
 	}
 	ifc.NetworkClient = networking.NewClient(state, ifc.Logger)
+	ifc.NetworkRelay = networking.NewRelay(ifc.NetworkClient, state, ifc.Logger)
 	go ifc.NetworkClient.Start()
 	return ifc
 }

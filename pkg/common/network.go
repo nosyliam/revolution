@@ -10,10 +10,9 @@ const (
 	ConnectedIdentitiesMessageKind
 	SetRoleMessageKind
 	AckSetRoleMessageKind
-	QueryMainAccountMessageKind
-	MainAccountMessageKind
 	VicDetectMessageKind
 	NightDetectMessageKind
+	ShutdownMessageKind
 	UnknownMessageKind
 )
 
@@ -31,7 +30,7 @@ type Message struct {
 	Receiver string
 	Content  string
 
-	Data string `json:"-"`
+	Data []byte `json:"-"`
 }
 
 type Network struct {

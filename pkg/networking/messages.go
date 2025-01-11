@@ -12,10 +12,12 @@ type MessageKindEnumerator []MessageKind
 var MessageKinds = MessageKindEnumerator{
 	RegistrationMessageKind,
 	AckRegistrationMessageKind,
+	ConnectedIdentitiesMessageKind,
 	AckSetRoleMessageKind,
 	SetRoleMessageKind,
 	VicDetectMessageKind,
 	NightDetectMessageKind,
+	ShutdownMessageKind,
 }
 
 func (m *MessageKindEnumerator) Determine(data interface{}) MessageKind {
@@ -70,6 +72,8 @@ type NightDetectMessage struct {
 }
 
 type EmptyMessage struct{}
+
+type ShutdownMessage EmptyMessage
 
 func SubscribeMessage[T any](macro *Macro, kind MessageKind, callback func(message *T)) {
 	watcher := macro.Network.Client.Subscribe(kind)

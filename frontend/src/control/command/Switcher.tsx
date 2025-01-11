@@ -19,6 +19,8 @@ export function PresetSwitcher() {
         activeIdx = 0
     }
 
+    console.log(activePreset)
+
     const changePreset = (delta: number) => SetAccountPreset(account, presets[activeIdx + delta].key)
 
     return (

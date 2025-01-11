@@ -17,7 +17,7 @@ export default function Settings() {
 
     return (
         <Group style={{height: '100%', flexWrap: 'nowrap'}} gap={8}>
-            <Paper shadow="xs" w={150} style={{height: '100%'}}>
+            <Paper shadow="xs" maw={150} miw={150} style={{height: '100%'}}>
                 <FloatingSelector selections={Object.keys(pages)} active={active} setActive={setActive}/>
             </Paper>
 
