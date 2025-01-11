@@ -19,9 +19,10 @@ const (
 type ClientRole int
 
 const (
-	MainClientRole     ClientRole = iota
-	SearcherClientRole ClientRole = iota
-	PassiveClientRole  ClientRole = iota
+	MainClientRole ClientRole = iota
+	SearcherClientRole
+	PassiveClientRole
+	InactiveClientRole
 )
 
 type Message struct {
