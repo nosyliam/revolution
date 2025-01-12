@@ -10,6 +10,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/movement"
 	"github.com/nosyliam/revolution/pkg/networking"
+	"github.com/nosyliam/revolution/pkg/vichop"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/sqweek/dialog"
 )
@@ -24,6 +25,7 @@ type Interface struct {
 	WinMgr   *window.Manager
 	Logger   *logging.Logger
 	Macro    *common.Macro
+	VicHop   *vichop.Manager
 	Account  string
 
 	NetworkClient *networking.Client
@@ -221,6 +223,7 @@ func NewInterface(
 	database *config.Object[config.AccountDatabase],
 	pattern common.PatternLoader,
 	winMgr *window.Manager,
+	vicHop *vichop.Manager,
 	eventBus common.EventBus,
 	backend common.Backend,
 ) *Interface {
@@ -233,6 +236,7 @@ func NewInterface(
 		Logger:   logging.NewLogger(account, settings),
 		State:    state,
 		WinMgr:   winMgr,
+		VicHop:   vicHop,
 		Account:  account,
 
 		pause:   make(chan struct{}, 1),

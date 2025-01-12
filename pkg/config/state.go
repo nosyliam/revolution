@@ -62,7 +62,7 @@ type VicHopStatistics struct {
 
 type VicHopVersion struct {
 	DatasetVersion     string `state:"datasetVersion"`
-	DownloadingDataset string `state:"downloadingDataset"`
+	DownloadingDataset bool   `state:"downloadingDataset"`
 	UpToDate           string `state:"upToDate"`
 }
 

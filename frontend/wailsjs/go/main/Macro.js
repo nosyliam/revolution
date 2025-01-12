@@ -14,6 +14,10 @@ export function DeletePreset(arg1) {
   return window['go']['main']['Macro']['DeletePreset'](arg1);
 }
 
+export function DownloadDataset() {
+  return window['go']['main']['Macro']['DownloadDataset']();
+}
+
 export function GetLoginCode() {
   return window['go']['main']['Macro']['GetLoginCode']();
 }

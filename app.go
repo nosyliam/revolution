@@ -10,6 +10,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/control"
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/movement"
+	"github.com/nosyliam/revolution/pkg/vichop"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
@@ -28,6 +29,7 @@ type Macro struct {
 	eventBus  common.EventBus
 	backend   common.Backend
 	windowMgr *window.Manager
+	vicHop    *vichop.Manager
 
 	interfaces map[string]*macro.Interface
 
@@ -76,6 +78,13 @@ func (m *Macro) startup(ctx context.Context) {
 		os.Exit(1)
 	}
 	go m.eventBus.Start()
+	m.vicHop = vichop.NewManager(m.state)
+	if err := m.vicHop.Dataset.CheckVersion(); err != nil {
+		dialog.Message(fmt.Sprintf("Failed to check Vic Hop dataset version: %v", err.Error())).Error()
+	}
+	if err := m.vicHop.Dataset.Load(); err != nil {
+		dialog.Message(fmt.Sprintf("Failed to load Vic Hop dataset: %v", err.Error())).Error()
+	}
 
 	presets := *Concrete[[]*Object[Settings]](m.config, "presets")
 	var accounts = make(map[string]*Object[Settings])
@@ -127,10 +136,10 @@ func (m *Macro) startup(ctx context.Context) {
 			m.database,
 			m.pattern,
 			m.windowMgr,
+			m.vicHop,
 			m.eventBus,
 			m.backend,
 		)
-		fmt.Println("int init", m.interfaces)
 	}
 
 	runtime.EventsOn(ctx, "command", func(data ...interface{}) {
@@ -231,6 +240,17 @@ func (m *Macro) StartRelay(instance string) string {
 func (m *Macro) StopRelay(instance string) {
 	account := m.interfaces[instance]
 	account.NetworkRelay.Stop()
+}
+
+func (m *Macro) AddRelay(instance string, address string) {
+	account := m.interfaces[instance]
+	account.NetworkRelay.Stop()
+}
+
+func (m *Macro) DownloadDataset() {
+	if err := m.vicHop.Dataset.Update(); err != nil {
+		dialog.Message(fmt.Sprintf("Failed to update Vic Hop dataset: %v", err.Error())).Error()
+	}
 }
 
 func (m *Macro) SetAccountPreset(account, name string) string {

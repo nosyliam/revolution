@@ -1,6 +1,6 @@
 ## OpenCV Bindings
 
-This directory contains stripped-down bindings extracted from GoCV. You must build OpenCV from source and install to this directory..
+This directory contains stripped-down bindings extracted from GoCV. You must build OpenCV from source and install to this directory.
 
 ### Build Instructions
 

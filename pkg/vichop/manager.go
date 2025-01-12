@@ -1,9 +1,19 @@
 package vichop
 
-import "github.com/nosyliam/revolution/pkg/common"
+import (
+	"github.com/nosyliam/revolution/pkg/common"
+	"github.com/nosyliam/revolution/pkg/config"
+)
 
 type Manager struct {
-	macros []*common.Macro
+	Dataset *Dataset
+	macros  []*common.Macro
+}
+
+func NewManager(state *config.Object[config.State]) *Manager {
+	return &Manager{
+		Dataset: NewDataset(state),
+	}
 }
 
 func RegisterMacro(macro *common.Macro) {
@@ -11,9 +21,5 @@ func RegisterMacro(macro *common.Macro) {
 }
 
 func UnregisterMacro(macro *common.Macro) {
-
-}
-
-func NewManager() {
 
 }

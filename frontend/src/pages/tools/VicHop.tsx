@@ -3,6 +3,7 @@ import {RuntimeContext} from "../../hooks/useRuntime";
 import {Button, Group, Paper, Select, Stack, Switch, Table, Text} from "@mantine/core";
 import ControlBox from "../../components/ControlBox";
 import {IconCheck, IconDownload} from "@tabler/icons-react";
+import {DownloadDataset} from "../../../wailsjs/go/main/Macro";
 
 export default function VicHop() {
     const runtime = useContext(RuntimeContext)
@@ -11,7 +12,8 @@ export default function VicHop() {
     const vichop = preset.Object("vicHop")
 
     const status = state.Object("vicHop")
-    const version = status.Value("datasetVersion", "Missing")
+    const version = status.Value("datasetVersion", "INVALID")
+    const downloading = status.Value("downloadingDatset", false)
     const upToDate = !status.Value("upToDate", false)
 
     const enabled = vichop.Value("enabled", false)
@@ -50,10 +52,11 @@ export default function VicHop() {
                 />
             </ControlBox>
             <ControlBox height={38} title="Dataset Version">
-                <Text fz={14} mr={8} c="gray.6">1.0</Text>
+                <Text fz={14} mr={8} c="gray.6">{ version }</Text>
                 <Button
-                    onClick={() => {
-                    }}
+                    onClick={DownloadDataset}
+                    disabled={downloading}
+                    loading={downloading}
                     rightSection={upToDate ? <IconCheck size={20}/> : <IconDownload size={20}/>}
                     color={upToDate ? 'green' : 'blue'}
                     style={{pointerEvents: upToDate ? 'none' : undefined}}
