@@ -37,11 +37,12 @@ type interval struct {
 //
 // The scheduler clock is defined by the speed at which the underlying OS backend pushes new frames (which is usually 30fps).
 type Scheduler struct {
-	macro    *common.Macro
-	close    chan struct{}
-	stop     chan<- struct{}
-	redirect chan<- *common.RedirectExecution
-	tick     int
+	macro       *common.Macro
+	close       chan struct{}
+	stop        chan<- struct{}
+	redirect    chan<- *common.RedirectExecution
+	tick        int
+	adjustFails int
 }
 
 func RegisterInterval(
@@ -107,11 +108,15 @@ func (s *Scheduler) Tick(frame *image.RGBA) {
 		}
 		// Fix window every 5 ticks to avoid expensive CGo calls
 		if s.tick%5 == 0 || frame == nil {
-			if err := s.macro.Root.Window.Fix(); err != nil {
+			if err := s.macro.Root.Window.Fix(); err != nil && s.adjustFails > 100 {
 				s.macro.Action(Error("Failed to adjust Roblox! Re-opening")(Status))
 				s.macro.Action(Error("Failed to adjust Roblox: %s! Attempting to re-open", err)(Discord))
 				s.macro.SetRedirect(routines.OpenRobloxRoutineKind)
 				return
+			} else if err != nil {
+				s.adjustFails++
+			} else {
+				s.adjustFails = 0
 			}
 		}
 	} else if s.macro.Scratch.Redirect || opening {

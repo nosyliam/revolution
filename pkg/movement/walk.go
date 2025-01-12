@@ -56,27 +56,25 @@ func walk(direction Direction, distance float64, macro *common.Macro, async bool
 				if !async {
 					finish <- struct{}{}
 				}
+				macro.BuffDetect.Unwatch(change)
 				return
 			case resume := <-watch: // TODO: Clean up unused timer
 				end := time.Now()
 				<-macro.EventBus.KeyUp(macro, common.Key(direction))
 				if resume == nil {
-					fmt.Println("exiting")
 					if !async {
 						finish <- struct{}{}
 					}
 					return
 				}
-				fmt.Println("waiting for resume")
 				<-resume
-				fmt.Println("resumed")
 				<-macro.EventBus.KeyDown(macro, common.Key(direction))
 				remaining -= (end.Sub(start)).Seconds() * speed
-				fmt.Println("remaining", remaining)
+				macro.BuffDetect.Unwatch(change)
 			case <-change:
 				remaining -= (time.Now().Sub(start)).Seconds() * speed
+				macro.BuffDetect.Unwatch(change)
 			}
-			close(change)
 		}
 	}()
 	if !async {

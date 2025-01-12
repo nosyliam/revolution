@@ -6,60 +6,54 @@ function goToCannon()
         KeyPress(Key.ZoomOut)
     end
 
-
-    -- was: walk(3200, "f")
     Walk(Direction.Forward, 83.2)
-
-    -- was: walk(50, "b")
     Walk(Direction.Backward, 4)
-
-    -- was: walk(3700, "r")
     Walk(Direction.Right, 96.2)
 
-
-
-    KeyDown(Key.Space)
     KeyDown(Key.Right)
-    Sleep(50)
-    KeyUp(Key.Space)
-    Sleep(500)
-    KeyDown(Key.Space)
-    Sleep(50)
-    KeyUp(Key.Space)
-    Sleep(1050)
+    KeyPress(Key.Space)
+    Sleep(300)
+    KeyPress(Key.Space)
+    Sleep(1000)
+    KeyPress(Key.Space)
+    Sleep(300)
+    KeyPress(Key.Space)
     KeyUp(Key.Right)
 end
 
 -- GO TO MT
 function goToMT()
-    -- Send e (not in KeyPress enumerations)
-    -- Send {, 4} => KeyPress(Key.RotLeft) x4
+    KeyPress(Key.E)
     for i = 1, 4 do
         KeyPress(Key.RotLeft)
     end
-    Sleep(1200)
 
-    -- AHK: {d down}, multiple KeyPress(Key.Space)...
-    KeyPress(Key.Space)
-    KeyPress(Key.Space)
-    Sleep(2800)
-    -- done pressing d
-
-    -- was: walk(5000, "f")
-    Walk(Direction.Forward, 5000)
-    -- was: walk(7350, "l")
-    Walk(Direction.Left, 7350)
-    -- was: walk(500, "b")
-    Walk(Direction.Backward, 500)
+    Sleep(1000)
 
     KeyPress(Key.Space)
+    KeyPress(Key.Space)
+    KeyDown(Key.Right)
 
-    -- Send {. 2} => RotRight x2
+    Sleep(2700)
+
+    KeyUp(Key.Right)
+    KeyDown(Key.Forward)
+
+    Sleep(1500)
+
+    KeyPress(Key.Space)
+    KeyUp(Key.Forward)
+
+    Walk(Direction.Forward, 130)
+    Walk(Direction.Left, 191.1)
+    Walk(Direction.Backward, 13)
+
+    KeyPress(Key.Shift)
+
     for i = 1, 2 do
         KeyPress(Key.RotRight)
     end
 
-    -- Send {PgDn 9}, {PgUp 2}
     for i = 1, 9 do
         KeyPress(Key.RotDown)
     end
@@ -68,11 +62,10 @@ function goToMT()
     end
     Sleep(50)
 
-    -- ;screenshot => PerformDetection()
     PerformDetection()
-    Sleep(1000)
+    Sleep(2000)
 
-    KeyPress(Key.Space)
+    KeyPress(Key.Shift)
 end
 
 -- GO TO SPID
@@ -86,26 +79,19 @@ function goToSpid()
     Sleep(50)
     KeyPress(Key.RotUp)
 
-    -- was: walk(7350, "b")
-    Walk(Direction.Backward, 7350)
-    -- was: walk(3600, "l")
-    Walk(Direction.Left, 3600)
+    Walk(Direction.Backward, 193)
+    Walk(Direction.Left, 93.6)
 
-    KeyPress(Key.Space)
     KeyPress(Key.Space)
     Sleep(350)
     KeyPress(Key.Space)
-    KeyPress(Key.Space)
     Sleep(3000)
 
-    -- was: walk(3000, "f")
-    Walk(Direction.Forward, 3000)
-    -- was: walk(1000, "r")
-    Walk(Direction.Right, 1000)
-    -- was: walk(1000, "f")
-    Walk(Direction.Forward, 1000)
+    Walk(Direction.Forward, 78)
+    Walk(Direction.Right, 26)
+    Walk(Direction.Forward, 56)
 
-    KeyPress(Key.Space)
+    KeyPress(Key.Shift)
 
     for i = 1, 9 do
         KeyPress(Key.RotDown)
@@ -113,108 +99,89 @@ function goToSpid()
 
     for i = 1, 5 do
         KeyPress(Key.RotUp)
-        Sleep(50)
     end
 
     for i = 1, 10 do
         KeyPress(Key.ZoomOut)
     end
 
-    -- ;screenshot => PerformDetection()
     PerformDetection()
-    Sleep(1000)
+    Sleep(2000)
 
-    KeyPress(Key.Space)
+    KeyPress(Key.Shift)
 end
 
 -- GO TO CAC
 function goToCac()
     for i = 1, 2 do
         KeyPress(Key.RotUp)
-        Sleep(50)
     end
 
-    -- was: walk(100, "l")
-    Walk(Direction.Left, 100)
-    -- was: walk(550, "b")
-    Walk(Direction.Backward, 550)
+    Walk(Direction.Left, 2.6)
+    Walk(Direction.Backward, 14)
+    Walk(Direction.Left, 30)
 
     KeyPress(Key.Space)
-    Sleep(300)
+    Sleep(200)
 
-    -- was: walk(1000, "f")
-    Walk(Direction.Forward, 1000)
-    -- was: walk(250, "r")
-    Walk(Direction.Right, 250)
+    Walk(Direction.Forward, 26)
+    Walk(Direction.Right, 39)
 
-    -- Press w+d for 5s, etc. => not in enumerations
+    WalkAsync(Direction.Forward, 130)
+    Walk(Direction.Right, 130)
 
-    -- was: walk(50, "l")
-    Walk(Direction.Left, 50)
-    -- was: walk(50, "b")
-    Walk(Direction.Backward, 50)
-
+    Walk(Direction.Forward, 20)
     KeyPress(Key.Space)
-    Sleep(50)
+    Walk(Direction.Forward, 46)
 
-    -- was: walk(6000, "f")
-    Walk(Direction.Forward, 6000)
-    -- was: walk(500, "r")
-    Walk(Direction.Right, 500)
+    Walk(Direction.Forward, 90)
+    Walk(Direction.Right, 30)
 
-    KeyPress(Key.Space)
+    KeyPress(Key.Shift)
 
     for i = 1, 9 do
         KeyPress(Key.RotDown)
     end
 
-    -- was: walk(600, "b")
-    Walk(Direction.Backward, 600)
+    Walk(Direction.Backward, 15.6)
+    Walk(Direction.Right, 10)
 
-    -- ;screenshot => PerformDetection()
+    Sleep(1000)
+
     PerformDetection()
     Sleep(1000)
 
-    -- was: walk(1950, "b")
-    Walk(Direction.Backward, 1950)
+    Walk(Direction.Backward, 50.7)
+    Walk(Direction.Right, 10)
 
-    -- ;screenshot => PerformDetection()
     PerformDetection()
     Sleep(1000)
 
-    KeyPress(Key.Space)
+    KeyPress(Key.Shift)
 
-    -- was: walk(3000, "f")
-    Walk(Direction.Forward, 3000)
+    Walk(Direction.Forward, 78)
 end
 
 -- GO TO ROSE
 function goToRose()
     for i = 1, 6 do
         KeyPress(Key.RotUp)
-        Sleep(50)
     end
 
-    -- was: walk(4000, "l")
-    Walk(Direction.Left, 4000)
-
-    KeyPress(Key.Space)
-    KeyPress(Key.Space)
-
-    -- was: walk(2700, "l")
-    Walk(Direction.Left, 2700)
-    -- was: walk(1500, "f")
-    Walk(Direction.Forward, 1500)
+    Walk(Direction.Left, 104)
 
     KeyPress(Key.Space)
 
-    -- Send {, 2}
+    Walk(Direction.Left, 70.2)
+    Walk(Direction.Forward, 39)
+
+    KeyPress(Key.Shift)
+
     for i = 1, 2 do
         KeyPress(Key.RotLeft)
     end
 
-    -- was: walk(1800, "b")
-    Walk(Direction.Backward, 1800)
+    Walk(Direction.Backward, 46.8)
 
     for i = 1, 9 do
         KeyPress(Key.RotDown)
@@ -225,10 +192,8 @@ function goToRose()
         Sleep(50)
     end
 
-    -- was: walk(50, "r")
-    Walk(Direction.Right, 50)
-    -- was: walk(50, "b")
-    Walk(Direction.Backward, 50)
+    Walk(Direction.Right, 1.3)
+    Walk(Direction.Backward, 1.3)
 
     for i = 1, 10 do
         KeyPress(Key.ZoomOut)
@@ -239,7 +204,6 @@ function goToRose()
         Sleep(50)
     end
 
-    -- ;screenshot => PerformDetection()
     PerformDetection()
 end
 
@@ -247,23 +211,21 @@ end
 function goToPep()
     goToCannon()
 
-    -- was: walk(2500, "r")
     Walk(Direction.Right, 68.0)
     KeyPress(Key.Space)
     KeyPress(Key.Space)
 
-    -- was: walk(750, "r")
-    Walk(Direction.Right, 21)
-    -- was: walk(50, "f")
-    Walk(Direction.Forward, 2)
+    Walk(Direction.Right, 16)
+    Walk(Direction.Forward, 12)
 
     KeyPress(Key.Space)
     KeyPress(Key.Space)
 
-    -- was: walk(2200, "f")
+    Sleep(50)
+
     Walk(Direction.Forward, 57.2)
     KeyDown(Key.Forward)
-    Walk(Direction.Right, 15.6)
+    Walk(Direction.Right, 17)
 
     KeyPress(Key.Space)
     KeyPress(Key.Space)
@@ -275,19 +237,15 @@ function goToPep()
     KeyPress(Key.Space)
     Sleep(2500)
 
-    -- pressed d, etc. => not in enumerations
     KeyDown(Key.Right)
     Sleep(1000)
     KeyUp(Key.Forward)
-    -- done pressing w
 
     KeyPress(Key.Space)
     KeyPress(Key.Space)
     Sleep(4000)
     KeyUp(Key.Right)
-    -- done pressing d
 
-    -- was: walk(300, "b")
     Walk(Direction.Backward, 7.8)
 
     KeyPress(Key.Space)
@@ -306,37 +264,36 @@ function goToPep()
     end
     Sleep(50)
 
-    -- ;screenshot => PerformDetection()
-    Sleep(100000)
-    PerformDetection()
+    KeyPress(Key.Shift)
 
-    -- Send, ^p (not in enumerations)
+    PerformDetection()
     Sleep(1000)
 
-    KeyPress(Key.Space)
+    KeyPress(Key.Shift)
+end
 
-    -- was: walk(50, "l")
-    Walk(Direction.Left, 1.3)
-    -- was: walk(1000, "b")
-    Walk(Direction.Backward, 26)
-
+function pepToCannon()
     KeyPress(Key.Space)
+    KeyDown(Key.Right)
+    Sleep(200)
+    KeyUp(Key.Right)
+    Walk(Direction.Backward, 40)
     KeyPress(Key.Space)
-    Sleep(350)
+    KeyDown(Key.Left)
+    KeyDown(Key.Backward)
+    Sleep(200)
     KeyPress(Key.Space)
+    Sleep(2650)
+    KeyUp(Key.Backward)
+    Sleep(700)
+    KeyUp(Key.Left)
     KeyPress(Key.Space)
-    Sleep(1400)
-
-    -- was: walk(5500, "l")
-    Walk(Direction.Left, 143)
-    -- was: walk(1650, "b")
-    Walk(Direction.Backward, 42.9)
-    -- was: walk(1200, "l")
-    Walk(Direction.Left, 31.2)
+    Sleep(1000)
 end
 
 goToPep()
---goToMT()
---goToSpid()
---goToCac()
---goToRose()
+pepToCannon()
+goToMT()
+goToSpid()
+goToCac()
+goToRose()

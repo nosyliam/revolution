@@ -5,7 +5,7 @@ import (
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 )
 
-const ExecuteDevelopmentPatternRouteKind RoutineKind = "execute-development-pattern"
+const ExecuteDevelopmentPatternRoutineKind RoutineKind = "execute-development-pattern"
 
 var ExecuteDevelopmentPatternRoutine = Actions{
 	Info("Executing Pattern: %s", V[string]("PatternToExecute"))(Status),
@@ -13,5 +13,5 @@ var ExecuteDevelopmentPatternRoutine = Actions{
 }
 
 func init() {
-	ExecuteDevelopmentPatternRoutine.Register(ExecuteDevelopmentPatternRouteKind)
+	ExecuteDevelopmentPatternRoutine.Register(ExecuteDevelopmentPatternRoutineKind)
 }

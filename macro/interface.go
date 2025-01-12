@@ -71,7 +71,7 @@ func (i *Interface) ReceiveCommands() {
 					return
 				}
 				i.Macro.Scratch.Set("PatternToExecute", args[0])
-				if err := i.Macro.SetRedirect(develop.ExecuteDevelopmentPatternRouteKind); err != nil {
+				if err := i.Macro.SetRedirect(develop.ExecuteDevelopmentPatternRoutineKind); err != nil {
 					common.Console(logging.Error, err.Error())
 					return
 				}
@@ -84,6 +84,9 @@ func (i *Interface) ReceiveCommands() {
 }
 
 func (i *Interface) Start() {
+	for len(i.stop) > 0 {
+		<-i.stop
+	}
 	i.redirect = make(chan *common.RedirectExecution, 1)
 	pause := make(chan (<-chan struct{}), 1)
 	stop := make(chan struct{}, 1)
@@ -154,8 +157,6 @@ func (i *Interface) Start() {
 				}
 				i.Macro.Unlock()
 			case <-i.stop:
-				_ = i.State.SetPath("running", false)
-				_ = i.State.SetPath("status", "Ready")
 				i.Macro.Lock()
 				if i.Macro.Window != nil {
 					i.Macro.Window.Dissociate()
@@ -175,6 +176,8 @@ func (i *Interface) Start() {
 				i.command <- nil
 				i.Macro.Unlock()
 				i.Macro = nil
+				_ = i.State.SetPath("running", false)
+				_ = i.State.SetPath("status", "Ready")
 				return
 			}
 		}

@@ -80,8 +80,10 @@ func (w *windowBackend) freeWindow(id int) {
 		return
 	}
 	w.StopCapture(id)
+	w.mu.Lock()
 	C.CFRelease((C.CFTypeRef)(win.win.window))
 	C.free(unsafe.Pointer(win.win))
+	w.mu.Unlock()
 }
 
 func (w *windowBackend) getWindow(id int) (*windowData, error) {
@@ -247,6 +249,7 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 	}
 
 	for i := 0; i < 10; i++ {
+		fmt.Println("Attempting open")
 		cmd := exec.Command("open", "-n", url)
 		err = cmd.Start()
 		if err != nil {

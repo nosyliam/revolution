@@ -139,6 +139,10 @@ func (w *Window) Capturing() bool {
 }
 
 func (w *Window) Close() error {
+	if w.Capturing() {
+		w.backend.StartCapture(w.id)
+		w.capturing.Store(false)
+	}
 	if err := w.backend.CloseWindow(w.id); err != nil {
 		return errors.Wrap(err, "failed to close window")
 	}

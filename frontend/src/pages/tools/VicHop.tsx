@@ -13,8 +13,8 @@ export default function VicHop() {
 
     const status = state.Object("vicHop")
     const version = status.Value("datasetVersion", "INVALID")
-    const downloading = status.Value("downloadingDatset", false)
-    const upToDate = !status.Value("upToDate", false)
+    const downloading = status.Value("downloadingDataset", false)
+    const upToDate = status.Value("upToDate", false)
 
     const enabled = vichop.Value("enabled", false)
     const role = vichop.Value("role", "main")

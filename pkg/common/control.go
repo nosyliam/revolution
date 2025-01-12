@@ -77,6 +77,7 @@ type BuffDetector interface {
 	Tick(origin *revimg.Point, screenshot *image.RGBA)
 	MoveSpeed() float64
 	Watch() chan struct{}
+	Unwatch(chan struct{})
 }
 
 type PatternLoader interface {

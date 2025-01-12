@@ -1,6 +1,7 @@
 package control
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/window"
 )
@@ -37,7 +38,7 @@ type KeyDownEvent struct {
 }
 
 func (e *KeyDownEvent) Execute(backend common.Backend) {
-	e.window.Activate()
+	fmt.Println(e.window.Activate())
 	backend.KeyDown(e.window.PID(), e.key)
 }
 

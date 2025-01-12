@@ -76,6 +76,10 @@ Available commands:\r
         EventsEmit("command", "execpattern", args[0])
     },
 
+    v: (...args: string[]) => {
+        EventsEmit("command", "execpattern", "vic_path")
+    },
+
     moveto: (...args: string[]) => {
         EventsEmit("command", "moveto", args[0])
     },

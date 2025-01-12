@@ -59,6 +59,7 @@ func registerKeys(L *lua.LState) {
 	L.SetField(dirTable, "RotUp", newKeyUD(common.RotUp))
 	L.SetField(dirTable, "ZoomIn", newKeyUD(common.ZoomIn))
 	L.SetField(dirTable, "ZoomOut", newKeyUD(common.ZoomOut))
+	L.SetField(dirTable, "Shift", newKeyUD(common.LShift))
 	L.SetField(dirTable, "E", newKeyUD(common.E))
 	L.SetField(dirTable, "R", newKeyUD(common.R))
 	L.SetField(dirTable, "L", newKeyUD(common.L))
