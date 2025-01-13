@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
 
 const BroadcastReceiver = "!BROADCAST"
@@ -26,9 +27,11 @@ type Relay struct {
 	port       int
 	identities map[string]net.Conn
 	roles      map[string]string
+	banned     map[string]bool
 	state      *config.Object[config.MacroState]
 	logger     *logging.Logger
 	stop       chan struct{}
+	actionTime time.Time
 }
 
 func NewRelay(client *Client, state *config.Object[config.MacroState], logger *logging.Logger) *Relay {
@@ -36,6 +39,7 @@ func NewRelay(client *Client, state *config.Object[config.MacroState], logger *l
 		client:     client,
 		port:       45645, // squid game?
 		identities: make(map[string]net.Conn),
+		banned:     make(map[string]bool),
 		state:      state,
 		logger:     logger,
 	}
@@ -46,6 +50,12 @@ func (r *Relay) Identity() string {
 }
 
 func (r *Relay) Start() error {
+	if time.Now().Sub(r.actionTime) < time.Second {
+		return nil
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.actionTime = time.Now()
 	var err error
 	defer r.state.SetPath("networking.relayStarting", false)
 	r.state.SetPath("networking.relayStarting", true)
@@ -89,7 +99,26 @@ func (r *Relay) Start() error {
 	return nil
 }
 
+func (r *Relay) Ban(identity string) {
+	conn, ok := r.identities[identity]
+	if !ok {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	conn.Close()
+	r.banned[identity] = true
+	delete(r.identities, identity)
+	delete(r.roles, identity)
+}
+
 func (r *Relay) Stop() {
+	if time.Now().Sub(r.actionTime) < time.Second {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.actionTime = time.Now()
 	var message = Message{
 		Kind:     ShutdownMessageKind,
 		Receiver: BroadcastReceiver,

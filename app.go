@@ -242,9 +242,16 @@ func (m *Macro) StopRelay(instance string) {
 	account.NetworkRelay.Stop()
 }
 
-func (m *Macro) AddRelay(instance string, address string) {
+func (m *Macro) ConnectRelay(instance string, address string) {
 	account := m.interfaces[instance]
-	account.NetworkRelay.Stop()
+	if err := account.NetworkClient.Connect(address); err != nil {
+		dialog.Message(fmt.Sprintf("Failed to connect to relay: %v", err)).Error()
+	}
+}
+
+func (m *Macro) BanIdentity(instance string, identity string) {
+	account := m.interfaces[instance]
+	account.NetworkRelay.Ban(identity)
 }
 
 func (m *Macro) DownloadDataset() {

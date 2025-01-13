@@ -30,6 +30,7 @@ interface HistoricalEvent {
     reverted?: boolean
     index?: string | number
     previousValue?: ListValue
+    processed?: boolean
 }
 
 interface RollbackEvent {
@@ -169,6 +170,14 @@ export class Object implements Reactive {
         this.values[field] = {...data, value: value}
         if (!noEmit)
             this.runtime.Emit(this.Field(field), {op: "set", value: value}, previousValue)
+    }
+
+    public SetAfterInitialization<T extends Value>(field: string, value: T) {
+        const previousValue = this.values[field]?.value
+        let data: Field = this.values[field] || {value: value}
+        data.dispatch && data.dispatch(value)
+        this.values[field] = {...data, value: value}
+        this.runtime.EmitAfterInit(this.Field(field), {op: "set", value: value}, previousValue)
     }
 
     public List<T extends ListValue>(field: string): List<T> {
@@ -336,6 +345,7 @@ export class List<T extends ListValue> implements Reactive {
         const index = this.index(path)
         if (!path.peekFinal) {
             if (this.keyField) {
+                console.log("receive", this.keyField);
                 (this.values[index] as KeyedObject).object.Receive(path.increment(), event)
                 if (this.reactive)
                     this.dispatch && this.dispatch([...this.values])
@@ -492,6 +502,7 @@ export class Runtime {
     }
 
     Receive(path: Path, event: Event): void {
+        console.log(String(path), event)
         if (this.disconnected) {
             this.disconnected = false
             this.dispatchDisconnected!(false)
@@ -499,9 +510,13 @@ export class Runtime {
         this.processCriticalEvent(path, event)
         let history: HistoricalEvent
         if (Boolean(history = this.events[event.id!]) && !this.processedEvents.includes(event.id!)) {
-            this.processedEvents.push(event.id!)
             clearTimeout(history.timeout)
-            return
+            if (history.processed) {
+                this.processedEvents.push(event.id!)
+                return
+            } else {
+                history.processed = true
+            }
         }
         this.roots[path.value].Receive(path.increment(), event)
     }
@@ -537,7 +552,7 @@ export class Runtime {
         }
     }
 
-    public Emit(path: Path, event: EmittedEvent, previousValue?: ListValue, index?: string | number) {
+    public Emit(path: Path, event: EmittedEvent, previousValue?: ListValue, index?: string | number): number {
         const id = this.counter++
         const timeout = setTimeout(() => {
             this.disconnected = true
@@ -550,10 +565,18 @@ export class Runtime {
             index: index,
             path: path,
             previousValue: previousValue,
+            processed: true
         }
         const args = event.op == 'set' || event.op == 'append' ? [event.value == undefined ? '' : event.value] : []
         EventsEmit(`${event.op}_client`, String(path), ...args, id)
+        return id
     }
+
+    public EmitAfterInit(path: Path, event: EmittedEvent, previousValue?: ListValue, index?: string | number) {
+        const id = this.Emit(path, event, previousValue, index)
+        this.events[id].processed = false
+    }
+
 
     public Disconnected(): boolean {
         const [disconnected, setDisconnected] = useState(this.disconnected)

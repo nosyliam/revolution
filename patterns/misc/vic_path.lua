@@ -8,38 +8,38 @@ function goToCannon()
 
     Walk(Direction.Forward, 83.2)
     Walk(Direction.Backward, 4)
+    Walk(Direction.Right, 4)
+    Sleep(100)
     Walk(Direction.Right, 96.2)
 
     KeyDown(Key.Right)
     KeyPress(Key.Space)
-    Sleep(300)
+    Sleep(1300)
     KeyPress(Key.Space)
-    Sleep(1000)
-    KeyPress(Key.Space)
-    Sleep(300)
-    KeyPress(Key.Space)
+    Sleep(600)
     KeyUp(Key.Right)
 end
 
 -- GO TO MT
 function goToMT()
+    Sleep(500)
     KeyPress(Key.E)
     for i = 1, 4 do
         KeyPress(Key.RotLeft)
     end
 
-    Sleep(1000)
+    Sleep(1100)
 
     KeyPress(Key.Space)
     KeyPress(Key.Space)
     KeyDown(Key.Right)
 
-    Sleep(2700)
+    Sleep(2600)
 
     KeyUp(Key.Right)
     KeyDown(Key.Forward)
 
-    Sleep(1500)
+    Sleep(1800)
 
     KeyPress(Key.Space)
     KeyUp(Key.Forward)
@@ -211,9 +211,10 @@ end
 function goToPep()
     goToCannon()
 
-    Walk(Direction.Right, 68.0)
+    Walk(Direction.Right, 70.0)
     KeyPress(Key.Space)
     KeyPress(Key.Space)
+    Sleep(50)
 
     Walk(Direction.Right, 16)
     Walk(Direction.Forward, 12)
@@ -221,19 +222,16 @@ function goToPep()
     KeyPress(Key.Space)
     KeyPress(Key.Space)
 
-    Sleep(50)
+    Sleep(100)
 
-    Walk(Direction.Forward, 57.2)
+    Walk(Direction.Forward, 58)
     KeyDown(Key.Forward)
-    Walk(Direction.Right, 17)
+    Walk(Direction.Right, 20)
 
-    KeyPress(Key.Space)
     KeyPress(Key.Space)
     Sleep(800)
     KeyPress(Key.Space)
-    KeyPress(Key.Space)
     Sleep(1800)
-    KeyPress(Key.Space)
     KeyPress(Key.Space)
     Sleep(2500)
 
@@ -290,6 +288,8 @@ function pepToCannon()
     KeyPress(Key.Space)
     Sleep(1000)
 end
+
+
 
 goToPep()
 pepToCannon()

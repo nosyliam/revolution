@@ -17,7 +17,7 @@ type LoopState struct {
 type NetworkIdentity struct {
 	Address  string `yaml:"address" key:"true"`
 	Identity string `yaml:"identity"`
-	Role     string `yaml:"role"`
+	Role     string `yaml:"role,omitempty"`
 }
 
 type MacroNetworkingConfig struct {

@@ -78,6 +78,24 @@ func (i *Interface) ReceiveCommands() {
 				common.Console(logging.Success, "Pattern successfully queued for execution")
 				i.Unpause()
 			},
+			"execroutine": func(args ...string) {
+				if len(args) != 1 {
+					common.Console(logging.Error, "Expected a routine name!")
+					return
+				}
+				if i.Macro.Window == nil {
+					common.Console(logging.Error, "Macro not started!")
+					return
+				}
+				if _, ok := common.Routines[common.RoutineKind(args[0])]; !ok {
+					common.Console(logging.Error, fmt.Sprintf("Routine \"%s\" does not exist!", args[0]))
+					return
+				}
+				if err := i.Macro.SetRedirect(common.RoutineKind(args[0])); err != nil {
+					common.Console(logging.Error, err.Error())
+					return
+				}
+			},
 		}
 		go handlers[cmd[0]](cmd[1:]...)
 	}

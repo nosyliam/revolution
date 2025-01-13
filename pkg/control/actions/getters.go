@@ -14,6 +14,7 @@ const (
 	Offset          VariableName = "offset"
 	OffsetX         VariableName = "offset-x"
 	OffsetY         VariableName = "offset-y"
+	NightDetected   VariableName = "night-detected"
 )
 
 func S(path string) interface{} {
