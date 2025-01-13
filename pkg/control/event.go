@@ -1,7 +1,6 @@
 package control
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/window"
 )
@@ -38,8 +37,9 @@ type KeyDownEvent struct {
 }
 
 func (e *KeyDownEvent) Execute(backend common.Backend) {
-	fmt.Println(e.window.Activate())
-	backend.KeyDown(e.window.PID(), e.key)
+	if e.window.Activate() == nil {
+		backend.KeyDown(e.window.PID(), e.key)
+	}
 }
 
 type KeyUpEvent struct {
@@ -48,6 +48,7 @@ type KeyUpEvent struct {
 }
 
 func (e *KeyUpEvent) Execute(backend common.Backend) {
-	e.window.Activate()
-	backend.KeyUp(e.window.PID(), e.key)
+	if e.window.Activate() == nil {
+		backend.KeyUp(e.window.PID(), e.key)
+	}
 }

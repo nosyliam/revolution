@@ -72,6 +72,8 @@ void send_key_event(int pid, bool down, int key) {
 #include <windows.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <tlhelp32.h>
+#include <stdio.h>
 
 void microsleep(int ms, int* interrupt) {
 
@@ -95,6 +97,51 @@ void scroll_mouse(int x, int y) {
         input.mi.dwFlags = MOUSEEVENTF_HWHEEL;
         input.mi.mouseData = x * WHEEL_DELTA;
         SendInput(1, &input, sizeof(INPUT));
+    }
+}
+
+void attach_input_thread(int pid) {
+    HANDLE hSnapshot;
+    THREADENTRY32 te32;
+    DWORD targetThreadId = 0;
+    DWORD currentThreadId = GetCurrentThreadId();
+
+    // Take a snapshot of all threads in the system
+    hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (hSnapshot == INVALID_HANDLE_VALUE) {
+        printf("Failed to create thread snapshot.\n");
+        return;
+    }
+
+    te32.dwSize = sizeof(THREADENTRY32);
+
+    // Retrieve the first thread
+    if (Thread32First(hSnapshot, &te32)) {
+        do {
+            if (te32.th32OwnerProcessID == pid) {
+                targetThreadId = te32.th32ThreadID;
+                break;
+            }
+        } while (Thread32Next(hSnapshot, &te32));
+    } else {
+        printf("Failed to retrieve the first thread.\n");
+        CloseHandle(hSnapshot);
+        return;
+    }
+
+    CloseHandle(hSnapshot);
+
+    if (targetThreadId == 0) {
+        printf("No threads found for process ID %d.\n", pid);
+        return;
+    }
+
+    printf("Attaching current thread (TID: %lu) to target thread (TID: %lu)\n",
+           currentThreadId, targetThreadId);
+
+    // Attach the input threads
+    if (!AttachThreadInput(currentThreadId, targetThreadId, TRUE)) {
+        printf("Failed to attach input threads.\n");
     }
 }
 

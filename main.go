@@ -39,6 +39,10 @@ func main() {
 	if runtime.GOOS == "windows" {
 		height += 11
 	}
+	backdrop := windows.Acrylic
+	if determineOs() == "windows11" {
+		backdrop = windows.Mica
+	}
 
 	if err := wails.Run(&options.App{
 		Title:         "Revolution Macro",
@@ -48,12 +52,12 @@ func main() {
 		AssetServer: &assetserver.Options{
 			Assets: assets,
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 0},
+		BackgroundColour: &options.RGBA{R: 210, G: 211, B: 214, A: 0},
 		OnStartup:        app.startup,
 		Bind: []interface{}{
 			app,
 		},
-		AlwaysOnTop: false,
+		AlwaysOnTop: true,
 		Mac: &mac.Options{
 			TitleBar: &mac.TitleBar{
 				TitlebarAppearsTransparent: false,
@@ -68,8 +72,8 @@ func main() {
 		},
 		Windows: &windows.Options{
 			WebviewIsTransparent: true,
-			WindowIsTranslucent:  true,
-			BackdropType:         windows.Mica,
+			WindowIsTranslucent:  backdrop == windows.Mica,
+			BackdropType:         backdrop,
 			Theme:                windows.SystemDefault,
 		},
 	}); err != nil {

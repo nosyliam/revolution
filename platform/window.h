@@ -455,7 +455,15 @@ static Frame* get_window_frame(const Window* window) {
 }
 
 static void activate_window(const Window* window) {
-  SetForegroundWindow(window->hwnd);
+  if (GetForegroundWindow() != window->hwnd) {
+      SetForegroundWindow(window->hwnd);
+      for (int i = 0; i < 50; i++) {
+          if (GetForegroundWindow() == window->hwnd) {
+              return;
+          }
+          Sleep(10);
+      }
+  }
 }
 
 static BOOL CALLBACK EnumDisplayMonitorsProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {

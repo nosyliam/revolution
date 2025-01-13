@@ -13,6 +13,10 @@ var ControlBackend common.Backend = &controlBackend{}
 
 type controlBackend struct{}
 
+func (c controlBackend) AttachInput(pid int) {
+	C.attach_input_thread(C.int(pid))
+}
+
 func (c controlBackend) KeyDown(pid int, key common.Key) {
 	var extended = 0
 	if runtime.GOOS == "darwin" {

@@ -10,11 +10,16 @@ type event struct {
 }
 
 type eventBusImpl struct {
-	queue   chan event
-	backend common.Backend
+	queue       chan event
+	attachedPid map[int]bool
+	backend     common.Backend
 }
 
 func (e *eventBusImpl) KeyDown(macro *common.Macro, key common.Key) common.Receiver {
+	if _, ok := e.attachedPid[macro.Root.Window.PID()]; ok {
+		e.backend.AttachInput(macro.Root.Window.PID())
+		e.attachedPid[macro.Root.Window.PID()] = true
+	}
 	ch := make(chan struct{})
 	e.queue <- event{&KeyDownEvent{Event{macro.Root.Window}, key}, ch}
 	return ch
@@ -51,5 +56,5 @@ func (e *eventBusImpl) Start() {
 }
 
 func NewEventBus(backend common.Backend) common.EventBus {
-	return &eventBusImpl{backend: backend, queue: make(chan event, 1)}
+	return &eventBusImpl{backend: backend, queue: make(chan event, 1), attachedPid: make(map[int]bool)}
 }
