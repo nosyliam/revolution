@@ -26,7 +26,7 @@ type Relay struct {
 	listener   net.Listener
 	port       int
 	identities map[string]net.Conn
-	roles      map[string]string
+	roles      map[string]ClientRole
 	banned     map[string]bool
 	state      *config.Object[config.MacroState]
 	logger     *logging.Logger
@@ -40,6 +40,7 @@ func NewRelay(client *Client, state *config.Object[config.MacroState], logger *l
 		port:       45645, // squid game?
 		identities: make(map[string]net.Conn),
 		banned:     make(map[string]bool),
+		roles:      make(map[string]ClientRole),
 		state:      state,
 		logger:     logger,
 	}
@@ -178,9 +179,8 @@ func (r *Relay) handleConnection(conn net.Conn) {
 
 	r.mu.Lock()
 	r.identities[identity] = conn
-	r.mu.Unlock()
-
 	r.handleMessage(&ack)
+	r.mu.Unlock()
 	r.broadcastIdentities()
 
 	defer func() {
@@ -208,16 +208,14 @@ func (r *Relay) handleConnection(conn net.Conn) {
 	}
 }
 
-func (r *Relay) broadcastIdentities() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *Relay) broadcastIdentitiesLocked() {
 	var identities ConnectedIdentitiesMessage
 	for identity, conn := range r.identities {
 		role, _ := r.roles[identity]
 		identities.Identities = append(identities.Identities, config.NetworkIdentity{
 			Address:  conn.RemoteAddr().String(),
 			Identity: identity,
-			Role:     role,
+			Role:     string(role),
 		})
 	}
 	data, _ := json.Marshal(identities)
@@ -230,6 +228,48 @@ func (r *Relay) broadcastIdentities() {
 	r.handleMessage(&message)
 }
 
+func (r *Relay) broadcastIdentities() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.broadcastIdentitiesLocked()
+}
+
+func (r *Relay) handleRoleRegistration(message *Message) {
+	var content SetRoleMessage
+	if err := json.Unmarshal([]byte(message.Content), &content); err != nil {
+		r.logger.Log(0, logging.Warning, fmt.Sprintf("[Relay]: Failed to unmarshal role registration message from identity %s", message.Sender))
+		return
+	}
+	role, ok := r.roles[message.Sender]
+	if !ok {
+		role = "none"
+	}
+	r.logger.Log(0, logging.Info,
+		fmt.Sprintf("[Relay]: Received role registration message from identity %s: %s->%s", message.Sender, role, content.Role))
+	var ack AckSetRoleMessage
+	var ackMessage = Message{
+		Kind:     AckSetRoleMessageKind,
+		Receiver: message.Sender,
+		Sender:   RelayReceiver,
+	}
+	if role != content.Role {
+		if content.Role == MainClientRole {
+			for id, activeRole := range r.roles {
+				if activeRole == MainClientRole {
+					ack.Error = fmt.Sprintf("The main role is already taken by identity %s", id)
+				}
+			}
+		}
+		if ack.Error == "" {
+			r.roles[message.Sender] = content.Role
+		}
+	}
+	data, _ := json.Marshal(ack)
+	ackMessage.Content = string(data)
+	r.handleMessage(&ackMessage)
+	r.broadcastIdentitiesLocked()
+}
+
 func (r *Relay) handleMessage(message *Message) {
 	if string(message.Data) == "" {
 		message.Data, _ = json.Marshal(message)
@@ -237,7 +277,7 @@ func (r *Relay) handleMessage(message *Message) {
 	switch message.Receiver {
 	case RelayReceiver:
 		if message.Kind == SetRoleMessageKind {
-
+			r.handleRoleRegistration(message)
 		}
 	case BroadcastReceiver:
 		for id, conn := range r.identities {
@@ -250,7 +290,7 @@ func (r *Relay) handleMessage(message *Message) {
 		if strings.HasPrefix(message.Receiver, "!") {
 			role := strings.TrimPrefix(message.Receiver, "!")
 			for identity, idRole := range r.roles {
-				if idRole == role && identity != message.Sender {
+				if string(idRole) == role && identity != message.Sender {
 					r.identities[identity].Write(append(message.Data, "\r\n"...))
 				}
 			}
@@ -263,7 +303,5 @@ func (r *Relay) handleMessage(message *Message) {
 				fmt.Println(conn.Write(append(message.Data, "\r\n"...)))
 			}
 		}
-
 	}
-
 }

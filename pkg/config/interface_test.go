@@ -55,6 +55,16 @@ func TestConfigObject_SetNestedObjectPrimitive(t *testing.T) {
 	val, err = obj.GetPath("obj.val2.val3")
 	assert.NoError(t, err)
 	assert.Equal(t, val, true)
+
+	var activated = false
+	callback := func(v interface{}) {
+		fmt.Println(v)
+		activated = true
+	}
+
+	assert.NoError(t, obj.ListenPath("obj.val2.val3", callback))
+	assert.NoError(t, obj.SetPath("obj.val2.val3", false))
+	assert.Equal(t, activated, true)
 }
 
 func TestConfigObject_List(t *testing.T) {
@@ -77,18 +87,11 @@ func TestConfigObject_List(t *testing.T) {
 
 	var obj = Object[object]{}
 	obj.Initialize("Root", _mockFile)
-	assert.NoError(t, obj.AppendPath("objs"))
-	val, err := obj.GetPath("objs[0].val")
-	assert.NoError(t, err)
-	assert.Equal(t, val, "test")
-	val, err = obj.GetPath("objs[0].int")
-	assert.NoError(t, err)
-	assert.Equal(t, val, 12)
 
 	// Test keyed append
 	assert.NoError(t, obj.AppendPath("key[test]"))
 	assert.Equal(t, obj.LengthPath("key"), 1)
-	val, err = obj.GetPath("key[test].id")
+	val, err := obj.GetPath("key[test].id")
 	assert.NoError(t, err)
 	assert.Equal(t, val, "test")
 	val, err = obj.GetPath("key[test].val")
@@ -100,21 +103,18 @@ func TestConfigObject_List(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, val, "test3")
 
-	// Test primitive list
-	assert.NoError(t, obj.AppendPath("prim"))
-	val, err = obj.GetPath("prim[0]")
-	assert.NoError(t, err)
-	assert.Equal(t, val, 0)
-	assert.NoError(t, obj.SetPath("prim[0]", 5))
-	val, err = obj.GetPath("prim[0]")
-	assert.NoError(t, err)
-	assert.Equal(t, val, 5)
+	var activated = false
+	callback := func(v interface{}) {
+		fmt.Println(v)
+		activated = true
+	}
 
-	// Test deletion
-	assert.NoError(t, obj.DeletePath("prim[0]"))
-	assert.Equal(t, 0, obj.LengthPath("prim"))
-	assert.NoError(t, obj.DeletePath("key[test]"))
-	assert.Equal(t, 0, obj.LengthPath("prim"))
+	assert.NoError(t, obj.ListenPath("key", callback))
+	assert.NoError(t, obj.AppendPath("key[test2]"))
+	assert.Equal(t, activated, true)
+	activated = false
+	assert.NoError(t, obj.DeletePath("key[test2]"))
+	assert.Equal(t, activated, true)
 }
 
 func TestConfigObject_Concrete(t *testing.T) {

@@ -78,7 +78,9 @@ func (m *Macro) startup(ctx context.Context) {
 		os.Exit(1)
 	}
 	go m.eventBus.Start()
-	m.vicHop = vichop.NewManager(m.state)
+	m.vicHop = vichop.NewManager(m.config, m.state)
+	m.vicHop.Start()
+
 	if err := m.vicHop.Dataset.CheckVersion(); err != nil {
 		dialog.Message(fmt.Sprintf("Failed to check Vic Hop dataset version: %v", err.Error())).Error()
 	}
@@ -247,6 +249,11 @@ func (m *Macro) ConnectRelay(instance string, address string) {
 	if err := account.NetworkClient.Connect(address); err != nil {
 		dialog.Message(fmt.Sprintf("Failed to connect to relay: %v", err)).Error()
 	}
+}
+
+func (m *Macro) DisconnectRelay(instance string) {
+	account := m.interfaces[instance]
+	account.NetworkClient.Disconnect()
 }
 
 func (m *Macro) BanIdentity(instance string, identity string) {

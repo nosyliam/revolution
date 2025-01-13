@@ -8,6 +8,7 @@ import (
 	. "github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/logging"
+	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
 	"io"
 	"net"
@@ -17,6 +18,10 @@ import (
 	"time"
 
 	"github.com/grandcat/zeroconf"
+)
+
+var (
+	InactiveNetworkError = errors.New("inactive network")
 )
 
 type subscriber struct {
@@ -100,6 +105,35 @@ func (c *Client) Broadcast(content interface{}) {
 	c.Send(BroadcastReceiver, content)
 }
 
+func (c *Client) SetRole(role ClientRole) error {
+	if c.conn == nil {
+		return InactiveNetworkError
+	}
+	c.state.SetPath("status", "Registering role with relay")
+	sub := c.SubscribeOnce(AckSetRoleMessageKind)
+	c.Send(RelayReceiver, SetRoleMessage{role})
+	select {
+	case message := <-sub:
+		var ack AckSetRoleMessage
+		if err := json.Unmarshal([]byte(message.Content), &ack); err != nil {
+			c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: Failed to unmarshal role acknowledgement: %v", err))
+			c.state.SetPath("networking.roleRegisterError", "failed to unmarshal role acknowledgement")
+			return err
+		}
+		if ack.Error != "" {
+			c.state.SetPath("networking.roleRegisterError", fmt.Sprintf("registration rejected: %s", ack.Error))
+			return errors.New(ack.Error)
+		}
+		return nil
+	case <-time.After(10 * time.Second):
+		c.logger.Log(0, logging.Error, "[Client]: Failed to register role with relay: no acknowledgement received!")
+		c.state.SetPath("networking.roleRegisterError", "no role acknowledgement received")
+		return errors.New("no role acknowledgement received")
+	case <-c.stop:
+		return InactiveNetworkError
+	}
+}
+
 func (c *Client) Connect(address string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -108,7 +142,7 @@ func (c *Client) Connect(address string) error {
 		return nil
 	}
 
-	_ = c.state.SetPath("networking.connectingAddress", address)
+	fmt.Println("conn", c.state.SetPath("networking.connectingAddress", address))
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
 		dialog.Message(fmt.Sprintf("Failed to connect to %s: %v", address, err))
@@ -139,7 +173,7 @@ func (c *Client) Start() {
 		case message := <-c.SubscribeOnce(AckRegistrationMessageKind):
 			var ack AckRegistrationMessage
 			if err := json.Unmarshal([]byte(message.Content), &ack); err != nil {
-				c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: failed to unmarshal registration acknowledgement: %v", err))
+				c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: Failed to unmarshal registration acknowledgement: %v", err))
 				c.Disconnect()
 				continue
 			}
@@ -150,7 +184,7 @@ func (c *Client) Start() {
 			}
 			break
 		case <-time.After(10 * time.Second):
-			c.logger.Log(0, logging.Error, "[Client]: failed to connect to relay: no registration acknowledgement received!")
+			c.logger.Log(0, logging.Error, "[Client]: Failed to connect to relay: no registration acknowledgement received!")
 			c.Disconnect()
 			continue
 		case <-c.stop:
@@ -271,22 +305,28 @@ func (c *Client) discoverRelays() {
 
 func (c *Client) handleConnectedIdentities(message Message) {
 	var data ConnectedIdentitiesMessage
+	fmt.Println(string(message.Content))
 	if err := json.Unmarshal([]byte(message.Content), &data); err != nil {
-		c.logger.Log(0, logging.Warning, fmt.Sprintf("[Client]: failed to unserialize connected identities message: %v", err))
+		c.logger.Log(0, logging.Warning, fmt.Sprintf("[Client]: Failed to unserialize connected identities message: %v", err))
 		return
 	}
-	var identities = make(map[string]*config.NetworkIdentity)
+	var identities = make(map[string]config.NetworkIdentity)
 	for _, identity := range data.Identities {
-		identities[identity.Address] = &identity
+		identities[identity.Address] = identity
 	}
+	fmt.Println("identities", identities)
 	var removedIdentities []string
 	var existingIdentities = make(map[string]bool)
 	status := c.state.Object().Networking.Object()
 	status.ConnectedIdentities.ForEach(func(id *config.NetworkIdentity) {
-		if _, ok := identities[id.Address]; !ok {
+		if newId, ok := identities[id.Address]; !ok {
 			removedIdentities = append(removedIdentities, id.Address)
 		} else {
 			existingIdentities[id.Address] = true
+			if id.Role != newId.Role {
+				fmt.Println("updating role", newId.Role)
+				c.state.SetPathf(newId.Role, "networking.connectedIdentities[%s].role", id.Address)
+			}
 		}
 	})
 	for _, id := range removedIdentities {
@@ -296,6 +336,7 @@ func (c *Client) handleConnectedIdentities(message Message) {
 		if _, ok := existingIdentities[address]; !ok {
 			c.state.AppendPathf("networking.connectedIdentities[%s]", address)
 			c.state.SetPathf(id.Identity, "networking.connectedIdentities[%s].identity", address)
+			c.state.SetPathf(id.Role, "networking.connectedIdentities[%s].role", address)
 		}
 	}
 }
@@ -323,6 +364,7 @@ func (c *Client) listenForMessages() {
 			c.handleShutdown()
 			break
 		default:
+			fmt.Println("receive message", msg.Kind, string(msg.Content))
 			if _, ok := c.watchers[msg.Kind]; !ok {
 				c.logger.Log(0, logging.Warning, "[Client]: received invalid message type from relay!")
 				continue

@@ -75,6 +75,10 @@ var DetectNightRoutine = Actions{
 		Info("Night Detected")(Status, Discord),
 		Set(NightDetected, true),
 	),
+	Loop(
+		For(2),
+		KeyPress(RotDown),
+	),
 }
 
 func init() {

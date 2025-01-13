@@ -12,6 +12,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/networking"
 	"github.com/nosyliam/revolution/pkg/vichop"
 	"github.com/nosyliam/revolution/pkg/window"
+	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
 )
 
@@ -127,11 +128,22 @@ func (i *Interface) Start() {
 		Stop:       i.stop,
 		Redirect:   i.redirect,
 	}
+	i.Macro.Network = &common.Network{
+		Client: i.NetworkClient,
+		Relay:  i.NetworkRelay,
+	}
 	i.Macro.Scheduler = NewScheduler(i.redirect, i.stop)
 
-	status := make(chan string)
+	i.State.SetPath("running", true)
+	if err := i.VicHop.RegisterMacro(i.Macro); err != nil {
+		i.Macro = nil
+		i.State.SetPath("running", false)
+		i.State.SetPath("status", "Ready")
+		dialog.Message(errors.Wrap(err, "Failed to register with Vic Hop").Error()).Error()
+		return
+	}
 
-	_ = i.State.SetPath("running", true)
+	status := make(chan string)
 
 	go func() {
 		for {
@@ -190,6 +202,7 @@ func (i *Interface) Start() {
 				if len(stop) == 0 {
 					stop <- struct{}{}
 				}
+				i.NetworkClient.SetRole(common.InactiveClientRole)
 				i.Macro.Scheduler.Close()
 				i.command <- nil
 				i.Macro.Unlock()

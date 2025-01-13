@@ -9,6 +9,8 @@ export function DeleteAccount(arg1:string):Promise<string>;
 
 export function DeletePreset(arg1:string):Promise<string>;
 
+export function DisconnectRelay(arg1:string):Promise<void>;
+
 export function DownloadDataset():Promise<void>;
 
 export function GetLoginCode():Promise<string>;

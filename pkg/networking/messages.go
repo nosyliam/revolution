@@ -53,11 +53,11 @@ type ConnectedIdentitiesMessage struct {
 }
 
 type SetRoleMessage struct {
-	Role string
+	Role ClientRole
 }
 
 type AckSetRoleMessage struct {
-	Role string
+	Error string
 }
 
 type VicDetectMessage struct {

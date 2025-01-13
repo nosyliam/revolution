@@ -18,6 +18,10 @@ export function DeletePreset(arg1) {
   return window['go']['main']['Macro']['DeletePreset'](arg1);
 }
 
+export function DisconnectRelay(arg1) {
+  return window['go']['main']['Macro']['DisconnectRelay'](arg1);
+}
+
 export function DownloadDataset() {
   return window['go']['main']['Macro']['DownloadDataset']();
 }

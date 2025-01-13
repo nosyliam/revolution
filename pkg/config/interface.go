@@ -13,6 +13,14 @@ import (
 
 var AppContext context.Context
 
+type ListenOp int
+
+const (
+	Set ListenOp = iota
+	Append
+	Delete
+)
+
 type Reactive interface {
 	Initialize(path string, file Savable) error
 	Set(chain chain, index int, value interface{}) error
@@ -21,6 +29,7 @@ type Reactive interface {
 	Append(chain chain, index int, value interface{}) error
 	Delete(chain chain, index int) error
 	Length(chain chain, index int) int
+	Listen(chain chain, index int, callback func(ListenOp, interface{})) error
 	File() Savable
 }
 
@@ -34,8 +43,9 @@ type reactiveList interface {
 }
 
 type config struct {
-	path string
-	file Savable
+	path      string
+	file      Savable
+	listeners map[string]func(ListenOp, interface{})
 }
 
 func (c *config) File() Savable {
@@ -48,6 +58,25 @@ type link struct {
 }
 
 type chain []link
+
+func (c chain) String() string {
+	var output = ""
+	for i, clink := range c {
+		if i == 0 {
+			output += clink.val
+		}
+		if clink.brackets {
+			output += fmt.Sprintf("[%s]", clink.val)
+		} else {
+			output += fmt.Sprintf(".%s", clink.val)
+		}
+	}
+	return output
+}
+
+func (c chain) TrimRight() chain {
+	return c[:len(c)-1]
+}
 
 func (c *config) errPath(err string) error {
 	return errors.New(fmt.Sprintf("%s: %s", c.path, err))
@@ -96,11 +125,16 @@ func (c *config) setField(meta reflect.StructField, field reflect.Value, chain c
 	default:
 		return errors.New("unsupported value")
 	}
+	if listener, ok := c.listeners[chain.String()]; ok {
+		listener(Set, value)
+	}
+	// TODO: save before runtime update
 	if meta.Tag.Get("yaml") != "" {
 		if err := c.file.Save(); err != nil {
 			return errors.Wrap(err, "failed to save to file")
 		}
 	}
+
 	return nil
 }
 
@@ -220,7 +254,22 @@ func (c *List[T]) ForEach(callback func(*T)) {
 	}
 }
 
+func (c *List[T]) ForEachObject(callback func(*Object[T])) {
+	if c.prim != nil {
+		panic("cannot call for each object on a primitive list")
+	} else if c.index != nil {
+		for _, obj := range c.index {
+			callback(obj)
+		}
+	} else {
+		for _, obj := range c.obj {
+			callback(obj)
+		}
+	}
+}
+
 func (c *List[T]) Initialize(path string, file Savable) error {
+	c.listeners = make(map[string]func(ListenOp, interface{}))
 	c.file = file
 	if c.prim == nil && c.obj == nil {
 		var zero [0]T
@@ -406,6 +455,9 @@ func (c *List[T]) Append(chain chain, index int, value interface{}) error {
 				return errors.Wrap(err, "failed to save to file")
 			}
 		}
+		if listener, ok := c.listeners[chain.TrimRight().String()]; ok {
+			listener(Append, value.(T))
+		}
 		return nil
 	}
 
@@ -427,14 +479,15 @@ func (c *List[T]) Append(chain chain, index int, value interface{}) error {
 		c.file.Runtime().Append(path, false, c.keySz)
 		_ = cfo.Initialize(path, c.file)
 	}
-
 	c.obj = append(c.obj, cfo)
 	if c.meta.Tag.Get("yaml") != "" {
 		if err := c.file.Save(); err != nil {
 			return errors.Wrap(err, "failed to save to file")
 		}
 	}
-
+	if listener, ok := c.listeners[chain.TrimRight().String()]; ok {
+		listener(Append, cfo)
+	}
 	return nil
 }
 
@@ -483,12 +536,18 @@ func (c *List[T]) Delete(chain chain, index int) error {
 	delete(c.index, chain[index].val)
 	if c.prim != nil {
 		for i, _ := range c.prim {
+			if listener, ok := c.listeners[chain.TrimRight().String()]; ok {
+				listener(Delete, c.prim[i])
+			}
 			if i == idx {
 				c.prim = append(c.prim[:i], c.prim[i+1:]...)
 			}
 		}
 	} else {
 		for i, _ := range c.obj {
+			if listener, ok := c.listeners[chain.TrimRight().String()]; ok {
+				listener(Delete, c.obj[i])
+			}
 			if i == idx {
 				c.obj = append(c.obj[:i], c.obj[i+1:]...)
 			}
@@ -521,6 +580,33 @@ func (c *List[T]) Length(chain chain, index int) int {
 
 	field := reflect.ValueOf(c.obj).Index(idx)
 	return field.Interface().(Reactive).Length(chain, index+1)
+}
+
+func (c *List[T]) Listen(chain chain, index int, callback func(ListenOp, interface{})) error {
+	if len(chain) == index {
+		c.listeners[chain.String()] = callback
+		return nil
+	}
+	if c.prim != nil {
+		c.errPanic("cannot listen on a primitive value")
+	}
+	if !chain[index].brackets {
+		return c.errPath("list values must be indexed with brackets")
+	}
+	if c.index != nil {
+		if val, ok := c.index[chain[index].val]; ok {
+			return val.Listen(chain, index+1, callback)
+		} else {
+			return c.errPath(fmt.Sprintf("invalid key \"%s\"", chain[index].val))
+		}
+	}
+	var count int
+	idx, err := strconv.Atoi(chain[index].val)
+	if err != nil || (idx < 0 || idx >= count) {
+		return c.errPath("invalid integer index")
+	}
+
+	return c.obj[idx].Listen(chain, index+1, callback)
 }
 
 func (c *List[T]) list() interface{} {
@@ -564,6 +650,7 @@ func (c *Object[T]) UnmarshalYAML(unmarshal func(interface{}) error) error {
 func (c *Object[T]) Initialize(path string, file Savable) error {
 	c.path = path
 	c.file = file
+	c.listeners = make(map[string]func(ListenOp, interface{}))
 	if c.obj == nil {
 		c.obj = new(T)
 		t := reflect.TypeOf(c.obj).Elem()
@@ -746,13 +833,37 @@ func (c *Object[T]) Length(chain chain, index int) int {
 			case Reactive:
 				return obj.Length(chain, index+1)
 			default:
-				c.errPanic("cannot append to a primitive value")
+				c.errPanic("cannot get the length of a primitive value")
 			}
 		}
 	}
 
 	c.errPanic(fmt.Sprintf("field %s not found", chain[index].val))
 	return 0
+}
+
+func (c *Object[T]) Listen(chain chain, index int, callback func(ListenOp, interface{})) error {
+	if len(chain) == index {
+		c.errPanic("cannot listen on an object")
+	}
+	t := reflect.TypeOf(c.obj).Elem()
+	val := reflect.ValueOf(c.obj).Elem()
+
+	for i := 0; i < val.NumField(); i++ {
+		field := val.Field(i)
+		meta := t.Field(i)
+		if getFieldTag(meta.Tag) == chain[index].val {
+			switch obj := field.Interface().(type) {
+			case Reactive:
+				return obj.Listen(chain, index+1, callback)
+			default:
+				c.listeners[chain.String()] = callback
+				return nil
+			}
+		}
+	}
+
+	return c.errPath(fmt.Sprintf("field %s not found", chain[index].val))
 }
 
 func (c *Object[T]) SetPath(path string, value interface{}) error {
@@ -833,6 +944,14 @@ func (c *Object[T]) LengthPath(path string) int {
 		return 0
 	}
 	return c.Length(chain, 0)
+}
+
+func (c *Object[T]) ListenPath(path string, callback func(ListenOp, interface{})) error {
+	chain, err := compilePath(path)
+	if err != nil {
+		return nil
+	}
+	return c.Listen(chain, 0, callback)
 }
 
 func compilePath(path string) (chain, error) {

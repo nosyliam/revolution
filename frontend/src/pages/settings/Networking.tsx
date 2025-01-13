@@ -1,10 +1,12 @@
 import React, {useContext, useState} from "react";
 import {KeyedObject, RuntimeContext} from "../../hooks/useRuntime";
 import {
+    Badge,
     Box,
     Button,
     Flex,
-    Grid, Loader,
+    Grid,
+    Loader,
     Paper,
     ScrollArea,
     Stack,
@@ -22,7 +24,6 @@ import {
     IconForbidFilled,
     IconLogin2,
     IconLogout,
-    IconLogout2,
     IconNetwork,
     IconPlus,
     IconRocket,
@@ -30,7 +31,18 @@ import {
     IconStar
 } from "@tabler/icons-react";
 import {useHover} from "@mantine/hooks";
-import {BanIdentity, ConnectRelay, StartRelay, StopRelay} from "../../../wailsjs/go/main/Macro";
+import {BanIdentity, ConnectRelay, DisconnectRelay, StartRelay, StopRelay} from "../../../wailsjs/go/main/Macro";
+
+interface RoleMetadata {
+    color: string
+    text: string
+}
+
+const Roles: Record<string, RoleMetadata> = {
+    "main": {color: "green", text: "Main"},
+    "searcher": {color: "orange", text: "Searcher"},
+    "passive": {color: "gray", text: "Passive"}
+}
 
 function AddRelayModalContent() {
     const runtime = useContext(RuntimeContext)
@@ -84,6 +96,8 @@ export default function Networking() {
     let connectingAddress = networking.Value("connectingAddress", "")
     let connectedAddress = networking.Value("connectedAddress", "")
 
+    console.log("connecting to ", connectingAddress)
+
     let identity = networking.Value("identity", "Unknown/Unknown")
     let availableRelays = networking.List<KeyedObject>("availableRelays").Values(true)
     let savedRelays = networking.List<KeyedObject>("savedRelays").Values(true)
@@ -92,18 +106,21 @@ export default function Networking() {
 
     let mappedSavedRelays = savedRelays.map((v) => ({
         address: v.object.Concrete<string>("address"),
-        identity: v.object.Concrete<string>("identity")
+        identity: v.object.Concrete<string>("identity"),
+        role: 'none',
     }))
     console.log("saved", mappedSavedRelays)
 
     let mappedConnectedIdentities = connectedIdentities.map((v) => ({
         address: v.object.Concrete<string>("address"),
-        identity: v.object.Concrete<string>("identity")
+        identity: v.object.Concrete<string>("identity"),
+        role: v.object.Concrete<string>("role")
     }))
 
     let mappedRelays = availableRelays.map((v) => ({
         address: v.object.Concrete<string>("address"),
-        identity: v.object.Concrete<string>("identity")
+        identity: v.object.Concrete<string>("identity"),
+        role: 'none'
     }))
 
     let uniqueRelays = Array.from(
@@ -133,6 +150,7 @@ export default function Networking() {
             bottom: 0,
             right: 8
         }
+        console.log(relay.role)
 
         const action = () => {
             if (showNetwork) {
@@ -175,13 +193,22 @@ export default function Networking() {
                         </Text>
                     </Tooltip>
                     {connectingAddress != relay.address ? <div>
-                        <UnstyledButton onPointerEnter={() => setActionHovered(true)}
-                                        onPointerLeave={() => setActionHovered(false)} onClick={action}>
-                            {relayActive ? (actionHovered ? <IconForbidFilled size={18} style={actionStyle}/> :
-                                    <IconForbid size={18} style={actionStyle}/>)
-                                : <IconStar size={18} style={{...actionStyle, stroke: 'goldenrod'}}
-                                            fill={actionHovered || saved ? 'goldenrod' : 'none'}/>}
-                        </UnstyledButton>
+                        {(showNetwork && hoveredIndex != relay.address && Roles[relay.role!]) &&
+                            <Badge color={Roles[relay.role!].color} radius="sm" style={{
+                                position: 'absolute',
+                                bottom: 8,
+                                right: 8,
+                            }}>
+                                { Roles[relay.role!].text }
+                            </Badge>}
+                        {(relayActive || connectedAddress == "") &&
+                            <UnstyledButton onPointerEnter={() => setActionHovered(true)}
+                                            onPointerLeave={() => setActionHovered(false)} onClick={action}>
+                                {relayActive ? (actionHovered ? <IconForbidFilled size={18} style={actionStyle}/> :
+                                        <IconForbid size={18} style={actionStyle}/>)
+                                    : <IconStar size={18} style={{...actionStyle, stroke: 'goldenrod'}}
+                                                fill={actionHovered || saved ? 'goldenrod' : 'none'}/>}
+                            </UnstyledButton>}
                         {!showNetwork && <UnstyledButton onClick={connect}>
                             <IconLogin2 size={18} style={connectStyle}/>
                         </UnstyledButton>}
@@ -193,18 +220,19 @@ export default function Networking() {
 
     const openDisconnectModal = () => modals.openConfirmModal({
         title: 'Please confirm your action',
+        centered: true,
         children: (
             <Text size="sm">
                 Are you sure you want to disconnect from your current relay?
             </Text>
         ),
         labels: {confirm: 'Confirm', cancel: 'Cancel'},
-        onCancel: () => console.log('Cancel'),
-        onConfirm: () => console.log('Confirmed'),
+        onConfirm: () => DisconnectRelay(activeAccount),
     });
 
     const openShutdownModal = () => modals.openConfirmModal({
         title: 'Please confirm your action',
+        centered: true,
         children: (
             <Text size="sm">
                 Are you sure you want to shut down your relay? This will disconnect all connected clients.
@@ -241,6 +269,7 @@ export default function Networking() {
                     <ControlBox height={38} title="Relay">
                         <Button
                             onClick={() => relayActive ? StopRelay(activeAccount) : StartRelay(activeAccount)}
+                            disabled={!relayActive && connectedAddress != ""}
                             rightSection={relayActive ? <IconSquare size={18} fill="white"/> : <IconRocket size={18}/>}
                             color={relayActive ? 'green' : 'blue'}
                             w={100}
@@ -292,8 +321,11 @@ export default function Networking() {
                         </Button>}
                         {(showNetwork && !relayActive) && <UnstyledButton
                             ref={exitRef}
+                            mr={4}
+                            mt={6}
+                            onClick={openDisconnectModal}
                         >
-                            {exitHovered ? <IconLogout size={22}/> : <IconLogout2 size={22}/>}
+                            <IconLogout size={22} strokeWidth={exitHovered ? 2 : 1}/>
                         </UnstyledButton>}
                     </Flex>
 

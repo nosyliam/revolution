@@ -1,7 +1,5 @@
 package common
 
-import "github.com/nosyliam/revolution/pkg/config"
-
 type MessageKind int
 
 const (
@@ -16,13 +14,13 @@ const (
 	UnknownMessageKind
 )
 
-type ClientRole int
+type ClientRole string
 
 const (
-	MainClientRole ClientRole = iota
-	SearcherClientRole
-	PassiveClientRole
-	InactiveClientRole
+	MainClientRole     = "main"
+	SearcherClientRole = "searcher"
+	PassiveClientRole  = "passive"
+	InactiveClientRole = "inactive"
 )
 
 type Message struct {
@@ -44,10 +42,11 @@ type NetworkClient interface {
 	Close()
 	Subscribe(kind MessageKind) <-chan *Message
 	SubscribeOnce(kind MessageKind) <-chan *Message
+	SetRole(ClientRole) error
 	Send(receiver string, content interface{})
 	Broadcast(content interface{})
-	Connect(relay config.NetworkIdentity)
-	Disconnect() error
+	Connect(address string) error
+	Disconnect()
 }
 
 type NetworkRelay interface {
