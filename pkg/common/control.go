@@ -52,6 +52,7 @@ type Backend interface {
 	ScrollMouse(x, y int)
 	Sleep(ms int, interrupt Receiver)
 	SleepAsync(ms int, interrupt Receiver) Receiver
+	AttachInput(pid int)
 }
 
 type EventBus interface {

@@ -15,7 +15,7 @@ var ComputerName string
 var UserName string
 
 func getIdentity() string {
-	return strings.Replace(ComputerName+"/"+UserName, "\\", "/")
+	return strings.Replace(ComputerName+"/"+UserName, "\\", "/", -1)
 }
 
 func getComputerName() (string, error) {
