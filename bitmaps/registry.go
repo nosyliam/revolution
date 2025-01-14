@@ -3,8 +3,8 @@ package bitmaps
 import (
 	"bytes"
 	"github.com/nosyliam/revolution/bitmaps/buffs"
-	"github.com/nosyliam/revolution/bitmaps/convert"
 	"github.com/nosyliam/revolution/bitmaps/digits"
+	"github.com/nosyliam/revolution/bitmaps/hive"
 	"github.com/nosyliam/revolution/bitmaps/offset"
 	"github.com/nosyliam/revolution/bitmaps/reconnect"
 	"image"
@@ -43,7 +43,7 @@ func (b *bitmapRegistry) RegisterBase64(name string, data string) {}
 
 func (b *bitmapRegistry) initialize() {
 	offset.Register(b)
-	convert.Register(b)
+	hive.Register(b)
 	reconnect.Register(b)
 	digits.Register(b)
 	buffs.Register(b)

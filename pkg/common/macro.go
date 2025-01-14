@@ -143,6 +143,7 @@ func (m *Macro) Copy() *Macro {
 		Scheduler:  m.Scheduler,
 		Settings:   m.Settings,
 		State:      m.State,
+		MacroState: m.MacroState,
 		Database:   m.Database,
 		VicHop:     m.VicHop,
 		BuffDetect: m.BuffDetect,

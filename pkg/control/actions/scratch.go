@@ -47,8 +47,21 @@ func (a *incrementVariableAction) Execute(macro *common.Macro) error {
 	return nil
 }
 
+type decrementVariableAction struct {
+	name VariableName
+}
+
+func (a *decrementVariableAction) Execute(macro *common.Macro) error {
+	macro.Scratch.Decrement(string(a.name))
+	return nil
+}
+
 func Increment(name VariableName) common.Action {
 	return &incrementVariableAction{name: name}
+}
+
+func Decrement(name VariableName) common.Action {
+	return &decrementVariableAction{name: name}
 }
 
 type clearVariableAction struct {

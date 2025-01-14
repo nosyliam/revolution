@@ -184,6 +184,7 @@ func (a *loopAction) Execute(macro *common.Macro) error {
 		start(macro)
 	}
 	pred := a.loop.Predicate()
+	var breakLoop = false
 	for {
 		if pred(macro) {
 			for _, exec := range a.exec {
@@ -200,6 +201,7 @@ func (a *loopAction) Execute(macro *common.Macro) error {
 					<-<-macro.Pause
 				}
 				if unwind := state.Unwind; unwind != nil {
+					breakLoop = true
 					break
 				}
 			}
@@ -220,6 +222,9 @@ func (a *loopAction) Execute(macro *common.Macro) error {
 				break
 			}
 		} else {
+			break
+		}
+		if breakLoop {
 			break
 		}
 	}
@@ -278,8 +283,64 @@ type whileLoop struct {
 	predicate PredicateFunc
 }
 
+func (l *whileLoop) Predicate() PredicateFunc {
+	return func(macro *common.Macro) bool {
+		return l.predicate(macro)
+	}
+}
+
+func (l *whileLoop) Step() func(*common.Macro) {
+	return func(macro *common.Macro) {}
+}
+
+func (l *whileLoop) Start() func(*common.Macro) {
+	return func(macro *common.Macro) {}
+}
+
+func While(predicate PredicateFunc) LoopPredicate {
+	return &whileLoop{predicate: predicate}
+}
+
+type foreverLoop struct{}
+
+func (l *foreverLoop) Predicate() PredicateFunc {
+	return func(macro *common.Macro) bool {
+		return true
+	}
+}
+
+func (l *foreverLoop) Step() func(*common.Macro) {
+	return func(macro *common.Macro) {}
+}
+
+func (l *foreverLoop) Start() func(*common.Macro) {
+	return func(macro *common.Macro) {}
+}
+
+func Forever() LoopPredicate {
+	return &foreverLoop{}
+}
+
 type untilLoop struct {
 	predicate PredicateFunc
+}
+
+func (l *untilLoop) Predicate() PredicateFunc {
+	return func(macro *common.Macro) bool {
+		return !l.predicate(macro)
+	}
+}
+
+func (l *untilLoop) Step() func(*common.Macro) {
+	return func(macro *common.Macro) {}
+}
+
+func (l *untilLoop) Start() func(*common.Macro) {
+	return func(macro *common.Macro) {}
+}
+
+func Until(predicate PredicateFunc) LoopPredicate {
+	return &untilLoop{predicate: predicate}
 }
 
 func Loop(predicate LoopPredicate, actions ...interface{}) common.Action {

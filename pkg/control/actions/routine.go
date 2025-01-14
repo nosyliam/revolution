@@ -27,7 +27,7 @@ func (a *subroutineAction) Execute(macro *common.Macro) error {
 }
 
 func Subroutine(args ...interface{}) common.Action {
-	if len(args) == 1 {
+	if len(args) < 1 {
 		panic("invalid arguments")
 	}
 	if actions, ok := args[0].(common.Actions); ok {

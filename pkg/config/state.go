@@ -37,6 +37,10 @@ type MacroNetworkingConfig struct {
 type VicHopMacroStatistics struct {
 }
 
+type MacroCounters struct {
+	ClaimedHive int `state:"claimedHive" default:"-1" yaml:"-"`
+}
+
 type MacroState struct {
 	AccountName string `yaml:"accountName" key:"true"`
 
@@ -45,7 +49,10 @@ type MacroState struct {
 
 	Status string `state:"status" default:"Ready" yaml:"-"`
 
+	Counters *Object[MacroCounters] `state:"counters" default:"true" yaml:"-"`
+
 	HoneyOriginX int `state:"honeyOriginX" yaml:"-"`
+	HoneyOriginY int `state:"honeyOriginY" yaml:"-"`
 	BaseOriginX  int `state:"baseOriginX" yaml:"-"`
 	BaseOriginY  int `state:"baseOriginY" yaml:"-"`
 

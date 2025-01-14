@@ -77,6 +77,7 @@ var OpenRobloxRoutine = Actions{
 	Condition(If(True(V[bool](RestartSleep))), Sleep(5).Seconds()),
 	Set(RetryCount, 0),
 	Set(UsePublicServer, false),
+	Set(NewJoin, false),
 	Condition(
 		If(NotNil(Window)),
 		Info("Attempting to close Roblox")(Status, Discord),
@@ -126,6 +127,7 @@ var OpenRobloxRoutine = Actions{
 					Condition(
 						If(Image(LoadingImage...).Found()),
 						Info("Game Open")(Status, Discord),
+						Set(NewJoin, true),
 						Break(),
 						If(Image(ScienceImage...).Found()),
 						Info("Game Loaded")(Status, Discord),
@@ -152,12 +154,13 @@ var OpenRobloxRoutine = Actions{
 					Sleep(5).Seconds(),
 					Continue(1),
 					Else(),
-					Set(Offset, Image(HoneyOffsetImage...).X()),
+					Set(OffsetX, Image(HoneyOffsetImage...).X()),
+					Set(OffsetY, Image(HoneyOffsetImage...).Y()),
 					Condition(
 						If(And(Or(
 							Image(LoadingImage...).NotFound(),
 							Image(ScienceImage...).Found(),
-						), GreaterThan(V[int](Offset), 0))),
+						), GreaterThan(V[int](OffsetX), 0))),
 						Info("Game Loaded")(Status, Discord),
 						Break(),
 						If(Image(DisconnectImage...).Found()),
@@ -171,7 +174,8 @@ var OpenRobloxRoutine = Actions{
 			Break(),
 		),
 	),
-	SetState("honeyOriginX", V[int](Offset)),
+	SetState("honeyOriginX", V[int](OffsetX)),
+	SetState("honeyOriginY", V[int](OffsetY)),
 	Set(OffsetX, Image(RobloxOffsetImage...).X()),
 	Condition(
 		If(GreaterThan(V[int](OffsetX), 0)),

@@ -9,6 +9,7 @@ type VariableName string
 
 const (
 	RetryCount      VariableName = "retry-count"
+	NewJoin         VariableName = "new-join"
 	UsePublicServer VariableName = "use-public-server"
 	RestartSleep    VariableName = "restart-sleep"
 	Offset          VariableName = "offset"
@@ -16,10 +17,6 @@ const (
 	OffsetY         VariableName = "offset-y"
 	NightDetected   VariableName = "night-detected"
 )
-
-func S(path string) interface{} {
-	return nil
-}
 
 // Get a variable as a concrete type
 func V[T any](name VariableName) func(macro *common.Macro) T {
@@ -39,6 +36,20 @@ func VI(name VariableName) func(macro *common.Macro) interface{} {
 func P[T any](path string) func(macro *common.Macro) T {
 	return func(macro *common.Macro) T {
 		return *config.Concrete[T](macro.Settings, path)
+	}
+}
+
+// Get a macro state path as a concrete type
+func MS[T any](path string) func(macro *common.Macro) T {
+	return func(macro *common.Macro) T {
+		return *config.Concrete[T](macro.MacroState, path)
+	}
+}
+
+// Get a state path as a concrete type
+func S[T any](path string) func(macro *common.Macro) T {
+	return func(macro *common.Macro) T {
+		return *config.Concrete[T](macro.State, path)
 	}
 }
 

@@ -58,3 +58,30 @@ func (a *keyUpAction) Execute(macro *common.Macro) error {
 func KeyUp(key common.Key) common.Action {
 	return &keyUpAction{key}
 }
+
+type walkAction struct {
+	distance  float64
+	direction movement.Direction
+}
+
+func (a *walkAction) Execute(macro *common.Macro) error {
+	movement.Walk(a.direction, a.distance, macro)
+	return nil
+}
+
+func Walk(key common.Key, distance float64) common.Action {
+	var direction movement.Direction
+	switch key {
+	case common.Forward:
+		direction = movement.Forward
+	case common.Backward:
+		direction = movement.Backward
+	case common.Left:
+		direction = movement.Left
+	case common.Right:
+		direction = movement.Right
+	default:
+		panic("invalid direction!")
+	}
+	return &walkAction{distance: distance, direction: direction}
+}

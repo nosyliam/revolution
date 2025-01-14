@@ -1,6 +1,7 @@
 package routines
 
 import (
+	"github.com/nosyliam/revolution/macro/routines/hive"
 	. "github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 )
@@ -12,18 +13,11 @@ var MainRoutine = Actions{
 		If(False(V[bool](RestartSleep))),
 		Redirect(OpenRobloxRoutineKind),
 	),
-	Set("test", 0),
-	Loop(
-		For(10),
-		Condition(
-			If(GreaterThan(V[int]("test"), 5)),
-			Info("Second: %d", VI("test"))(Status),
-			Else(),
-			Info("First: %d", VI("test"))(Status),
-		),
-		Increment("test"),
-		Sleep(1).Seconds(),
+	Condition(
+		If(Equal(MS[int]("counters.claimedHive"), -1)),
+		Routine(hive.ClaimHiveRoutineKind),
 	),
+	Info("Idling")(Status),
 	Sleep(1).Seconds(),
 }
 

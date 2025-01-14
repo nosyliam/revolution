@@ -664,6 +664,10 @@ func (c *Object[T]) Initialize(path string, file Savable) error {
 			}
 			switch field.Kind() {
 			case reflect.Int:
+				fallthrough
+			case reflect.Int32:
+				fallthrough
+			case reflect.Int64:
 				if num, err := strconv.Atoi(def); err == nil {
 					field.SetInt(int64(num))
 				} else {

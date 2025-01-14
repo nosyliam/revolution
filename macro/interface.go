@@ -148,6 +148,7 @@ func (i *Interface) Start() {
 	i.Macro.Scheduler = NewScheduler(i.redirect, i.stop)
 
 	i.State.SetPath("running", true)
+	i.State.SetPath("counters.claimedHive", -1)
 	if err := i.VicHop.RegisterMacro(i.Macro); err != nil {
 		i.Macro = nil
 		i.State.SetPath("running", false)
