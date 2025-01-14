@@ -18,8 +18,8 @@ const ConfirmationCount = 6
 type BuffDetector struct {
 	mu              sync.Mutex
 	hourlyHistogram map[BuffType][]int
-	interrupts      map[chan struct{}]bool
-	outputs         map[chan struct{}]chan struct{}
+	interrupts      map[chan bool]bool
+	outputs         map[chan struct{}]chan bool
 	buffs           BuffMap
 	tick            int
 	settings        *config.Object[config.Settings]
@@ -30,8 +30,8 @@ type BuffDetector struct {
 
 func NewBuffDetector(settings *config.Object[config.Settings]) *BuffDetector {
 	return &BuffDetector{
-		interrupts:      make(map[chan struct{}]bool),
-		outputs:         make(map[chan struct{}]chan struct{}),
+		interrupts:      make(map[chan bool]bool),
+		outputs:         make(map[chan struct{}]chan bool),
 		hourlyHistogram: make(map[BuffType][]int),
 		settings:        settings,
 	}
@@ -73,15 +73,18 @@ func (b *BuffDetector) MoveSpeed() float64 {
 func (b *BuffDetector) Watch() chan struct{} {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	waiter := make(chan struct{})
+	waiter := make(chan bool)
 	b.interrupts[waiter] = true
 	output := make(chan struct{})
 	b.outputs[output] = waiter
 	go func() {
-		<-waiter
+		closed := <-waiter
 		b.mu.Lock()
 		delete(b.interrupts, waiter)
 		b.mu.Unlock()
+		if closed {
+			return
+		}
 		select {
 		case <-output:
 			return
@@ -93,10 +96,8 @@ func (b *BuffDetector) Watch() chan struct{} {
 }
 
 func (b *BuffDetector) Unwatch(output chan struct{}) {
-	if len(output) == 0 {
-		output <- struct{}{}
-	}
-	b.outputs[output] <- struct{}{}
+	close(output)
+	b.outputs[output] <- true
 }
 
 func DetectBuff(index int, kind BuffType, tile *image.RGBA) int {
@@ -195,7 +196,7 @@ func (b *BuffDetector) Tick(origin *revimg.Point, screenshot *image.RGBA) {
 			b.mu.Lock()
 			b.buffs = buffs
 			for ch, _ := range b.interrupts {
-				ch <- struct{}{}
+				ch <- false
 			}
 			b.mu.Unlock()
 			b.confirmations = 0

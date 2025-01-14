@@ -1,10 +1,15 @@
 package vichop
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/config"
+	revimg "github.com/nosyliam/revolution/pkg/image"
+	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/networking"
 	"github.com/pkg/errors"
+	"image/png"
+	"os"
 )
 
 type Manager struct {
@@ -113,4 +118,22 @@ func (m *Manager) RegisterMacro(macro *common.Macro) error {
 		}
 	}
 	return nil
+}
+
+func (m *Manager) Detect(macro *common.Macro, field string) (bool, error) {
+	root := macro
+	if macro.Root != nil {
+		root = macro.Root
+	}
+	image, err := DetectViciousBee(field, m.Dataset, macro.GetWindow().Screenshot(),
+		revimg.Point{X: root.MacroState.Object().BaseOriginX, Y: root.MacroState.Object().BaseOriginY})
+	if err != nil {
+		macro.Logger.LogDiscord(logging.Error, fmt.Sprintf("Failed to detect vicious bee: %v", err), nil, image)
+	}
+	if image != nil {
+		f, _ := os.Create("detected.png")
+		png.Encode(f, image)
+		f.Close()
+	}
+	return image != nil, err
 }

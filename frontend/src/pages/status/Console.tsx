@@ -92,6 +92,10 @@ Available commands:\r
         EventsEmit("command", "listpatterns")
     },
 
+    detect: (...args: string[]) => {
+        EventsEmit("command", "detect", args[0])
+    },
+
     clear: () => null,
 };
 

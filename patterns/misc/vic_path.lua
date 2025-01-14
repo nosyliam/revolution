@@ -28,21 +28,24 @@ function goToMT()
         KeyPress(Key.RotLeft)
     end
 
-    Sleep(1100)
+    Sleep(1700)
 
     KeyPress(Key.Space)
     KeyPress(Key.Space)
     KeyDown(Key.Right)
 
-    Sleep(2600)
-
-    KeyUp(Key.Right)
-    KeyDown(Key.Forward)
-
-    Sleep(1800)
+    Sleep(1000)
 
     KeyPress(Key.Space)
-    KeyUp(Key.Forward)
+    KeyUp(Key.Right)
+
+    -- Alignment
+    Walk(Direction.Backward, 12)
+    Walk(Direction.Left, 16)
+    Walk(Direction.Forward, 16)
+
+    Walk(Direction.Backward, 16)
+    Walk(Direction.Right, 48)
 
     Walk(Direction.Forward, 130)
     Walk(Direction.Left, 191.1)
@@ -62,8 +65,9 @@ function goToMT()
     end
     Sleep(50)
 
-    PerformDetection()
-    Sleep(2000)
+    if PerformDetection("mountain") then
+        Exit()
+    end
 
     KeyPress(Key.Shift)
 end
@@ -85,7 +89,7 @@ function goToSpid()
     KeyPress(Key.Space)
     Sleep(350)
     KeyPress(Key.Space)
-    Sleep(3000)
+    Sleep(3100)
 
     Walk(Direction.Forward, 78)
     Walk(Direction.Right, 26)
@@ -105,8 +109,9 @@ function goToSpid()
         KeyPress(Key.ZoomOut)
     end
 
-    PerformDetection()
-    Sleep(2000)
+    if PerformDetection("spider") then
+        Exit()
+    end
 
     KeyPress(Key.Shift)
 end
@@ -148,14 +153,17 @@ function goToCac()
 
     Sleep(1000)
 
-    PerformDetection()
-    Sleep(1000)
+    if PerformDetection("cactus") then
+        Exit()
+    end
 
     Walk(Direction.Backward, 50.7)
     Walk(Direction.Right, 10)
 
-    PerformDetection()
-    Sleep(1000)
+    if PerformDetection("cactus") then
+        Exit()
+    end
+
 
     KeyPress(Key.Shift)
 
@@ -189,7 +197,6 @@ function goToRose()
 
     for i = 1, 5 do
         KeyPress(Key.RotUp)
-        Sleep(50)
     end
 
     Walk(Direction.Right, 1.3)
@@ -199,12 +206,17 @@ function goToRose()
         KeyPress(Key.ZoomOut)
     end
 
-    for i = 1, 2 do
-        KeyPress(Key.ZoomIn)
-        Sleep(50)
+    if PerformDetection("rose") then
+        Exit()
     end
 
-    PerformDetection()
+    for i = 1, 2 do
+        KeyPress(Key.ZoomIn)
+    end
+
+    if PerformDetection("rose") then
+        Exit()
+    end
 end
 
 -- GO TO PEP
@@ -264,8 +276,9 @@ function goToPep()
 
     KeyPress(Key.Shift)
 
-    PerformDetection()
-    Sleep(1000)
+    if PerformDetection("pepper") then
+        Exit()
+    end
 
     KeyPress(Key.Shift)
 end
@@ -288,8 +301,6 @@ function pepToCannon()
     KeyPress(Key.Space)
     Sleep(1000)
 end
-
-
 
 goToPep()
 pepToCannon()

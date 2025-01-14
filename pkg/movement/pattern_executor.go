@@ -186,6 +186,13 @@ func LuaQueryState(L *lua.LState) int {
 	return 1
 }
 
+func LuaStatus(L *lua.LState) int {
+	macro := L.Context().Value("macro").(*common.Macro)
+	text := L.CheckString(1)
+	macro.Status(text)
+	return 0
+}
+
 func LuaQuerySetting(L *lua.LState) int {
 	macro := L.Context().Value("macro").(*common.Macro)
 	path := L.CheckString(1)
@@ -210,7 +217,19 @@ func LuaQuerySetting(L *lua.LState) int {
 }
 
 func LuaPerformDetection(L *lua.LState) int {
-	// macro := L.Context().Value("macro").(*common.Macro)
+	macro := L.Context().Value("macro").(*common.Macro)
+	field := L.CheckString(1)
+	go macro.VicHop.Detect(macro, field)
+	if detected, err := macro.VicHop.Detect(macro, field); err != nil || !detected {
+		L.Push(lua.LBool(false))
+	} else {
+		L.Push(lua.LBool(true))
+	}
+	return 1
+}
+
+func LuaExit(L *lua.LState) int {
+	panic("exiting script")
 	return 0
 }
 
@@ -232,7 +251,9 @@ func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *commo
 	L.SetGlobal("KeyPress", L.NewFunction(LuaKeyPress))
 	L.SetGlobal("QueryState", L.NewFunction(LuaQueryState))
 	L.SetGlobal("QuerySetting", L.NewFunction(LuaQuerySetting))
+	L.SetGlobal("Status", L.NewFunction(LuaStatus))
 	L.SetGlobal("PerformDetection", L.NewFunction(LuaPerformDetection))
+	L.SetGlobal("Exit", L.NewFunction(LuaExit))
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = context.WithValue(ctx, "macro", macro)
 	L.SetContext(ctx)

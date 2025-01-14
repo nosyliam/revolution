@@ -138,7 +138,7 @@ func (s *Scheduler) Start() {
 				continue
 			}
 			s.Tick(frame)
-			if frame == nil {
+			if frame == nil && len(s.stop) == 0 {
 				s.stop <- struct{}{}
 			}
 		case <-time.After(200 * time.Millisecond):

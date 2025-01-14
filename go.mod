@@ -8,12 +8,13 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/grandcat/zeroconf v1.0.0
+	github.com/kelindar/dbscan v0.0.1
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/shirou/gopsutil/v4 v4.24.11
 	github.com/sqweek/dialog v0.0.0-20240226140203-065105509627
 	github.com/stretchr/testify v1.9.0
-	github.com/wailsapp/wails/v2 v2.9.2
+	github.com/wailsapp/wails/v2 v2.9.1
 	github.com/yuin/gopher-lua v1.1.1
 	go.mongodb.org/mongo-driver v1.17.2
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1

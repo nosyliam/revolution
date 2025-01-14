@@ -56,5 +56,5 @@ func (e *eventBusImpl) Start() {
 }
 
 func NewEventBus(backend common.Backend) common.EventBus {
-	return &eventBusImpl{backend: backend, queue: make(chan event, 1), attachedPid: make(map[int]bool)}
+	return &eventBusImpl{backend: backend, queue: make(chan event, 100), attachedPid: make(map[int]bool)}
 }

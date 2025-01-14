@@ -100,7 +100,12 @@ func (w *Window) StartCapture() error {
 	go func() {
 		for {
 			select {
-			case img := <-input:
+			case img, ok := <-input:
+				if !ok {
+					w.capturing.Store(false)
+					w.output <- nil
+					return
+				}
 				w.screenshot.Store(img)
 				if w.output != nil {
 					if len(w.output) > 30 {
@@ -125,6 +130,7 @@ func (w *Window) StartCapture() error {
 						<-w.output
 					}
 				}
+				w.capturing.Store(false)
 				w.output <- nil
 				dialog.Message("The screen capture mechanism has timed out.").Error()
 				return

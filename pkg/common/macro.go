@@ -50,6 +50,7 @@ type Macro struct {
 	Settings   *config.Object[config.Settings]
 	Database   *config.Object[config.AccountDatabase]
 	Network    *Network
+	VicHop     VicHop
 	BuffDetect BuffDetector
 	Pattern    PatternLoader
 	Logger     *logging.Logger
@@ -122,6 +123,13 @@ func (m *Macro) SetRedirect(routine RoutineKind) error {
 	}
 }
 
+func (m *Macro) GetWindow() *window.Window {
+	if m.Root != nil {
+		return m.Root.GetWindow()
+	}
+	return m.Window
+}
+
 func (m *Macro) Copy() *Macro {
 	var root = m
 	if m.Root != nil {
@@ -136,6 +144,7 @@ func (m *Macro) Copy() *Macro {
 		Settings:   m.Settings,
 		State:      m.State,
 		Database:   m.Database,
+		VicHop:     m.VicHop,
 		BuffDetect: m.BuffDetect,
 		Pattern:    m.Pattern,
 		Window:     m.Window,

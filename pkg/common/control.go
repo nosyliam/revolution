@@ -87,3 +87,7 @@ type PatternLoader interface {
 	Exists(pattern string) bool
 	Execute(macro *Macro, meta *config.PatternMetadata, pattern string) error
 }
+
+type VicHop interface {
+	Detect(macro *Macro, field string) (bool, error)
+}

@@ -97,6 +97,18 @@ func (i *Interface) ReceiveCommands() {
 					return
 				}
 			},
+			"detect": func(args ...string) {
+				if len(args) != 1 {
+					common.Console(logging.Error, "Expected a field name!")
+					return
+				}
+				result, _ := i.Macro.VicHop.Detect(i.Macro, args[0])
+				if result {
+					common.Console(logging.Error, "Vicious bee detected!")
+				} else {
+					common.Console(logging.Error, "Vicious bee not detected!")
+				}
+			},
 		}
 		go handlers[cmd[0]](cmd[1:]...)
 	}
@@ -119,6 +131,7 @@ func (i *Interface) Start() {
 		Database:   i.Database,
 		Logger:     i.Logger,
 		WinManager: i.WinMgr,
+		VicHop:     i.VicHop,
 		BuffDetect: movement.NewBuffDetector(i.Settings),
 		Pattern:    i.Pattern,
 		Scratch:    config.NewScratch(),
@@ -192,7 +205,9 @@ func (i *Interface) Start() {
 					i.Macro.Window.Dissociate()
 				}
 				for _, watcher := range i.Macro.UnpauseWatchers {
-					watcher <- struct{}{}
+					if len(watcher) == 0 {
+						watcher <- struct{}{}
+					}
 				}
 				for _, watcher := range i.Macro.Watchers {
 					if len(watcher) == 0 {

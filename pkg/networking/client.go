@@ -364,7 +364,6 @@ func (c *Client) listenForMessages() {
 			c.handleShutdown()
 			break
 		default:
-			fmt.Println("receive message", msg.Kind, string(msg.Content))
 			if _, ok := c.watchers[msg.Kind]; !ok {
 				c.logger.Log(0, logging.Warning, "[Client]: received invalid message type from relay!")
 				continue
@@ -381,6 +380,5 @@ func (c *Client) listenForMessages() {
 		c.logger.Log(0, logging.Error, fmt.Sprintf("Relay connection error: %v", err))
 	}
 	c.Disconnect()
-	fmt.Println("disconnecting")
 	c.disconnect <- struct{}{}
 }

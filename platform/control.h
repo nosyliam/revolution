@@ -67,6 +67,10 @@ void send_key_event(int pid, bool down, int key) {
     }
 }
 
+void attach_input_thread(int pid) {
+    // noop
+}
+
 #endif
 #if defined(IS_WINDOWS)
 #include <windows.h>

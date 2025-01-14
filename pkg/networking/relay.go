@@ -111,6 +111,7 @@ func (r *Relay) Ban(identity string) {
 	r.banned[identity] = true
 	delete(r.identities, identity)
 	delete(r.roles, identity)
+	r.broadcastIdentities()
 }
 
 func (r *Relay) Stop() {

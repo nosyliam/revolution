@@ -26,7 +26,6 @@ import (
 	"os/exec"
 	"regexp"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -39,9 +38,9 @@ var WindowBackend window.Backend = singleton
 
 type windowData struct {
 	win        *C.Window
+	mu         sync.Mutex
 	controller C.CaptureControllerRef
 	output     chan<- *image.RGBA
-	ready      atomic.Bool
 }
 
 type windowBackend struct {
@@ -302,8 +301,12 @@ func GoFrameCallback(id C.int, data *C.uchar, length C.size_t, width, height, st
 	img.Pix = buf
 	img.Stride = int(stride)
 
-	if win, ok := singleton.windows[int(id)]; ok && win.ready.Load() {
-		win.output <- img
+	if win, ok := singleton.windows[int(id)]; ok {
+		win.mu.Lock()
+		if win.output != nil && len(win.output) == 0 {
+			win.output <- img
+		}
+		win.mu.Unlock()
 	}
 }
 
@@ -324,7 +327,7 @@ func (w *windowBackend) StartCapture(id int) (<-chan *image.RGBA, error) {
 	C.SetFrameCallback(controller, cbPtr)
 	C.SetID(controller, C.int(id))
 
-	output := make(chan *image.RGBA)
+	output := make(chan *image.RGBA, 1)
 	win.output = output
 
 	if !C.StartCapture(controller, win.win.id) {
@@ -332,7 +335,6 @@ func (w *windowBackend) StartCapture(id int) (<-chan *image.RGBA, error) {
 	}
 
 	fmt.Printf("Capture started for window ID: %d\n", id)
-	win.ready.Store(true)
 	win.controller = controller
 	return output, nil
 }
@@ -344,12 +346,13 @@ func (w *windowBackend) StopCapture(id int) {
 	if err != nil {
 		return
 	}
-	win.ready.Store(false)
+	win.mu.Lock()
+	defer win.mu.Unlock()
 	if win.output != nil {
-		win.output <- nil
+		close(win.output)
+		win.output = nil
 	}
 	if win.controller != nil {
-		fmt.Println("stopping capture")
 		C.StopCapture(win.controller)
 	}
 }

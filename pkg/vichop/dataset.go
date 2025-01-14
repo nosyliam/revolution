@@ -1,6 +1,8 @@
 package vichop
 
 import (
+	"fmt"
+	"github.com/nosyliam/revolution/opencv"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
@@ -17,6 +19,7 @@ type Descriptor struct {
 }
 
 type Parameters struct {
+	Gamma             float64 `bson:"gamma"`
 	LoweRatio         float64 `bson:"lowe_ratio"`
 	MinClusterDensity int     `bson:"min_cluster_density"`
 	Epsilon           float64 `bson:"epsilon"`
@@ -33,6 +36,8 @@ type Parameters struct {
 	ContrastThreshold float64 `bson:"contrast_threshold"`
 	EdgeThreshold     float64 `bson:"edge_threshold"`
 	Sigma             float64 `bson:"sigma"`
+
+	Mat opencv.Mat
 }
 
 type Field struct {
@@ -44,7 +49,7 @@ type Field struct {
 type DescriptorFile struct {
 	Version string `bson:"version"`
 
-	Fields bson.M `bson:"fields"`
+	Fields map[string]*Field `bson:"fields"`
 }
 
 type Dataset struct {
@@ -123,6 +128,14 @@ func (d *Dataset) Load() error {
 	d.state.SetPath("vicHop.datasetVersion", d.Descriptor.Version)
 	if d.Descriptor.Version == d.version {
 		d.state.SetPath("vicHop.upToDate", true)
+	}
+
+	for name, field := range d.Descriptor.Fields {
+		mat, err := opencv.NewMatFromBytes(field.Descriptor.Rows, field.Descriptor.Cols, opencv.MatType(field.Descriptor.Type), field.Descriptor.Data)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed to map descriptor for field %s", name))
+		}
+		field.Mat = mat
 	}
 
 	return nil

@@ -96,8 +96,6 @@ export default function Networking() {
     let connectingAddress = networking.Value("connectingAddress", "")
     let connectedAddress = networking.Value("connectedAddress", "")
 
-    console.log("connecting to ", connectingAddress)
-
     let identity = networking.Value("identity", "Unknown/Unknown")
     let availableRelays = networking.List<KeyedObject>("availableRelays").Values(true)
     let savedRelays = networking.List<KeyedObject>("savedRelays").Values(true)
@@ -150,7 +148,6 @@ export default function Networking() {
             bottom: 0,
             right: 8
         }
-        console.log(relay.role)
 
         const action = () => {
             if (showNetwork) {
@@ -204,9 +201,9 @@ export default function Networking() {
                         {(relayActive || connectedAddress == "") &&
                             <UnstyledButton onPointerEnter={() => setActionHovered(true)}
                                             onPointerLeave={() => setActionHovered(false)} onClick={action}>
-                                {relayActive ? (actionHovered ? <IconForbidFilled size={18} style={actionStyle}/> :
-                                        <IconForbid size={18} style={actionStyle}/>)
-                                    : <IconStar size={18} style={{...actionStyle, stroke: 'goldenrod'}}
+                                {(relayActive && relay.identity != identity) && (actionHovered ? <IconForbidFilled size={18} style={actionStyle}/> :
+                                        <IconForbid size={18} style={actionStyle}/>)}
+                                {!relayActive && <IconStar size={18} style={{...actionStyle, stroke: 'goldenrod'}}
                                                 fill={actionHovered || saved ? 'goldenrod' : 'none'}/>}
                             </UnstyledButton>}
                         {!showNetwork && <UnstyledButton onClick={connect}>
