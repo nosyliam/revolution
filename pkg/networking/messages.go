@@ -92,6 +92,7 @@ func SubscribeMessage[T any](macro *Macro, callback func(message *T)) {
 	var t T
 	kind := MessageKinds.Determine(t)
 	watcher := macro.Network.Client.Subscribe(kind)
+	macro.Network.Watchers = append(macro.Network.Watchers, watcher)
 	go func() {
 		for {
 			message, ok := <-watcher
@@ -108,6 +109,8 @@ func SubscribeMessage[T any](macro *Macro, callback func(message *T)) {
 	}()
 }
 
-func UnsubscribeMessage[T any](macro *Macro, kind MessageKind) {
-
+func UnsubscribeAll(macro *Macro) {
+	for _, watcher := range macro.Network.Watchers {
+		close(watcher)
+	}
 }

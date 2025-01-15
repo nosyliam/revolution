@@ -89,6 +89,8 @@ type PatternLoader interface {
 }
 
 type VicHop interface {
+	Tick(macro *Macro)
+	BattleDetect(macro *Macro)
 	Detect(macro *Macro, field string) (bool, error)
 	FindServer(macro *Macro) (string, error)
 }

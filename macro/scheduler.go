@@ -1,6 +1,7 @@
 package macro
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
@@ -125,12 +126,14 @@ func (s *Scheduler) Tick(frame *image.RGBA) {
 	if frame != nil {
 		origin := &revimg.Point{X: s.macro.Root.MacroState.Object().BaseOriginX, Y: s.macro.Root.MacroState.Object().BaseOriginY}
 		s.macro.Root.BuffDetect.Tick(origin, frame)
+		s.macro.Root.VicHop.Tick(s.macro.Root)
 	}
 }
 
 func (s *Scheduler) Start() {
 	s.close = make(chan struct{}, 1)
 	input := s.macro.Root.Window.Output()
+	s.macro.Root.VicHop.BattleDetect(s.macro.Root)
 	for {
 		select {
 		case frame := <-input:
@@ -139,6 +142,7 @@ func (s *Scheduler) Start() {
 			}
 			s.Tick(frame)
 			if frame == nil && len(s.stop) == 0 {
+				fmt.Println("stopping")
 				s.stop <- struct{}{}
 			}
 		case <-time.After(200 * time.Millisecond):

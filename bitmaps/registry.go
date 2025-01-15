@@ -7,6 +7,7 @@ import (
 	"github.com/nosyliam/revolution/bitmaps/hive"
 	"github.com/nosyliam/revolution/bitmaps/offset"
 	"github.com/nosyliam/revolution/bitmaps/reconnect"
+	"github.com/nosyliam/revolution/bitmaps/vichop"
 	"image"
 	"image/draw"
 	"image/png"
@@ -47,6 +48,7 @@ func (b *bitmapRegistry) initialize() {
 	reconnect.Register(b)
 	digits.Register(b)
 	buffs.Register(b)
+	vichop.Register(b)
 }
 
 func init() {

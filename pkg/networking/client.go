@@ -58,7 +58,7 @@ func (c *Client) Identity() string {
 	return getIdentity() + "/" + c.state.Object().AccountName
 }
 
-func (c *Client) Subscribe(kind MessageKind) <-chan *Message {
+func (c *Client) Subscribe(kind MessageKind) chan *Message {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	sub := subscriber{ch: make(chan *Message)}

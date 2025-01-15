@@ -75,6 +75,9 @@ type SearchOptions struct {
 }
 
 func ImageSearch(needle *image.RGBA, haystack *image.RGBA, options *SearchOptions) ([]Point, error) {
+	if needle == nil || haystack == nil {
+		return nil, errors.New("image needle or haystack nil")
+	}
 	if options == nil {
 		options = &SearchOptions{}
 	}

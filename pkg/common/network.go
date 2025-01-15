@@ -34,14 +34,15 @@ type Message struct {
 }
 
 type Network struct {
-	Client NetworkClient
-	Relay  NetworkRelay
+	Client   NetworkClient
+	Relay    NetworkRelay
+	Watchers []chan *Message
 }
 
 type NetworkClient interface {
 	Start()
 	Close()
-	Subscribe(kind MessageKind) <-chan *Message
+	Subscribe(kind MessageKind) chan *Message
 	SubscribeOnce(kind MessageKind) <-chan *Message
 	SetRole(ClientRole) error
 	Send(receiver string, content interface{})

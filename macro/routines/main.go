@@ -1,7 +1,6 @@
 package routines
 
 import (
-	"github.com/nosyliam/revolution/macro/routines/hive"
 	"github.com/nosyliam/revolution/macro/routines/vichop"
 	. "github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
@@ -30,10 +29,10 @@ var MainRoutine = Actions{
 		If(True(P[bool]("vicHop.enabled"))),
 		Routine(vichop.VicSearchRoutineKind),
 	),
-	Condition(
+	/*Condition(
 		If(Equal(MS[int]("counters.claimedHive"), -1)),
 		Routine(hive.ClaimHiveRoutineKind),
-	),
+	),*/
 	Info("Idling")(Status),
 	Sleep(1).Seconds(),
 }

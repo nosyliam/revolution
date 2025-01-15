@@ -9,10 +9,8 @@ import (
 	"github.com/nosyliam/revolution/pkg/logging"
 	. "github.com/nosyliam/revolution/pkg/networking"
 	"github.com/pkg/errors"
-	"image/png"
 	"io"
 	"net/http"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -27,11 +25,12 @@ type ServerData struct {
 type Manager struct {
 	mu sync.Mutex
 
-	Dataset *Dataset
-	presets map[string]string
-	states  map[string]*Object[MacroState]
-	macros  map[string]*common.Macro
-	servers map[string]SearchedServer
+	Dataset   *Dataset
+	presets   map[string]string
+	states    map[string]*Object[MacroState]
+	macros    map[string]*common.Macro
+	servers   map[string]SearchedServer
+	detectors map[*common.Macro]*StatusDetector
 
 	settings *Object[Config]
 	state    *Object[State]
@@ -50,11 +49,12 @@ func NewManager(logger *logging.Logger, settings *Object[Config], state *Object[
 		settings: settings,
 		logger:   logger,
 
-		waiters: make(map[chan *ServerData]bool),
-		presets: make(map[string]string),
-		states:  make(map[string]*Object[MacroState]),
-		macros:  make(map[string]*common.Macro),
-		servers: make(map[string]SearchedServer),
+		waiters:   make(map[chan *ServerData]bool),
+		presets:   make(map[string]string),
+		states:    make(map[string]*Object[MacroState]),
+		macros:    make(map[string]*common.Macro),
+		servers:   make(map[string]SearchedServer),
+		detectors: make(map[*common.Macro]*StatusDetector),
 	}
 }
 
@@ -160,6 +160,19 @@ func (m *Manager) RegisterMacro(macro *common.Macro) error {
 	return nil
 }
 
+func (m *Manager) UnregisterMacro(macro *common.Macro) {
+	delete(m.detectors, macro)
+}
+
+func (m *Manager) HandleDetection(macro *common.Macro, field string) {
+	switch macro.Settings.Object().VicHop.Object().Role {
+	case common.MainClientRole:
+
+	case common.SearcherClientRole:
+
+	}
+}
+
 func (m *Manager) Detect(macro *common.Macro, field string) (bool, error) {
 	root := macro
 	if macro.Root != nil {
@@ -170,11 +183,7 @@ func (m *Manager) Detect(macro *common.Macro, field string) (bool, error) {
 	if err != nil {
 		macro.Logger.LogDiscord(logging.Error, fmt.Sprintf("Failed to detect vicious bee: %v", err), nil, image)
 	}
-	if image != nil {
-		f, _ := os.Create("detected.png")
-		png.Encode(f, image)
-		f.Close()
-	}
+	m.HandleDetection(macro, field)
 	return image != nil, err
 }
 
@@ -188,7 +197,6 @@ func (m *Manager) LoadNewServers() <-chan *ServerData {
 	go func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
-		fmt.Println("loading new batch")
 		resp, err := http.Get("https://games.roblox.com/v1/games/1537690962/servers/Public?cursor=&sortOrder=Desc&excludeFullGames=true")
 		if resp.StatusCode != http.StatusOK {
 			m.logger.Log(0, logging.Error, "Failed to load new servers: rate limited")
@@ -245,4 +253,26 @@ func (m *Manager) FindServer(macro *common.Macro) (string, error) {
 
 	<-m.LoadNewServers()
 	return m.FindServer(macro)
+}
+
+func (m *Manager) BattleActive(macro *common.Macro) bool {
+	if detector, ok := m.detectors[macro]; ok {
+		return detector.active
+	} else {
+		return false
+	}
+}
+
+func (m *Manager) BattleDetect(macro *common.Macro) {
+	m.mu.Lock()
+	if _, ok := m.detectors[macro]; !ok {
+		m.detectors[macro] = NewStatusDetector(m, macro)
+	}
+	m.mu.Unlock()
+}
+
+func (m *Manager) Tick(macro *common.Macro) {
+	if detector, ok := m.detectors[macro]; ok {
+		detector.Tick()
+	}
 }
