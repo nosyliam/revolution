@@ -61,7 +61,7 @@ func (c *Client) Identity() string {
 func (c *Client) Subscribe(kind MessageKind) <-chan *Message {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	sub := subscriber{ch: make(chan *Message), once: false}
+	sub := subscriber{ch: make(chan *Message)}
 	c.watchers[kind][sub] = true
 	return sub.ch
 }
@@ -114,6 +114,9 @@ func (c *Client) SetRole(role ClientRole) error {
 	c.Send(RelayReceiver, SetRoleMessage{role})
 	select {
 	case message := <-sub:
+		if message == nil {
+			return errors.New("failed to decode role acknowledgement")
+		}
 		var ack AckSetRoleMessage
 		if err := json.Unmarshal([]byte(message.Content), &ack); err != nil {
 			c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: Failed to unmarshal role acknowledgement: %v", err))
@@ -171,6 +174,10 @@ func (c *Client) Start() {
 		go c.listenForMessages()
 		select {
 		case message := <-c.SubscribeOnce(AckRegistrationMessageKind):
+			if message == nil {
+				c.Disconnect()
+				continue
+			}
 			var ack AckRegistrationMessage
 			if err := json.Unmarshal([]byte(message.Content), &ack); err != nil {
 				c.logger.Log(0, logging.Error, fmt.Sprintf("[Client]: Failed to unmarshal registration acknowledgement: %v", err))
@@ -352,7 +359,11 @@ func (c *Client) listenForMessages() {
 	scanner := bufio.NewScanner(c.conn)
 	for scanner.Scan() {
 		var msg Message
-		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
+		data := scanner.Bytes()
+		if len(data) == 0 {
+			continue
+		}
+		if err := json.Unmarshal(data, &msg); err != nil {
 			c.logger.Log(0, logging.Warning, fmt.Sprintf("[Client]: received invalid message from relay: %v", err))
 			continue
 		}

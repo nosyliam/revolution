@@ -1,37 +1,60 @@
 package vichop
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/nosyliam/revolution/pkg/logging"
-	"github.com/nosyliam/revolution/pkg/networking"
+	. "github.com/nosyliam/revolution/pkg/networking"
 	"github.com/pkg/errors"
 	"image/png"
+	"io"
+	"net/http"
 	"os"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
+type ServerData struct {
+	Data []struct {
+		ID string `json:"id"`
+	} `json:"data"`
+}
+
 type Manager struct {
+	mu sync.Mutex
+
 	Dataset *Dataset
 	presets map[string]string
 	states  map[string]*Object[MacroState]
 	macros  map[string]*common.Macro
+	servers map[string]SearchedServer
 
 	settings *Object[Config]
 	state    *Object[State]
+	logger   *logging.Logger
+
+	waiters    map[chan *ServerData]bool
+	loading    atomic.Bool
+	serverData atomic.Pointer[ServerData]
 }
 
-func NewManager(settings *Object[Config], state *Object[State]) *Manager {
+func NewManager(logger *logging.Logger, settings *Object[Config], state *Object[State]) *Manager {
 	return &Manager{
 		Dataset: NewDataset(state),
 
 		state:    state,
 		settings: settings,
+		logger:   logger,
 
+		waiters: make(map[chan *ServerData]bool),
 		presets: make(map[string]string),
 		states:  make(map[string]*Object[MacroState]),
 		macros:  make(map[string]*common.Macro),
+		servers: make(map[string]SearchedServer),
 	}
 }
 
@@ -69,11 +92,15 @@ func (m *Manager) RegisterPreset(preset *Object[Settings]) {
 }
 
 func (m *Manager) RegisterState(state *Object[MacroState]) {
+	m.mu.Lock()
 	m.states[state.Object().AccountName] = state
+	m.mu.Unlock()
 }
 
 func (m *Manager) UnregisterState(state *Object[MacroState]) {
+	m.mu.Lock()
 	delete(m.states, state.Object().AccountName)
+	m.mu.Unlock()
 }
 
 func (m *Manager) Start() {
@@ -111,12 +138,25 @@ func (m *Manager) Start() {
 func (m *Manager) RegisterMacro(macro *common.Macro) error {
 	m.macros[macro.MacroState.Object().AccountName] = macro
 	if settings := macro.Settings.Object().VicHop.Object(); settings.Enabled {
-		if err := macro.Network.Client.SetRole(common.ClientRole(settings.Role)); errors.Is(err, networking.InactiveNetworkError) {
+		if err := macro.Network.Client.SetRole(common.ClientRole(settings.Role)); errors.Is(err, InactiveNetworkError) {
 			return errors.New("please connect to a network relay to use Vic Hop")
 		} else if err != nil {
 			return err
 		}
 	}
+
+	SubscribeMessage(macro, func(message *SearchedServerMessage) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		fmt.Println("added server", message.Server.ID)
+		m.servers[message.Server.ID] = message.Server
+		for id, server := range m.servers {
+			if time.Now().Sub(server.Time) > time.Minute*20 {
+				delete(m.servers, id)
+			}
+		}
+	})
+
 	return nil
 }
 
@@ -136,4 +176,73 @@ func (m *Manager) Detect(macro *common.Macro, field string) (bool, error) {
 		f.Close()
 	}
 	return image != nil, err
+}
+
+func (m *Manager) LoadNewServers() <-chan *ServerData {
+	waiter := make(chan *ServerData)
+	m.waiters[waiter] = true
+	if m.loading.Load() {
+		return waiter
+	}
+	m.loading.Store(true)
+	go func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		fmt.Println("loading new batch")
+		resp, err := http.Get("https://games.roblox.com/v1/games/1537690962/servers/Public?cursor=&sortOrder=Desc&excludeFullGames=true")
+		if resp.StatusCode != http.StatusOK {
+			m.logger.Log(0, logging.Error, "Failed to load new servers: rate limited")
+			<-time.After(5 * time.Second)
+			m.LoadNewServers()
+			return
+		}
+		if err != nil {
+			m.logger.Log(0, logging.Error, fmt.Sprintf("Failed to load new servers: %v", err))
+			<-time.After(5 * time.Second)
+			m.LoadNewServers()
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			m.logger.Log(0, logging.Error, fmt.Sprintf("Failed to load new servers: %v", err))
+			<-time.After(5 * time.Second)
+			m.LoadNewServers()
+		}
+
+		var servers ServerData
+		err = json.Unmarshal(body, &servers)
+		if err != nil {
+			m.logger.Log(0, logging.Error, fmt.Sprintf("Failed to load new servers: %v", err))
+			<-time.After(5 * time.Second)
+			m.LoadNewServers()
+		}
+		m.loading.Store(false)
+		m.serverData.Store(&servers)
+		for ch := range m.waiters {
+			delete(m.waiters, ch)
+			ch <- &servers
+		}
+	}()
+	return waiter
+}
+
+func (m *Manager) FindServer(macro *common.Macro) (string, error) {
+	data := m.serverData.Load()
+	if data == nil {
+		data = <-m.LoadNewServers()
+	}
+	for _, server := range data.Data {
+		if _, ok := m.servers[server.ID]; !ok {
+			message := SearchedServer{
+				Time: time.Now(),
+				ID:   server.ID,
+			}
+			macro.Network.Client.Send(BroadcastReceiver, SearchedServerMessage{Server: message})
+			return server.ID, nil
+		}
+	}
+
+	<-m.LoadNewServers()
+	return m.FindServer(macro)
 }

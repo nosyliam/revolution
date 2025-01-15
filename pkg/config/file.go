@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 )
 
 type Format int
@@ -22,6 +23,7 @@ type Savable interface {
 }
 
 type File[T any] struct {
+	mu      sync.Mutex
 	name    string
 	path    string
 	file    *os.File
@@ -35,6 +37,8 @@ func (f *File[T]) Runtime() *Runtime {
 }
 
 func (f *File[T]) Save() error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	var data []byte
 	var err error
 	switch f.format {
@@ -51,9 +55,12 @@ func (f *File[T]) Save() error {
 	default:
 		panic("unknown format")
 	}
-
-	_ = f.file.Truncate(0)
-	_, _ = f.file.Seek(0, 0)
+	if err := f.file.Truncate(0); err != nil {
+		return err
+	}
+	if _, err := f.file.Seek(0, 0); err != nil {
+		return err
+	}
 	_, err = f.file.Write(data)
 	//fmt.Println("save", string(data))
 	if err != nil {

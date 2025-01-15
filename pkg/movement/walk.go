@@ -73,9 +73,7 @@ func walk(direction Direction, distance float64, macro *common.Macro, async bool
 				remaining -= (end.Sub(start)).Seconds() * speed
 				macro.BuffDetect.Unwatch(change)
 			case <-change:
-				fmt.Println("changed")
 				remaining -= (time.Now().Sub(start)).Seconds() * speed
-				macro.BuffDetect.Unwatch(change)
 			}
 		}
 	}()

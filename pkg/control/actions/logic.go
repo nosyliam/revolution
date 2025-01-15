@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 )
@@ -109,7 +110,7 @@ func Condition(conds ...interface{}) common.Action {
 		case func(macro *common.Macro) error:
 			activeCond.Exec = append(activeCond.Exec, fn)
 		default:
-			panic("unknown predicate type")
+			panic(fmt.Sprintf("unknown predicate type: %T", fn))
 		}
 	}
 	if activeCond != nil {

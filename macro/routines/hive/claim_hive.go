@@ -5,7 +5,7 @@ import (
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 )
 
-const ClaimHiveRoutineKind RoutineKind = "claim-hive"
+const ClaimHiveRoutineKind RoutineKind = "ClaimHive"
 
 var MoveToNextHive = Actions{
 	Condition(
@@ -29,9 +29,11 @@ var MoveToNextHive = Actions{
 		Forever(),
 		Condition(
 			If(Image(ClaimHiveImage...).Found()),
+			KeyUp(Left),
+			KeyUp(Right),
 			SetState("counters.claimedHive", V[int]("CheckingHive")),
 			KeyPress(E),
-			Break(),
+			Terminate(),
 		),
 		Condition(
 			If(Or(
@@ -51,6 +53,7 @@ var MoveToNextHive = Actions{
 		Else(),
 		Decrement("CheckSkip"),
 	),
+	Sleep(100),
 }
 
 var ClaimHiveRoutine = Actions{
@@ -60,16 +63,16 @@ var ClaimHiveRoutine = Actions{
 		Condition(
 			If(Image(AllHiveImages...).Found()),
 			KeyUp(Forward),
-			Walk(Forward, 8),
-			Walk(Backward, 8),
 			Break(),
 		),
 		Sleep(10),
 	),
+	Sleep(100),
 	Condition(
 		If(Image(ClaimHiveImage...).Found()),
 		SetState("counters.claimedHive", 3),
 		KeyPress(E),
+		Walk(Backward, 4),
 		Info("Claimed Hive: 3")(Status, Discord),
 		Sleep(3).Seconds(),
 		Terminate(),

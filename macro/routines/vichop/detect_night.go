@@ -1,11 +1,14 @@
-package routines
+package vichop
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/opencv"
 	. "github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"image"
+	"image/png"
+	"os"
 )
 
 const DetectNightRoutineKind RoutineKind = "detect-night"
@@ -20,9 +23,12 @@ func calcAverage(hist opencv.Mat, totalPixels float32) float32 {
 
 func detectNight(macro *Macro) bool {
 	screenshot := macro.Root.Window.Screenshot()
-	bounds := screenshot.Bounds()
-	offset := macro.MacroState.Object().BaseOriginY
-	cropped := revimg.CropRGBA(screenshot, image.Rect(bounds.Dx()-50, offset+50, bounds.Dx(), offset+100))
+	offsetX, offsetY := macro.MacroState.Object().HoneyOriginX, macro.MacroState.Object().BaseOriginY
+	cropped := revimg.CropRGBA(screenshot, image.Rect(offsetX, offsetY+1, offsetX+50, offsetY+19))
+
+	f, _ := os.Create("night.png")
+	png.Encode(f, cropped)
+	f.Close()
 
 	// Perform a histogram calculation to determine the average color intensity
 	mat, err := opencv.NewMatFromBytes(cropped.Bounds().Dy(), cropped.Bounds().Dx(), opencv.MatTypeCV8UC4, cropped.Pix)
@@ -54,6 +60,7 @@ func detectNight(macro *Macro) bool {
 	greenAvg := calcAverage(greenHist, totalPixels)
 	redAvg := calcAverage(redHist, totalPixels)
 
+	fmt.Println(blueAvg, greenAvg, redAvg)
 	if blueAvg < 5 && greenAvg < 5 && redAvg < 5 {
 		return true
 	}
@@ -61,11 +68,8 @@ func detectNight(macro *Macro) bool {
 }
 
 var DetectNightRoutine = Actions{
+	Info("Detecting Night")(Status),
 	Set(NightDetected, false),
-	Loop(
-		For(9),
-		KeyPress(RotUp),
-	),
 	Loop(
 		For(2),
 		KeyPress(RotDown),
@@ -74,10 +78,10 @@ var DetectNightRoutine = Actions{
 		If(True(detectNight)),
 		Info("Night Detected")(Status, Discord),
 		Set(NightDetected, true),
-	),
-	Loop(
-		For(2),
-		KeyPress(RotDown),
+		Loop(
+			For(2),
+			KeyPress(RotUp),
+		),
 	),
 }
 

@@ -149,7 +149,7 @@ func (r *Relay) handleConnection(conn net.Conn) {
 
 	var message Message
 	if err := json.Unmarshal([]byte(data), &message); err != nil || message.Kind != RegistrationMessageKind || message.Receiver != RelayReceiver {
-		r.logger.Log(0, logging.Warning, fmt.Sprintf("[Relay]: Failed to decode message from client %s", conn.RemoteAddr().String()))
+		r.logger.Log(0, logging.Warning, fmt.Sprintf("[Relay]: Failed to decode message from client %s: %v", conn.RemoteAddr().String(), err))
 		conn.Close()
 		return
 	}
@@ -281,10 +281,8 @@ func (r *Relay) handleMessage(message *Message) {
 			r.handleRoleRegistration(message)
 		}
 	case BroadcastReceiver:
-		for id, conn := range r.identities {
-			if id != message.Sender {
-				conn.Write(append(message.Data, "\r\n"...))
-			}
+		for _, conn := range r.identities {
+			conn.Write(append(message.Data, "\r\n"...))
 		}
 		return
 	default:

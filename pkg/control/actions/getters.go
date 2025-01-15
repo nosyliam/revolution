@@ -8,13 +8,18 @@ import (
 type VariableName string
 
 const (
+	Initialized     VariableName = "initialized"
 	RetryCount      VariableName = "retry-count"
 	NewJoin         VariableName = "new-join"
+	GameInstance    VariableName = "game-instance"
+	HopServer       VariableName = "hop-server"
 	UsePublicServer VariableName = "use-public-server"
 	RestartSleep    VariableName = "restart-sleep"
+	FullServerSleep VariableName = "full-server-sleep"
 	Offset          VariableName = "offset"
 	OffsetX         VariableName = "offset-x"
 	OffsetY         VariableName = "offset-y"
+	VicField        VariableName = "vic-field"
 	NightDetected   VariableName = "night-detected"
 )
 
@@ -64,6 +69,10 @@ func Index(depth ...int) func(macro *common.Macro) int {
 	return func(macro *common.Macro) int {
 		return macro.Scratch.LoopState.Index[depthV]
 	}
+}
+
+func PatternExecuting(macro *common.Macro) bool {
+	return macro.CancelPattern == nil
 }
 
 func Window(macro *common.Macro) interface{} {

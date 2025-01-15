@@ -83,13 +83,13 @@ function goToSpid()
     Sleep(50)
     KeyPress(Key.RotUp)
 
-    Walk(Direction.Backward, 193)
+    Walk(Direction.Backward, 193.5)
     Walk(Direction.Left, 93.6)
 
     KeyPress(Key.Space)
     Sleep(350)
     KeyPress(Key.Space)
-    Sleep(3100)
+    Sleep(3200)
 
     Walk(Direction.Forward, 78)
     Walk(Direction.Right, 26)
@@ -258,15 +258,12 @@ function goToPep()
 
     Walk(Direction.Backward, 7.8)
 
-    KeyPress(Key.Space)
-
     for i = 1, 9 do
         KeyPress(Key.RotDown)
     end
 
     for i = 1, 5 do
         KeyPress(Key.RotUp)
-        Sleep(50)
     end
 
     for i = 1, 10 do
@@ -275,6 +272,7 @@ function goToPep()
     Sleep(50)
 
     KeyPress(Key.Shift)
+    Sleep(100)
 
     if PerformDetection("pepper") then
         Exit()

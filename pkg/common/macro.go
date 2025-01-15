@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"fmt"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/logging"
@@ -39,6 +40,8 @@ type Macro struct {
 	sync.Mutex
 
 	Root *Macro
+
+	CancelPattern context.CancelFunc
 
 	Account    string
 	EventBus   EventBus
@@ -123,6 +126,11 @@ func (m *Macro) SetRedirect(routine RoutineKind) error {
 	}
 }
 
+func (m *Macro) SetError(err error, context string) {
+	m.Status(context)
+	m.Error <- errors.Wrap(err, context).Error()
+}
+
 func (m *Macro) GetWindow() *window.Window {
 	if m.Root != nil {
 		return m.Root.GetWindow()
@@ -146,6 +154,7 @@ func (m *Macro) Copy() *Macro {
 		MacroState: m.MacroState,
 		Database:   m.Database,
 		VicHop:     m.VicHop,
+		Network:    m.Network,
 		BuffDetect: m.BuffDetect,
 		Pattern:    m.Pattern,
 		Window:     m.Window,

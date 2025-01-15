@@ -10,6 +10,7 @@ const (
 	AckSetRoleMessageKind
 	VicDetectMessageKind
 	NightDetectMessageKind
+	SearchedServerMessageKind
 	ShutdownMessageKind
 	UnknownMessageKind
 )

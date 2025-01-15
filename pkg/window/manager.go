@@ -84,6 +84,10 @@ func (w *Window) Screenshot() *image.RGBA {
 	return w.screenshot.Load()
 }
 
+func (w *Window) HopServer(instance string) error {
+	return w.backend.HopServer(JoinOptions{GameInstance: instance})
+}
+
 func (w *Window) StartCapture() error {
 	input, err := w.backend.StartCapture(w.id)
 	if err != nil {

@@ -51,7 +51,9 @@ func (e *eventBusImpl) Start() {
 			break
 		}
 		evt.event.Execute(e.backend)
-		evt.wait <- struct{}{}
+		go func() {
+			evt.wait <- struct{}{}
+		}()
 	}
 }
 

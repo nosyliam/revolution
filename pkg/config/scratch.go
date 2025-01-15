@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 type variableType int
 
 const (
@@ -52,7 +54,7 @@ func (s *Scratch) Set(name string, value interface{}) {
 func (s *Scratch) Get(name string) interface{} {
 	val, ok := s.variables[name]
 	if !ok {
-		panic("unknown variable")
+		panic(fmt.Sprintf("unknown variable: %s", name))
 	}
 	return val.value
 }
@@ -60,7 +62,7 @@ func (s *Scratch) Get(name string) interface{} {
 func (s *Scratch) Increment(name string) {
 	val, ok := s.variables[name]
 	if !ok {
-		panic("unknown variable")
+		panic(fmt.Sprintf("unknown variable: %s", name))
 	}
 	switch val.Type {
 	case intVariableType:
@@ -75,7 +77,7 @@ func (s *Scratch) Increment(name string) {
 func (s *Scratch) Decrement(name string) {
 	val, ok := s.variables[name]
 	if !ok {
-		panic("unknown variable")
+		panic(fmt.Sprintf("unknown variable: %s", name))
 	}
 	switch val.Type {
 	case intVariableType:
@@ -90,7 +92,7 @@ func (s *Scratch) Decrement(name string) {
 func (s *Scratch) Subtract(name string, value int) {
 	val, ok := s.variables[name]
 	if !ok {
-		panic("unknown variable")
+		panic(fmt.Sprintf("unknown variable: %s", name))
 	}
 	switch val.Type {
 	case intVariableType:
@@ -106,7 +108,7 @@ func (s *Scratch) Subtract(name string, value int) {
 func (s *Scratch) Add(name string, value int) {
 	val, ok := s.variables[name]
 	if !ok {
-		panic("unknown variable")
+		panic(fmt.Sprintf("unknown variable: %s", name))
 	}
 	switch val.Type {
 	case intVariableType:
@@ -121,7 +123,7 @@ func (s *Scratch) Add(name string, value int) {
 func (s *Scratch) Reset(name string) {
 	val, ok := s.variables[name]
 	if !ok {
-		panic("unknown variable")
+		panic(fmt.Sprintf("unknown variable: %s", name))
 	}
 	switch val.Type {
 	case intVariableType:
@@ -140,5 +142,6 @@ func (s *Scratch) Clear(name string) {
 func NewScratch() *Scratch {
 	scratch := &Scratch{LoopState: &LoopState{}, variables: make(map[string]*variable)}
 	scratch.Set("restart-sleep", false)
+	scratch.Set("initialized", false)
 	return scratch
 }

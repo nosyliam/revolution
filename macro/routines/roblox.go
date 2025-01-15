@@ -1,6 +1,7 @@
 package routines
 
 import (
+	"github.com/nosyliam/revolution/macro/routines/vichop"
 	. "github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
 )
@@ -9,6 +10,15 @@ const (
 	OpenRobloxRoutineKind RoutineKind = "OpenRoblox"
 	ResetRoutineKind      RoutineKind = "Reset"
 )
+
+func hopServer(macro *Macro) error {
+	instance := V[string](GameInstance)(macro)
+	if err := macro.Root.Window.HopServer(instance); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func closeWindow(macro *Macro) error {
 	if err := macro.Root.Window.Close(); err != nil {
@@ -20,6 +30,10 @@ func closeWindow(macro *Macro) error {
 }
 
 func openWindow(macro *Macro) error {
+	if V[bool](HopServer)(macro) && macro.Root.Window != nil && fixWindow(macro) == nil {
+		return hopServer(macro)
+	}
+
 	if macro.Root.Window != nil {
 		if err := closeWindow(macro); err != nil {
 			return err
@@ -73,13 +87,25 @@ var RobloxOffsetImage = ImageSteps{
 	Search("roblox").Find(),
 }
 
+var FullServerImage = ImageSteps{
+	SelectCoordinate(Change, 0, Sub(Height, 50), Width, Height),
+	Variance(20),
+	Search("fullserver").Find(),
+}
+
 var OpenRobloxRoutine = Actions{
-	Condition(If(True(V[bool](RestartSleep))), Sleep(5).Seconds()),
+	Set(HopServer, false),
+	Set(GameInstance, ""),
+	Routine(vichop.VicSearchRoutineKind),
+	Condition(
+		If(And(True(V[bool](RestartSleep)), False(V[bool](HopServer)))),
+		Sleep(5).Seconds(),
+	),
 	Set(RetryCount, 0),
 	Set(UsePublicServer, false),
 	Set(NewJoin, false),
 	Condition(
-		If(NotNil(Window)),
+		If(And(NotNil(Window), False(V[bool](HopServer)))),
 		Info("Attempting to close Roblox")(Status, Discord),
 		Logic(closeWindow),
 		Sleep(3).Seconds(),
@@ -99,16 +125,41 @@ var OpenRobloxRoutine = Actions{
 			),
 			Else(),
 			Condition(
+				If(And(True(V[bool](FullServerSleep)))),
+				Sleep(5).Seconds(),
+				Set(FullServerSleep, false),
+			),
+			Condition(
 				If(ExecError(fixWindow)),
 				Error("Failed to fix window!")(Status, Discord),
 				Continue(),
 			),
 			Condition(
-				If(ExecError(func(macro *Macro) error {
-					return macro.Root.Window.StartCapture()
-				})),
-				Error("Failed to start screen capture!")(Status, Discord),
-				Continue(),
+				If(Or(False(V[bool](HopServer)), False(Capturing))),
+				Condition(
+					If(ExecError(func(macro *Macro) error {
+						return macro.Root.Window.StartCapture()
+					})),
+					Error("Failed to start screen capture!")(Status, Discord),
+					Continue(),
+				),
+				Else(),
+				Loop(
+					For(100),
+					Condition(
+						If(Equal(Index(), 179)),
+						Error("Server hop failed!")(Status, Discord),
+						Sleep(5).Seconds(),
+					),
+					Condition(
+						If(Image(LoadingImage...).Found()),
+						Break(),
+						If(Image(FullServerImage...).Found()),
+						Set(FullServerSleep, true),
+						Restart(),
+					),
+					Sleep(100),
+				),
 			),
 			Loop(
 				For(180),
@@ -125,6 +176,9 @@ var OpenRobloxRoutine = Actions{
 					Continue(1),
 					Else(),
 					Condition(
+						If(Image(FullServerImage...).Found()),
+						Set(FullServerSleep, true),
+						Restart(),
 						If(Image(LoadingImage...).Found()),
 						Info("Game Open")(Status, Discord),
 						Set(NewJoin, true),

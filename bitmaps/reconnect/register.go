@@ -9,6 +9,7 @@ func Register(registry registry.Registry) {
 	registry.RegisterPng("loading", loading)
 	registry.RegisterPng("science", science)
 	registry.RegisterPng("disconnected", disconnected)
+	registry.RegisterPng("fullserver", fullserver)
 }
 
 //go:embed loading.png
@@ -19,3 +20,6 @@ var science []byte
 
 //go:embed disconnected.png
 var disconnected []byte
+
+//go:embed fullserver.png
+var fullserver []byte

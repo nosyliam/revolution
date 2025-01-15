@@ -142,6 +142,15 @@ func (w *windowBackend) SetRobloxLocation(loc string) {
 	w.robloxLoc = loc
 }
 
+func (w *windowBackend) HopServer(options window.JoinOptions) error {
+	cmd := exec.Command("open", "-n", options.String())
+	err := cmd.Start()
+	if err != nil {
+		return errors.Wrap(err, "failed to open roblox")
+	}
+	return nil
+}
+
 func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -171,10 +180,13 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 		return -1, nil
 	}
 
-	if pid, err := findRunningInstance(true); err != nil {
-		return 0, err
-	} else if pid != -1 {
-		return pid, nil
+	fmt.Println(options, options.GameInstance == "")
+	if options.GameInstance == "" {
+		if pid, err := findRunningInstance(true); err != nil {
+			return 0, err
+		} else if pid != -1 {
+			return pid, nil
+		}
 	}
 
 	loc := "/Applications/Roblox.app"
@@ -234,22 +246,9 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 		}
 	}
 
-	var url string
-	if options.Url == "" {
-		url = fmt.Sprintf("roblox://placeID=1537690962%s", (func() string {
-			if options.LinkCode == "" {
-				return ""
-			} else {
-				return fmt.Sprintf("&linkCode=%s", options.LinkCode)
-			}
-		})())
-	} else {
-		url = options.Url
-	}
-
 	for i := 0; i < 10; i++ {
-		fmt.Println("Attempting open")
-		cmd := exec.Command("open", "-n", url)
+		fmt.Println("Attempting open", options.String())
+		cmd := exec.Command("open", "-n", options.String())
 		err = cmd.Start()
 		if err != nil {
 			return 0, errors.New("failed to start installer")

@@ -1,6 +1,7 @@
 package actions
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/movement"
 )
@@ -29,8 +30,9 @@ func Sleep(ms int) *SleepAction {
 }
 
 type executePatternAction struct {
-	name interface{}
-	id   string
+	name  interface{}
+	id    string
+	async bool
 }
 
 func (e *executePatternAction) Execute(macro *common.Macro) error {
@@ -41,9 +43,35 @@ func (e *executePatternAction) Execute(macro *common.Macro) error {
 	case string:
 		computed = val
 	}
+	if e.async {
+		go func() {
+			if err := macro.Pattern.Execute(macro, nil, computed); err != nil {
+				macro.Action(Error(fmt.Sprintf("Async pattern execution failed: %v", err))(Discord))
+			}
+		}()
+		return nil
+	}
 	return macro.Pattern.Execute(macro, nil, computed)
 }
 
-func ExecutePattern(name interface{}) common.Action {
+func (e *executePatternAction) Async() common.Action {
+	e.async = true
+	return e
+}
+
+func ExecutePattern(name interface{}) *executePatternAction {
 	return &executePatternAction{name: name}
+}
+
+type cancelPatternAction struct{}
+
+func (e *cancelPatternAction) Execute(macro *common.Macro) error {
+	if macro.CancelPattern != nil {
+		macro.CancelPattern()
+	}
+	return nil
+}
+
+func CancelPattern() common.Action {
+	return &cancelPatternAction{}
 }

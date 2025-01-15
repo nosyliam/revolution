@@ -31,6 +31,7 @@ didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
     size_t fullLen = bytesPerRow * fullHeight;
     unsigned char *bgraData = malloc(fullLen);
     memcpy(bgraData, base, fullLen);
+    CVPixelBufferUnlockBaseAddress(pixelBuffer, kCVPixelBufferLock_ReadOnly);
 
     uint8_t *rgbaData = malloc(fullLen);
 

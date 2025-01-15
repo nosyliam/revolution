@@ -256,6 +256,8 @@ func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *commo
 	L.SetGlobal("Exit", L.NewFunction(LuaExit))
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = context.WithValue(ctx, "macro", macro)
+	ctx = context.WithValue(ctx, "cancel", cancel)
+	macro.Root.CancelPattern = cancel
 	L.SetContext(ctx)
 	go func() {
 		watch := macro.Watch()
@@ -275,8 +277,10 @@ func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *commo
 		fmt.Println(err)
 		macro.Status("Pattern execution error!")
 		macro.Logger.LogDiscord(logging.Error, fmt.Sprintf("Failed to execute pattern %s: %v", pattern.Path, err), nil, nil)
+		macro.Root.CancelPattern = nil
 		Sleep(5000, macro)
 	}
+	macro.Root.CancelPattern = nil
 }
 
 func init() {

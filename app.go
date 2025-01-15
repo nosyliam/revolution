@@ -30,6 +30,7 @@ type Macro struct {
 	backend   common.Backend
 	windowMgr *window.Manager
 	vicHop    *vichop.Manager
+	logger    *logging.Logger
 
 	interfaces map[string]*macro.Interface
 
@@ -57,6 +58,7 @@ func (m *Macro) exitError(err error) {
 func (m *Macro) startup(ctx context.Context) {
 	AppContext = ctx
 	m.runtime = NewRuntime(ctx)
+	m.logger = logging.NewLogger("Root", nil)
 	var err error
 	m.config, err = NewConfig(m.runtime)
 	if err != nil {
@@ -78,7 +80,7 @@ func (m *Macro) startup(ctx context.Context) {
 		os.Exit(1)
 	}
 	go m.eventBus.Start()
-	m.vicHop = vichop.NewManager(m.config, m.state)
+	m.vicHop = vichop.NewManager(m.logger, m.config, m.state)
 	m.vicHop.Start()
 
 	if err := m.vicHop.Dataset.CheckVersion(); err != nil {

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	. "github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
+	"time"
 )
 
 type MessageKindEnumerator []MessageKind
@@ -17,6 +18,7 @@ var MessageKinds = MessageKindEnumerator{
 	SetRoleMessageKind,
 	VicDetectMessageKind,
 	NightDetectMessageKind,
+	SearchedServerMessageKind,
 	ShutdownMessageKind,
 }
 
@@ -34,6 +36,8 @@ func (m *MessageKindEnumerator) Determine(data interface{}) MessageKind {
 		return AckSetRoleMessageKind
 	case VicDetectMessage:
 		return VicDetectMessageKind
+	case SearchedServerMessage:
+		return SearchedServerMessageKind
 	case NightDetectMessage:
 		return NightDetectMessageKind
 	}
@@ -71,24 +75,37 @@ type NightDetectMessage struct {
 	AccessCode string
 }
 
+type SearchedServer struct {
+	Time time.Time
+	ID   string
+}
+
+type SearchedServerMessage struct {
+	Server SearchedServer
+}
+
 type EmptyMessage struct{}
 
 type ShutdownMessage EmptyMessage
 
-func SubscribeMessage[T any](macro *Macro, kind MessageKind, callback func(message *T)) {
+func SubscribeMessage[T any](macro *Macro, callback func(message *T)) {
+	var t T
+	kind := MessageKinds.Determine(t)
 	watcher := macro.Network.Client.Subscribe(kind)
-	for {
-		message := <-watcher
-		if message == nil {
-			return
+	go func() {
+		for {
+			message, ok := <-watcher
+			if message == nil || !ok {
+				return
+			}
+			var msg T
+			if err := json.Unmarshal([]byte(message.Content), &msg); err != nil {
+				macro.Error <- fmt.Sprintf("Unable to decode message from %s: %v", message.Sender, err)
+				continue
+			}
+			callback(&msg)
 		}
-		var msg T
-		if err := json.Unmarshal([]byte(message.Content), &msg); err != nil {
-			macro.Error <- fmt.Sprintf("Unable to decode message from %s: %v", message.Sender, err)
-			continue
-		}
-		callback(&msg)
-	}
+	}()
 }
 
 func UnsubscribeMessage[T any](macro *Macro, kind MessageKind) {

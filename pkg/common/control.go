@@ -90,4 +90,5 @@ type PatternLoader interface {
 
 type VicHop interface {
 	Detect(macro *Macro, field string) (bool, error)
+	FindServer(macro *Macro) (string, error)
 }

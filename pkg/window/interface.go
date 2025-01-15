@@ -1,6 +1,7 @@
 package window
 
 import (
+	"fmt"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/pkg/errors"
 	"image"
@@ -12,12 +13,33 @@ var (
 )
 
 type JoinOptions struct {
-	LinkCode string
-	Url      string
+	LinkCode     string
+	GameInstance string
+	Url          string
+}
+
+func (j JoinOptions) String() string {
+	var url string
+	if j.Url == "" {
+		url = fmt.Sprintf("roblox://placeID=1537690962%s", (func() string {
+			if j.LinkCode == "" && j.GameInstance == "" {
+				return ""
+			} else if j.GameInstance != "" {
+				return fmt.Sprintf("&gameInstanceId=%s", j.GameInstance)
+			} else if j.LinkCode != "" {
+				return fmt.Sprintf("&linkCode=%s", j.LinkCode)
+			}
+			return ""
+		})())
+	} else {
+		url = j.Url
+	}
+	return url
 }
 
 type Backend interface {
 	DissociateWindow(int)
+	HopServer(options JoinOptions) error
 	OpenWindow(options JoinOptions) (int, error)
 	CloseWindow(id int) error
 	ActivateWindow(id int) error
