@@ -8,6 +8,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/logging"
 	lua "github.com/yuin/gopher-lua"
 	"reflect"
+	"strings"
 )
 
 var mappedDefaultFunctions = make(map[string]bool)
@@ -219,7 +220,6 @@ func LuaQuerySetting(L *lua.LState) int {
 func LuaPerformDetection(L *lua.LState) int {
 	macro := L.Context().Value("macro").(*common.Macro)
 	field := L.CheckString(1)
-	go macro.VicHop.Detect(macro, field)
 	if detected, err := macro.VicHop.Detect(macro, field); err != nil || !detected {
 		L.Push(lua.LBool(false))
 	} else {
@@ -273,8 +273,8 @@ func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *commo
 	}()
 	lf := L.NewFunctionFromProto(pattern.Proto)
 	L.Push(lf)
-	if err := L.PCall(0, 0, nil); err != nil {
-		fmt.Println(err)
+	err := L.PCall(0, 0, nil)
+	if err != nil && !strings.Contains(err.Error(), "exiting script") && !strings.Contains(err.Error(), "context canceled") {
 		macro.Status("Pattern execution error!")
 		macro.Logger.LogDiscord(logging.Error, fmt.Sprintf("Failed to execute pattern %s: %v", pattern.Path, err), nil, nil)
 		macro.Root.CancelPattern = nil

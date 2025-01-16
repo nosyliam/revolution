@@ -74,7 +74,8 @@ func (r *Routine) Execute() {
 				return
 			}
 			if r.redirectLoc != nil {
-				if r.depth != 0 {
+				fmt.Println(r.redirectLoc, r.depth)
+				if r.depth != 0 && r.parent != nil {
 					r.parent.redirectLoc = r.redirectLoc
 					return
 				}

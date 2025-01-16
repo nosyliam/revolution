@@ -1,7 +1,9 @@
 package control
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
+	"runtime/debug"
 )
 
 type event struct {
@@ -16,6 +18,10 @@ type eventBusImpl struct {
 }
 
 func (e *eventBusImpl) KeyDown(macro *common.Macro, key common.Key) common.Receiver {
+	if key == common.LShift {
+		fmt.Println("Pressing shift")
+		debug.PrintStack()
+	}
 	if _, ok := e.attachedPid[macro.Root.Window.PID()]; ok {
 		e.backend.AttachInput(macro.Root.Window.PID())
 		e.attachedPid[macro.Root.Window.PID()] = true

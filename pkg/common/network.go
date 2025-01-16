@@ -49,6 +49,7 @@ type NetworkClient interface {
 	Broadcast(content interface{})
 	Connect(address string) error
 	Disconnect()
+	UnsubscribeAll()
 }
 
 type NetworkRelay interface {

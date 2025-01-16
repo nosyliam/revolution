@@ -18,6 +18,7 @@ import (
 
 const BroadcastReceiver = "!BROADCAST"
 const RelayReceiver = "!RELAY"
+const MainReceiver = "!main"
 
 type Relay struct {
 	mu         sync.Mutex
@@ -289,7 +290,7 @@ func (r *Relay) handleMessage(message *Message) {
 		if strings.HasPrefix(message.Receiver, "!") {
 			role := strings.TrimPrefix(message.Receiver, "!")
 			for identity, idRole := range r.roles {
-				if string(idRole) == role && identity != message.Sender {
+				if string(idRole) == role {
 					r.identities[identity].Write(append(message.Data, "\r\n"...))
 				}
 			}

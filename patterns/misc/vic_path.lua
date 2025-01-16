@@ -7,10 +7,10 @@ function goToCannon()
     end
 
     Walk(Direction.Forward, 83.2)
-    Walk(Direction.Backward, 4)
+    Walk(Direction.Backward, 6)
     Walk(Direction.Right, 4)
     Sleep(100)
-    Walk(Direction.Right, 96.2)
+    Walk(Direction.Right, 94)
 
     KeyDown(Key.Right)
     KeyPress(Key.Space)
@@ -22,6 +22,7 @@ end
 
 -- GO TO MT
 function goToMT()
+    Status("Searching: Mountain Top")
     Sleep(500)
     KeyPress(Key.E)
     for i = 1, 4 do
@@ -40,15 +41,15 @@ function goToMT()
     KeyUp(Key.Right)
 
     -- Alignment
-    Walk(Direction.Backward, 12)
-    Walk(Direction.Left, 16)
-    Walk(Direction.Forward, 16)
-
     Walk(Direction.Backward, 16)
+    Walk(Direction.Left, 30)
+    Walk(Direction.Forward, 30)
+
+    Walk(Direction.Backward, 20)
     Walk(Direction.Right, 48)
 
     Walk(Direction.Forward, 130)
-    Walk(Direction.Left, 191.1)
+    Walk(Direction.Left, 196)
     Walk(Direction.Backward, 13)
 
     KeyPress(Key.Shift)
@@ -67,6 +68,7 @@ function goToMT()
 
     if PerformDetection("mountain") then
         Exit()
+        return
     end
 
     KeyPress(Key.Shift)
@@ -74,6 +76,7 @@ end
 
 -- GO TO SPID
 function goToSpid()
+    Status("Searching: Spider")
     for i = 1, 4 do
         KeyPress(Key.RotLeft)
     end
@@ -83,7 +86,7 @@ function goToSpid()
     Sleep(50)
     KeyPress(Key.RotUp)
 
-    Walk(Direction.Backward, 193.5)
+    Walk(Direction.Backward, 197)
     Walk(Direction.Left, 93.6)
 
     KeyPress(Key.Space)
@@ -111,6 +114,7 @@ function goToSpid()
 
     if PerformDetection("spider") then
         Exit()
+        return
     end
 
     KeyPress(Key.Shift)
@@ -118,6 +122,7 @@ end
 
 -- GO TO CAC
 function goToCac()
+    Status("Searching: Cactus")
     for i = 1, 2 do
         KeyPress(Key.RotUp)
     end
@@ -155,6 +160,7 @@ function goToCac()
 
     if PerformDetection("cactus") then
         Exit()
+        return
     end
 
     Walk(Direction.Backward, 50.7)
@@ -162,6 +168,7 @@ function goToCac()
 
     if PerformDetection("cactus") then
         Exit()
+        return
     end
 
 
@@ -172,6 +179,7 @@ end
 
 -- GO TO ROSE
 function goToRose()
+    Status("Searching: Rose")
     for i = 1, 6 do
         KeyPress(Key.RotUp)
     end
@@ -208,6 +216,7 @@ function goToRose()
 
     if PerformDetection("rose") then
         Exit()
+        return
     end
 
     for i = 1, 2 do
@@ -216,6 +225,7 @@ function goToRose()
 
     if PerformDetection("rose") then
         Exit()
+        return
     end
 end
 
@@ -223,6 +233,7 @@ end
 function goToPep()
     goToCannon()
 
+    Status("Searching: Pepper")
     Walk(Direction.Right, 70.0)
     KeyPress(Key.Space)
     KeyPress(Key.Space)
@@ -245,7 +256,7 @@ function goToPep()
     KeyPress(Key.Space)
     Sleep(1800)
     KeyPress(Key.Space)
-    Sleep(2500)
+    Sleep(2600)
 
     KeyDown(Key.Right)
     Sleep(1000)
@@ -276,6 +287,7 @@ function goToPep()
 
     if PerformDetection("pepper") then
         Exit()
+        return
     end
 
     KeyPress(Key.Shift)
@@ -294,7 +306,7 @@ function pepToCannon()
     KeyPress(Key.Space)
     Sleep(2650)
     KeyUp(Key.Backward)
-    Sleep(700)
+    Sleep(750)
     KeyUp(Key.Left)
     KeyPress(Key.Space)
     Sleep(1000)
@@ -302,6 +314,7 @@ end
 
 goToPep()
 pepToCannon()
+--goToCannon()
 goToMT()
 goToSpid()
 goToCac()

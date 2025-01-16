@@ -32,6 +32,7 @@ var MainRoutine = Actions{
 	/*Condition(
 		If(Equal(MS[int]("counters.claimedHive"), -1)),
 		Routine(hive.ClaimHiveRoutineKind),
+		Routine(hive.GotoCannonRoutineKind),
 	),*/
 	Info("Idling")(Status),
 	Sleep(1).Seconds(),

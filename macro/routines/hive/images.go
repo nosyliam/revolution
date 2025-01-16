@@ -53,3 +53,13 @@ var AllHiveImages = ImageSteps{
 	Direction(0),
 	Search("claimhive", "sendtrade", "tradelocked", "tradedisabled").Find(),
 }
+
+var PressEImage = ImageSteps{
+	SelectCoordinate(Change,
+		Add(S[int]("honeyOffsetX"), 110), 0,
+		Add(S[int]("honeyOffsetX"), 600), Add(S[int]("honeyOffsetY"), 23),
+	),
+	Variance(0),
+	Direction(0),
+	Search("press_e").Find(),
+}

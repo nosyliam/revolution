@@ -144,6 +144,10 @@ var OpenRobloxRoutine = Actions{
 					Continue(),
 				),
 				Else(),
+				Condition(
+					If(Image(ScienceImage...).Found()),
+					Loop(Until(Image(ScienceImage...).NotFound())),
+				),
 				Loop(
 					For(100),
 					Condition(
@@ -153,6 +157,8 @@ var OpenRobloxRoutine = Actions{
 					),
 					Condition(
 						If(Image(LoadingImage...).Found()),
+						Break(),
+						If(Image(ScienceImage...).Found()),
 						Break(),
 						If(Image(FullServerImage...).Found()),
 						Set(FullServerSleep, true),

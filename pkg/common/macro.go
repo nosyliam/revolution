@@ -138,6 +138,13 @@ func (m *Macro) GetWindow() *window.Window {
 	return m.Window
 }
 
+func (m *Macro) GetRoot() *Macro {
+	if m.Root == nil {
+		return m
+	}
+	return m.Root.GetRoot()
+}
+
 func (m *Macro) Copy() *Macro {
 	var root = m
 	if m.Root != nil {

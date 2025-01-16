@@ -63,6 +63,7 @@ var ClaimHiveRoutine = Actions{
 		Condition(
 			If(Image(AllHiveImages...).Found()),
 			KeyUp(Forward),
+			Walk(Backward, 2),
 			Break(),
 		),
 		Sleep(10),
@@ -74,7 +75,6 @@ var ClaimHiveRoutine = Actions{
 		KeyPress(E),
 		Walk(Backward, 4),
 		Info("Claimed Hive: 3")(Status, Discord),
-		Sleep(3).Seconds(),
 		Terminate(),
 	),
 	Set("CheckDirection", -1),
@@ -95,7 +95,6 @@ var ClaimHiveRoutine = Actions{
 		Redirect("OpenRoblox"),
 	),
 	Info("Claimed Hive: %d", MS[int]("counters.claimedHive"))(Status, Discord),
-	Sleep(3).Seconds(),
 }
 
 func init() {

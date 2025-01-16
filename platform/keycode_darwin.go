@@ -21,7 +21,7 @@ var KeyCodeMap = map[Key]int{
 	R:        0x0F,
 	L:        0x25,
 	Esc:      0x35,
-	Enter:    0x34,
+	Enter:    0x24,
 	LShift:   0x38,
 	Space:    0x31,
 	One:      0x12,

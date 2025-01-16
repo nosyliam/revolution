@@ -85,3 +85,23 @@ func Walk(key common.Key, distance float64) common.Action {
 	}
 	return &walkAction{distance: distance, direction: direction}
 }
+
+type resetCharacterAction struct{}
+
+func (a *resetCharacterAction) Execute(macro *common.Macro) error {
+	<-macro.EventBus.KeyDown(macro, common.Esc)
+	movement.Sleep(50, macro)
+	<-macro.EventBus.KeyUp(macro, common.Esc)
+	<-macro.EventBus.KeyDown(macro, common.R)
+	movement.Sleep(50, macro)
+	<-macro.EventBus.KeyUp(macro, common.R)
+	<-macro.EventBus.KeyDown(macro, common.Enter)
+	movement.Sleep(50, macro)
+	<-macro.EventBus.KeyUp(macro, common.Enter)
+	movement.Sleep(8000, macro)
+	return nil
+}
+
+func ResetCharacter() common.Action {
+	return &resetCharacterAction{}
+}

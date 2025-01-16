@@ -9,6 +9,7 @@ type VariableName string
 
 const (
 	Initialized     VariableName = "initialized"
+	PerformReset    VariableName = "perform-reset"
 	RetryCount      VariableName = "retry-count"
 	NewJoin         VariableName = "new-join"
 	GameInstance    VariableName = "game-instance"
@@ -72,7 +73,7 @@ func Index(depth ...int) func(macro *common.Macro) int {
 }
 
 func PatternExecuting(macro *common.Macro) bool {
-	return macro.CancelPattern == nil
+	return macro.GetRoot().CancelPattern != nil
 }
 
 func Window(macro *common.Macro) interface{} {

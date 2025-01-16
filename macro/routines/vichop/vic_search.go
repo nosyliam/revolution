@@ -3,6 +3,7 @@ package vichop
 import (
 	. "github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
+	"github.com/nosyliam/revolution/pkg/vichop"
 )
 
 const VicSearchRoutineKind RoutineKind = "VicSearch"
@@ -12,16 +13,22 @@ var VicSearch = Actions{
 		If(False(P[bool]("vicHop.enabled"))),
 		Terminate(),
 	),
+	Condition(
+		If(And(Equal(V[string](GameInstance), ""), Equal(P[string]("vicHop.role"), "main"))),
+		Logic(vichop.ReadQueue),
+		Condition(
+			If(NotEqual(V[string](GameInstance), "")),
+			Info("Searching")(Status, Discord),
+			Terminate(),
+		),
+	),
 	// Check if we're being called from OpenRoblox so that we can find a new server
 	Condition(
 		If(And(Equal(V[string](GameInstance), ""), True(P[bool]("vicHop.serverHop")))),
 		Info("Finding new server")(Status, Discord),
 		Set(GameInstance, func(macro *Macro) string {
 			server, err := macro.VicHop.FindServer(macro)
-			if server == "" {
-				panic("no server")
-			}
-			if err != nil {
+			if server == "" || err != nil {
 				macro.SetError(err, "Failed to find server")
 			}
 			return server
@@ -43,7 +50,12 @@ var VicSearch = Actions{
 	// Perform the vic search. Vic manager will handle redirecting on detection
 	// We'll continue to scan for vicious bee attacking/defeated GUIs in case another player finds it
 	ExecutePattern("vic_path").Async(),
-	Loop(Until(False(PatternExecuting)), Sleep(100)),
+	WaitForPatternStart(),
+	Logic(vichop.StartDetectingBattle),
+	Loop(Until(Or(False(PatternExecuting), True(vichop.BattleActive))), Sleep(100)),
+	Info("Search Ended")(Status),
+	CancelPattern(),
+	Logic(vichop.StopDetectingBattle),
 	Redirect("OpenRoblox"),
 }
 

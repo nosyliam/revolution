@@ -48,6 +48,7 @@ func (s *Logger) Log(verbosity int, level LogLevel, message string) error {
 }
 
 func (s *Logger) LogDiscord(level LogLevel, message string, id *int, screenshot *image.RGBA) (int, error) {
+	fmt.Printf("[%s] %s: %s\n", time.Now().Format("15:04:05"), level, message)
 	return 0, nil
 }
 

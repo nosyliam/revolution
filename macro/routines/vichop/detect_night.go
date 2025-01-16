@@ -26,7 +26,7 @@ func detectNight(macro *Macro) bool {
 	offsetX, offsetY := macro.MacroState.Object().HoneyOriginX, macro.MacroState.Object().BaseOriginY
 	cropped := revimg.CropRGBA(screenshot, image.Rect(offsetX, offsetY+1, offsetX+50, offsetY+19))
 
-	f, _ := os.Create("night.png")
+	f, _ := os.Create("night2.png")
 	png.Encode(f, cropped)
 	f.Close()
 
@@ -61,7 +61,7 @@ func detectNight(macro *Macro) bool {
 	redAvg := calcAverage(redHist, totalPixels)
 
 	fmt.Println(blueAvg, greenAvg, redAvg)
-	if blueAvg < 5 && greenAvg < 5 && redAvg < 5 {
+	if blueAvg < 50 && greenAvg < 50 && redAvg < 50 {
 		return true
 	}
 	return false
@@ -71,9 +71,22 @@ var DetectNightRoutine = Actions{
 	Info("Detecting Night")(Status),
 	Set(NightDetected, false),
 	Loop(
-		For(2),
-		KeyPress(RotDown),
+		For(4),
+		KeyDown(ZoomIn),
+		KeyUp(ZoomIn),
 	),
+	Loop(
+		For(2),
+		KeyDown(ZoomOut),
+		KeyUp(ZoomOut),
+	),
+	Loop(
+		For(2),
+		KeyDown(RotDown),
+		KeyUp(RotDown),
+	),
+	// Allow new frame to be processed
+	Sleep(200),
 	Condition(
 		If(True(detectNight)),
 		Info("Night Detected")(Status, Discord),

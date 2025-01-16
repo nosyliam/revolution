@@ -233,14 +233,13 @@ func (a *loopAction) Execute(macro *common.Macro) error {
 }
 
 type forLoop struct {
-	start int
-	end   int
-	step  int
+	start, end, step interface{}
 }
 
 func (l *forLoop) Predicate() PredicateFunc {
 	return func(macro *common.Macro) bool {
-		if macro.Scratch.LoopState.Index[0] < l.end {
+		end := ComputeValue[int](macro, l.end)
+		if macro.Scratch.LoopState.Index[0] < end {
 			return true
 		}
 
@@ -250,8 +249,9 @@ func (l *forLoop) Predicate() PredicateFunc {
 
 func (l *forLoop) Step() func(*common.Macro) {
 	return func(macro *common.Macro) {
+		step := ComputeValue[int](macro, l.step)
 		if l.step != 0 {
-			macro.Scratch.LoopState.Index[0] += l.step
+			macro.Scratch.LoopState.Index[0] += step
 		} else {
 			macro.Scratch.LoopState.Index[0]++
 		}
@@ -260,11 +260,12 @@ func (l *forLoop) Step() func(*common.Macro) {
 
 func (l *forLoop) Start() func(*common.Macro) {
 	return func(macro *common.Macro) {
-		macro.Scratch.LoopState.Index[0] = l.start
+		start := ComputeValue[int](macro, l.start)
+		macro.Scratch.LoopState.Index[0] = start
 	}
 }
 
-func For(args ...int) LoopPredicate {
+func For(args ...interface{}) LoopPredicate {
 	if len(args) > 3 {
 		panic("invalid arguments")
 	}
@@ -419,3 +420,14 @@ type terminateAction struct{}
 
 func (r *terminateAction) Execute(*common.Macro) error { return common.TerminateSignal }
 func Terminate() common.Action                         { return &terminateAction{} }
+
+func ComputeValue[T any](macro *common.Macro, value interface{}) T {
+	switch v := value.(type) {
+	case func(macro *common.Macro) T:
+		return v(macro)
+	case T:
+		return v
+	default:
+		panic(fmt.Sprintf("invalid value: %T", value))
+	}
+}

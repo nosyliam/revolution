@@ -31,7 +31,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 )
@@ -44,9 +43,9 @@ var WindowBackend window.Backend = singleton
 
 type windowData struct {
 	win        *C.Window
+	mu         sync.Mutex
 	controller C.CaptureControllerRef
 	output     chan<- *image.RGBA
-	ready      atomic.Bool
 }
 
 type windowBackend struct {
@@ -149,6 +148,15 @@ func (w *windowBackend) getRobloxVersion() (string, error) {
 	}
 
 	return mostRecentKey, nil
+}
+
+func (w *windowBackend) HopServer(options window.JoinOptions) error {
+	cmd := exec.Command("cmd", "/C", "start", url)
+	err := cmd.Start()
+	if err != nil {
+		return errors.Wrap(err, "failed to open roblox")
+	}
+	return nil
 }
 
 func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {

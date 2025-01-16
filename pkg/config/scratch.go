@@ -32,6 +32,15 @@ type Scratch struct {
 	variables map[string]*variable
 }
 
+func (s *Scratch) ExecutingRoutine(routine string) bool {
+	for _, name := range s.Stack {
+		if name == routine {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Scratch) PrintStack() string {
 	var result string
 	for i := len(s.Stack) - 1; i >= 0; i-- {

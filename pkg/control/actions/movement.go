@@ -66,12 +66,25 @@ func ExecutePattern(name interface{}) *executePatternAction {
 type cancelPatternAction struct{}
 
 func (e *cancelPatternAction) Execute(macro *common.Macro) error {
-	if macro.CancelPattern != nil {
-		macro.CancelPattern()
+	if macro.GetRoot().CancelPattern != nil {
+		macro.GetRoot().CancelPattern()
 	}
 	return nil
 }
 
 func CancelPattern() common.Action {
 	return &cancelPatternAction{}
+}
+
+type waitForPatternStartAction struct{}
+
+func (e *waitForPatternStartAction) Execute(macro *common.Macro) error {
+	for macro.GetRoot().CancelPattern == nil {
+		movement.Sleep(10, macro)
+	}
+	return nil
+}
+
+func WaitForPatternStart() common.Action {
+	return &waitForPatternStartAction{}
 }

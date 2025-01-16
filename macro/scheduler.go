@@ -1,7 +1,6 @@
 package macro
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/macro/routines"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
@@ -142,7 +141,6 @@ func (s *Scheduler) Start() {
 			}
 			s.Tick(frame)
 			if frame == nil && len(s.stop) == 0 {
-				fmt.Println("stopping")
 				s.stop <- struct{}{}
 			}
 		case <-time.After(200 * time.Millisecond):

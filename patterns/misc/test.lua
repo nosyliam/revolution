@@ -1,5 +1,10 @@
 SetName("test")
-PerformDetection("pepper")
+
+Walk(Direction.Right, 37)
+
+--KeyPress(Key.Esc)
+--KeyPress(Key.R)
+--KeyPress(Key.Enter)
 --[[Walk(Direction.Forward, 10)
 Sleep(1000)
 Walk(Direction.Right, 10)

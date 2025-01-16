@@ -209,6 +209,17 @@ func (c *Client) Close() {
 	c.stop <- struct{}{}
 }
 
+func (c *Client) UnsubscribeAll() {
+	c.mu.Lock()
+	for _, watcher := range c.watchers {
+		for sub := range watcher {
+			sub.ch <- nil
+			delete(watcher, sub)
+		}
+	}
+	defer c.mu.Unlock()
+}
+
 func (c *Client) Disconnect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -321,7 +332,6 @@ func (c *Client) handleConnectedIdentities(message Message) {
 	for _, identity := range data.Identities {
 		identities[identity.Address] = identity
 	}
-	fmt.Println("identities", identities)
 	var removedIdentities []string
 	var existingIdentities = make(map[string]bool)
 	status := c.state.Object().Networking.Object()
@@ -331,7 +341,6 @@ func (c *Client) handleConnectedIdentities(message Message) {
 		} else {
 			existingIdentities[id.Address] = true
 			if id.Role != newId.Role {
-				fmt.Println("updating role", newId.Role)
 				c.state.SetPathf(newId.Role, "networking.connectedIdentities[%s].role", id.Address)
 			}
 		}

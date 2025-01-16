@@ -5,8 +5,11 @@ import (
 	"github.com/nosyliam/revolution/bitmaps"
 	"github.com/nosyliam/revolution/pkg/common"
 	revimg "github.com/nosyliam/revolution/pkg/image"
+	"image"
 	"image/color"
+	"image/png"
 	"math"
+	"os"
 )
 
 type StatusDetector struct {
@@ -50,26 +53,24 @@ func (s *StatusDetector) Tick() {
 		return
 	}
 
-	// Start from the middle and expand search outwards (we'll only search for 150 pixels)
-	var boxDetected = false
-	for i := 1; i < 150; i++ {
-		var dir = -1
-		if i%2 == 0 {
-			dir = 1
-		}
-		x := width - 186 - (int(math.Floor(float64(i/2))) * dir)
-		var boxColor *color.RGBA
+	scanLine := func(x int, req *color.RGBA) (int, *color.RGBA) {
 		var boxScan = 0
+		var boxDetected = false
+		var boxColor *color.RGBA
 		var boxY = 0
 		for y := height; y > height-100; y-- {
 			if !boxDetected {
 				rgba := screenshot.RGBAAt(x, y)
 				if boxColor != nil && (rgba.R == boxColor.R || rgba.G == boxColor.G || rgba.B == boxColor.B) {
 					boxScan++
-				} else if rgba.R <= 14 && rgba.G <= 14 && rgba.B <= 14 && rgba.A == 255 {
+				} else if req == nil && rgba.R <= 14 && rgba.G <= 14 && rgba.B <= 14 && rgba.A == 255 {
 					boxScan = 1
 					boxY = y
 					boxColor = &rgba
+				} else if req != nil && rgba.R == req.R && rgba.G == req.G && rgba.B == req.B {
+					boxScan = 1
+					boxY = y
+					boxColor = req
 				} else {
 					boxScan = 0
 					boxColor = nil
@@ -80,6 +81,31 @@ func (s *StatusDetector) Tick() {
 				}
 			}
 		}
+		if !boxDetected {
+			boxY = -1
+		}
+		return boxY, boxColor
+	}
+
+	// Start from the middle and expand search outwards (we'll only search for 150 pixels)
+	var boxDetected = false
+	var boxY = 0
+	for i := 1; i < 150; i++ {
+		var dir = -1
+		if i%2 == 0 {
+			dir = 1
+		}
+		x := width - 186 - (int(math.Floor(float64(i/2))) * dir)
+
+		if y, clr := scanLine(x, nil); y != -1 {
+			lScan, _ := scanLine(x-1, clr)
+			rScan, _ := scanLine(x+1, clr)
+			if lScan != -1 && rScan != -1 {
+				boxY = y
+				boxDetected = true
+			}
+		}
+
 		if boxDetected {
 			var redPixels = 0
 			for bI := 1; i < 250; i++ {
@@ -90,16 +116,36 @@ func (s *StatusDetector) Tick() {
 				bX := width - 186 - (int(math.Floor(float64(bI/2))) * bDir)
 				for y := boxY; y > boxY-20; y-- {
 					rgba := screenshot.RGBAAt(bX, y)
-					if rgba.R > 200 {
+					if rgba.R > 200 && rgba.G < 30 && rgba.B < 30 {
 						redPixels++
 					}
 				}
 			}
-			if redPixels > 100 {
-				fmt.Println("Vicious bee attack detected")
+			if redPixels > 200 {
+				img := revimg.CropRGBA(screenshot, image.Rect(width-400, boxY-21, width, boxY))
+				fmt.Println("Vicious bee attack detected", redPixels)
+				f, _ := os.Create("night.png")
+				png.Encode(f, img)
+				f.Close()
 				s.active = true
 				return
 			}
 		}
 	}
+}
+
+func StartDetectingBattle(macro *common.Macro) {
+	macro.Root.VicHop.BattleDetect(macro)
+}
+
+func StopDetectingBattle(macro *common.Macro) {
+	macro.Root.VicHop.StopBattleDetect(macro)
+}
+
+func BattleActive(macro *common.Macro) bool {
+	return macro.Root.VicHop.BattleActive(macro)
+}
+
+func ReadQueue(macro *common.Macro) {
+	macro.Root.VicHop.ReadQueue(macro)
 }

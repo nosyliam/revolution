@@ -218,7 +218,7 @@ func (i *Interface) Start() {
 				if len(stop) == 0 {
 					stop <- struct{}{}
 				}
-				networking.UnsubscribeAll(i.Macro)
+				i.NetworkClient.UnsubscribeAll()
 				i.NetworkClient.SetRole(common.InactiveClientRole)
 				i.VicHop.UnregisterMacro(i.Macro)
 				i.Macro.Scheduler.Close()

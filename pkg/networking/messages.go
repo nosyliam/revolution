@@ -65,10 +65,9 @@ type AckSetRoleMessage struct {
 }
 
 type VicDetectMessage struct {
-	AccessCode string
-	Field      string
-	TileX      int
-	TileY      int
+	GameInstance string
+	Field        string
+	Time         time.Time
 }
 
 type NightDetectMessage struct {
@@ -107,10 +106,4 @@ func SubscribeMessage[T any](macro *Macro, callback func(message *T)) {
 			callback(&msg)
 		}
 	}()
-}
-
-func UnsubscribeAll(macro *Macro) {
-	for _, watcher := range macro.Network.Watchers {
-		close(watcher)
-	}
 }

@@ -7,10 +7,13 @@ import (
 	. "github.com/nosyliam/revolution/pkg/config"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/nosyliam/revolution/pkg/logging"
+	"github.com/nosyliam/revolution/pkg/movement"
 	. "github.com/nosyliam/revolution/pkg/networking"
 	"github.com/pkg/errors"
+	"image/png"
 	"io"
 	"net/http"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,7 +24,6 @@ type ServerData struct {
 		ID string `json:"id"`
 	} `json:"data"`
 }
-
 type Manager struct {
 	mu sync.Mutex
 
@@ -31,6 +33,8 @@ type Manager struct {
 	macros    map[string]*common.Macro
 	servers   map[string]SearchedServer
 	detectors map[*common.Macro]*StatusDetector
+
+	queue chan *VicDetectMessage
 
 	settings *Object[Config]
 	state    *Object[State]
@@ -49,6 +53,7 @@ func NewManager(logger *logging.Logger, settings *Object[Config], state *Object[
 		settings: settings,
 		logger:   logger,
 
+		queue:     make(chan *VicDetectMessage, 10),
 		waiters:   make(map[chan *ServerData]bool),
 		presets:   make(map[string]string),
 		states:    make(map[string]*Object[MacroState]),
@@ -148,7 +153,6 @@ func (m *Manager) RegisterMacro(macro *common.Macro) error {
 	SubscribeMessage(macro, func(message *SearchedServerMessage) {
 		m.mu.Lock()
 		defer m.mu.Unlock()
-		fmt.Println("added server", message.Server.ID)
 		m.servers[message.Server.ID] = message.Server
 		for id, server := range m.servers {
 			if time.Now().Sub(server.Time) > time.Minute*20 {
@@ -157,7 +161,36 @@ func (m *Manager) RegisterMacro(macro *common.Macro) error {
 		}
 	})
 
+	SubscribeMessage(macro, func(message *VicDetectMessage) {
+		// If we're not already killing a vic, redirect now. If we're in the same server that the
+		// vic was detected, redirect to the KillVic routine; otherwise, open Roblox and join the instance.
+		if !macro.Scratch.ExecutingRoutine("KillVic") {
+			if macro.Scratch.Get("game-instance") == message.GameInstance {
+				macro.Scratch.Set("vic-field", message.Field)
+				macro.Scratch.Set("perform-reset", true)
+				if macro.CancelPattern != nil {
+					macro.CancelPattern()
+				}
+				macro.SetRedirect("KillVic")
+			} else {
+				m.queue <- message
+				macro.SetRedirect("OpenRoblox")
+			}
+		}
+	})
+
 	return nil
+}
+
+func (m *Manager) ReadQueue(macro *common.Macro) {
+	if len(m.queue) == 0 {
+		return
+	}
+	fmt.Println("popping queue")
+	server := <-m.queue
+	macro.Scratch.Set("vic-field", server.Field)
+	macro.Scratch.Set("game-instance", server.GameInstance)
+	macro.Scratch.Set("hop-server", true)
 }
 
 func (m *Manager) UnregisterMacro(macro *common.Macro) {
@@ -165,11 +198,14 @@ func (m *Manager) UnregisterMacro(macro *common.Macro) {
 }
 
 func (m *Manager) HandleDetection(macro *common.Macro, field string) {
-	switch macro.Settings.Object().VicHop.Object().Role {
-	case common.MainClientRole:
-
-	case common.SearcherClientRole:
-
+	macro.Network.Client.Send(MainReceiver, VicDetectMessage{
+		GameInstance: macro.Scratch.Get("game-instance").(string),
+		Field:        field,
+	})
+	if macro.Settings.Object().VicHop.Object().Role == common.SearcherClientRole {
+		if err := macro.SetRedirect("OpenRoblox"); err != nil {
+			m.logger.Log(0, logging.Error, fmt.Sprintf("Failed to set redirect for searcher: %v", err))
+		}
 	}
 }
 
@@ -182,9 +218,19 @@ func (m *Manager) Detect(macro *common.Macro, field string) (bool, error) {
 		revimg.Point{X: root.MacroState.Object().BaseOriginX, Y: root.MacroState.Object().BaseOriginY})
 	if err != nil {
 		macro.Logger.LogDiscord(logging.Error, fmt.Sprintf("Failed to detect vicious bee: %v", err), nil, image)
+		return false, err
 	}
-	m.HandleDetection(macro, field)
-	return image != nil, err
+	if image != nil {
+		f, _ := os.Create("detected.png")
+		png.Encode(f, image)
+		f.Close()
+		<-macro.EventBus.KeyDown(macro, common.LShift)
+		movement.Sleep(50, macro)
+		<-macro.EventBus.KeyUp(macro, common.LShift)
+		m.HandleDetection(macro, field)
+		return true, nil
+	}
+	return false, nil
 }
 
 func (m *Manager) LoadNewServers() <-chan *ServerData {
@@ -256,23 +302,29 @@ func (m *Manager) FindServer(macro *common.Macro) (string, error) {
 }
 
 func (m *Manager) BattleActive(macro *common.Macro) bool {
-	if detector, ok := m.detectors[macro]; ok {
+	if detector, ok := m.detectors[macro.GetRoot()]; ok {
 		return detector.active
 	} else {
 		return false
 	}
 }
 
+func (m *Manager) StopBattleDetect(macro *common.Macro) {
+	m.mu.Lock()
+	delete(m.detectors, macro.GetRoot())
+	m.mu.Unlock()
+}
+
 func (m *Manager) BattleDetect(macro *common.Macro) {
 	m.mu.Lock()
-	if _, ok := m.detectors[macro]; !ok {
-		m.detectors[macro] = NewStatusDetector(m, macro)
+	if _, ok := m.detectors[macro.GetRoot()]; !ok {
+		m.detectors[macro.Root] = NewStatusDetector(m, macro.GetRoot())
 	}
 	m.mu.Unlock()
 }
 
 func (m *Manager) Tick(macro *common.Macro) {
-	if detector, ok := m.detectors[macro]; ok {
+	if detector, ok := m.detectors[macro.GetRoot()]; ok {
 		detector.Tick()
 	}
 }
