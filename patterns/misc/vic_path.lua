@@ -27,26 +27,24 @@ function goToMT()
     KeyPress(Key.E)
     for i = 1, 4 do
         KeyPress(Key.RotLeft)
+        Sleep(100)
     end
 
-    Sleep(1700)
+    Sleep(1100)
 
     KeyPress(Key.Space)
     KeyPress(Key.Space)
     KeyDown(Key.Right)
 
-    Sleep(1000)
+    Sleep(2600)
+
+    KeyUp(Key.Right)
+    KeyDown(Key.Forward)
+
+    Sleep(1800)
 
     KeyPress(Key.Space)
-    KeyUp(Key.Right)
-
-    -- Alignment
-    Walk(Direction.Backward, 16)
-    Walk(Direction.Left, 30)
-    Walk(Direction.Forward, 30)
-
-    Walk(Direction.Backward, 20)
-    Walk(Direction.Right, 48)
+    KeyUp(Key.Forward)
 
     Walk(Direction.Forward, 130)
     Walk(Direction.Left, 196)
@@ -312,9 +310,9 @@ function pepToCannon()
     Sleep(1000)
 end
 
-goToPep()
-pepToCannon()
---goToCannon()
+--goToPep()
+--pepToCannon()
+goToCannon()
 goToMT()
 goToSpid()
 goToCac()

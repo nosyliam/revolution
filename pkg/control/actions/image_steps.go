@@ -495,7 +495,6 @@ type search struct {
 
 func (s *search) Find() Step {
 	return func(ctx *imageSearchContext) {
-		fmt.Println("exec search", s.bitmaps)
 		for _, bitmap := range s.bitmaps {
 			var variance = ctx.variance
 			if ctx.defVariance != 0 && variance == 0 && !ctx.varianceSet {

@@ -246,10 +246,9 @@ void CaptureController::captureLoop() {
         }
 
         {
-            // Get the HWND rect
-            RECT hwndRect;
-            if (!GetWindowRect(hwnd_, &hwndRect)) {
-                reportError("Failed to retrieve HWND rect");
+            RECT clientRect;
+            if (!GetClientRect(hwnd_, &clientRect)) {
+                reportError("GetClientRect failed.");
                 context_->Unmap(stagingTex, 0);
                 SafeRelease(stagingTex);
                 SafeRelease(srcTex);
@@ -258,14 +257,26 @@ void CaptureController::captureLoop() {
                 break;
             }
 
-            int cropX = hwndRect.left;
-            int cropY = hwndRect.top;
-            int cropWidth = hwndRect.right - hwndRect.left;
-            int cropHeight = hwndRect.bottom - hwndRect.top;
+            POINT origin = {0, 0};
+            if (!ClientToScreen(hwnd_, &origin)) {
+                reportError("ClientToScreen failed.");
+                context_->Unmap(stagingTex, 0);
+                SafeRelease(stagingTex);
+                SafeRelease(srcTex);
+                SafeRelease(desktopRes);
+                duplication_->ReleaseFrame();
+                break;
+            }
+            OffsetRect(&clientRect, origin.x, origin.y);
 
-            cropX = std::max(0, cropX);
-            cropY = std::max(0, cropY);
-            cropWidth = std::min(cropWidth, (int)stagingDesc.Width - cropX);
+            int cropX      = clientRect.left;
+            int cropY      = clientRect.top;
+            int cropWidth  = clientRect.right  - clientRect.left;
+            int cropHeight = clientRect.bottom - clientRect.top;
+
+            cropX      = std::max(0, cropX);
+            cropY      = std::max(0, cropY);
+            cropWidth  = std::min(cropWidth,  (int)stagingDesc.Width  - cropX);
             cropHeight = std::min(cropHeight, (int)stagingDesc.Height - cropY);
 
             int outSize = cropWidth * cropHeight * 4; // RGBA
@@ -307,8 +318,6 @@ void CaptureController::captureLoop() {
 
         std::this_thread::sleep_for(std::chrono::milliseconds(33));
     }
-
-    StopCapture();
 }
 
 // Error reporting

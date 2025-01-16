@@ -7,14 +7,16 @@ toolchain go1.22.5
 require (
 	github.com/fatih/color v1.18.0
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/getsentry/sentry-go v0.31.1
 	github.com/grandcat/zeroconf v1.0.0
 	github.com/kelindar/dbscan v0.0.1
 	github.com/mitchellh/go-ps v1.0.0
+	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/pkg/errors v0.9.1
 	github.com/shirou/gopsutil/v4 v4.24.11
 	github.com/sqweek/dialog v0.0.0-20240226140203-065105509627
 	github.com/stretchr/testify v1.9.0
-	github.com/wailsapp/wails/v2 v2.9.1
+	github.com/wailsapp/wails/v2 v2.9.2
 	github.com/yuin/gopher-lua v1.1.1
 	go.mongodb.org/mongo-driver v1.17.2
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
@@ -31,6 +33,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/jchv/go-winloader v0.0.0-20210711035445-715c2860da7e // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/labstack/echo/v4 v4.10.2 // indirect
 	github.com/labstack/gommon v0.4.0 // indirect
 	github.com/leaanthony/go-ansi-parser v1.6.0 // indirect
@@ -41,7 +44,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/miekg/dns v1.1.27 // indirect
-	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/rivo/uniseg v0.4.4 // indirect

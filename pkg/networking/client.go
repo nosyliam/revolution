@@ -61,7 +61,7 @@ func (c *Client) Identity() string {
 func (c *Client) Subscribe(kind MessageKind) chan *Message {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	sub := subscriber{ch: make(chan *Message)}
+	sub := subscriber{ch: make(chan *Message, 1)}
 	c.watchers[kind][sub] = true
 	return sub.ch
 }
@@ -69,7 +69,7 @@ func (c *Client) Subscribe(kind MessageKind) chan *Message {
 func (c *Client) SubscribeOnce(kind MessageKind) <-chan *Message {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	sub := subscriber{ch: make(chan *Message), once: true}
+	sub := subscriber{ch: make(chan *Message, 1), once: true}
 	c.watchers[kind][sub] = true
 	return sub.ch
 }
@@ -145,6 +145,7 @@ func (c *Client) Connect(address string) error {
 		return nil
 	}
 
+	fmt.Println("[Client]: Connecting to", address)
 	fmt.Println("conn", c.state.SetPath("networking.connectingAddress", address))
 	conn, err := net.Dial("tcp", address)
 	if err != nil {
@@ -213,7 +214,9 @@ func (c *Client) UnsubscribeAll() {
 	c.mu.Lock()
 	for _, watcher := range c.watchers {
 		for sub := range watcher {
-			sub.ch <- nil
+			if len(sub.ch) == 0 {
+				sub.ch <- nil
+			}
 			delete(watcher, sub)
 		}
 	}

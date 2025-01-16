@@ -22,8 +22,10 @@ import (
 	"fmt"
 	revimg "github.com/nosyliam/revolution/pkg/image"
 	"github.com/nosyliam/revolution/pkg/window"
+	"github.com/pkg/browser"
 	"github.com/pkg/errors"
 	ps "github.com/shirou/gopsutil/v4/process"
+	"github.com/sqweek/dialog"
 	"image"
 	"io"
 	"net/http"
@@ -83,7 +85,9 @@ func (w *windowBackend) freeWindow(id int) {
 		return
 	}
 	w.StopCapture(id)
+	w.mu.Lock()
 	C.free(unsafe.Pointer(win.win))
+	w.mu.Unlock()
 }
 
 func (w *windowBackend) getWindow(id int) (*windowData, error) {
@@ -151,8 +155,25 @@ func (w *windowBackend) getRobloxVersion() (string, error) {
 }
 
 func (w *windowBackend) HopServer(options window.JoinOptions) error {
-	cmd := exec.Command("cmd", "/C", "start", url)
-	err := cmd.Start()
+	processes, err := ps.Processes()
+	if err != nil {
+		fmt.Println("proc err", err)
+		return errors.Wrap(err, "failed to list processes")
+	}
+	for _, p := range processes {
+		n, err := p.Name()
+		if err != nil {
+			continue
+		}
+		if pid := int(p.Pid); n == "RobloxPlayerBeta.exe" {
+			if int((C.int)(C.get_window_visible_count(C.int(pid)))) == 0 {
+				fmt.Println("found ghost process", pid)
+				p.Kill()
+			}
+		}
+	}
+	fmt.Println("opening", options.String())
+	err = browser.OpenURL(options.String())
 	if err != nil {
 		return errors.Wrap(err, "failed to open roblox")
 	}
@@ -214,9 +235,10 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 
 	if dataMap["clientVersionUpload"].(string) != version {
 		var pid = -1
-		cmd := exec.Command(filepath.Join(w.getRobloxRoot(), "RobloxPlayerInstaller.exe"))
+		cmd := exec.Command(filepath.Join(w.getRobloxRoot(), version, "RobloxPlayerInstaller.exe"))
 		err = cmd.Start()
 		if err != nil {
+			fmt.Println(err)
 			return 0, errors.New("failed to start installer")
 		}
 
@@ -246,22 +268,8 @@ func (w *windowBackend) OpenWindow(options window.JoinOptions) (int, error) {
 		}
 	}
 
-	var url string
-	if options.Url == "" {
-		url = fmt.Sprintf("roblox://placeID=1537690962%s", (func() string {
-			if options.LinkCode == "" {
-				return ""
-			} else {
-				return fmt.Sprintf("&linkCode=%s", options.LinkCode)
-			}
-		})())
-	} else {
-		url = options.Url
-	}
-
 	for i := 0; i < 10; i++ {
-		cmd := exec.Command("cmd", "/C", "start", url)
-		err = cmd.Start()
+		err = browser.OpenURL(options.String())
 		fmt.Println("starting roblox")
 		if err != nil {
 			return 0, errors.New("failed to open roblox")
@@ -300,15 +308,19 @@ func GoFrameCallback(id C.int, data *C.uchar, length C.size_t, width, height, st
 	png.Encode(f, img)
 	f.Close()*/
 
-	if win, ok := singleton.windows[int(id)]; ok && win.ready.Load() {
-		win.output <- img
+	if win, ok := singleton.windows[int(id)]; ok {
+		win.mu.Lock()
+		if win.output != nil && len(win.output) == 0 {
+			win.output <- img
+		}
+		win.mu.Unlock()
 	}
 }
 
 //export GoErrorCallback
 func GoErrorCallback(id C.int, data *C.char) {
 	err := C.GoString(data)
-	fmt.Printf("Received error for window ID %d: %v\n", int(id), err)
+	dialog.Message(fmt.Sprintf("Received capture error for window ID %d: %v\n", int(id), err)).Error()
 }
 
 func (w *windowBackend) StartCapture(id int) (<-chan *image.RGBA, error) {
@@ -326,14 +338,13 @@ func (w *windowBackend) StartCapture(id int) (<-chan *image.RGBA, error) {
 		return nil, errors.New("failed to create capture controller")
 	}
 
-	output := make(chan *image.RGBA)
+	output := make(chan *image.RGBA, 60)
 	win.output = output
 
 	C.StartCaptureController(controller)
 
 	fmt.Printf("Capture started for window ID: %d\n", id)
 	win.controller = controller
-	win.ready.Store(true)
 	return output, nil
 }
 
@@ -344,12 +355,16 @@ func (w *windowBackend) StopCapture(id int) {
 	if err != nil {
 		return
 	}
-	win.ready.Store(false)
+	win.mu.Lock()
 	if win.output != nil {
-		win.output <- nil
+		close(win.output)
+		win.output = nil
 	}
+	win.mu.Unlock()
 	if win.controller != nil {
 		C.StopCaptureController(win.controller)
+		C.DestroyCaptureController(win.controller)
+		win.controller = nil
 	}
 }
 

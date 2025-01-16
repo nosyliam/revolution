@@ -469,6 +469,7 @@ func (m *Manager) OpenWindow(accountName string, db Reactive, settings *Object[S
 		return nil, errors.Wrap(err, "Failed to reserve window")
 	}
 	id, err := m.backend.OpenWindow(joinOptions)
+	fmt.Println(err)
 	if err != nil {
 		return nil, errors.Wrap(err, "Failed to open window")
 	}

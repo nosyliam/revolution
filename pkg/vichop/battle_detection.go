@@ -5,11 +5,8 @@ import (
 	"github.com/nosyliam/revolution/bitmaps"
 	"github.com/nosyliam/revolution/pkg/common"
 	revimg "github.com/nosyliam/revolution/pkg/image"
-	"image"
 	"image/color"
-	"image/png"
 	"math"
-	"os"
 )
 
 type StatusDetector struct {
@@ -122,11 +119,11 @@ func (s *StatusDetector) Tick() {
 				}
 			}
 			if redPixels > 200 {
-				img := revimg.CropRGBA(screenshot, image.Rect(width-400, boxY-21, width, boxY))
+				//img := revimg.CropRGBA(screenshot, image.Rect(width-400, boxY-21, width, boxY))
 				fmt.Println("Vicious bee attack detected", redPixels)
-				f, _ := os.Create("night.png")
+				/*f, _ := os.Create("night.png")
 				png.Encode(f, img)
-				f.Close()
+				f.Close()*/
 				s.active = true
 				return
 			}

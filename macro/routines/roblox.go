@@ -87,10 +87,10 @@ var RobloxOffsetImage = ImageSteps{
 	Search("roblox").Find(),
 }
 
-var FullServerImage = ImageSteps{
+var ExperienceBlockedImage = ImageSteps{
 	SelectCoordinate(Change, 0, Sub(Height, 50), Width, Height),
 	Variance(20),
-	Search("fullserver").Find(),
+	Search("fullserver", "restricted").Find(),
 }
 
 var OpenRobloxRoutine = Actions{
@@ -146,7 +146,7 @@ var OpenRobloxRoutine = Actions{
 				Else(),
 				Condition(
 					If(Image(ScienceImage...).Found()),
-					Loop(Until(Image(ScienceImage...).NotFound())),
+					Loop(Until(Image(ScienceImage...).NotFound()), Sleep(10)),
 				),
 				Loop(
 					For(100),
@@ -158,9 +158,7 @@ var OpenRobloxRoutine = Actions{
 					Condition(
 						If(Image(LoadingImage...).Found()),
 						Break(),
-						If(Image(ScienceImage...).Found()),
-						Break(),
-						If(Image(FullServerImage...).Found()),
+						If(Image(ExperienceBlockedImage...).Found()),
 						Set(FullServerSleep, true),
 						Restart(),
 					),
@@ -182,7 +180,7 @@ var OpenRobloxRoutine = Actions{
 					Continue(1),
 					Else(),
 					Condition(
-						If(Image(FullServerImage...).Found()),
+						If(Image(ExperienceBlockedImage...).Found()),
 						Set(FullServerSleep, true),
 						Restart(),
 						If(Image(LoadingImage...).Found()),

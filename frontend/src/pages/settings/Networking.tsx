@@ -40,7 +40,7 @@ interface RoleMetadata {
 
 const Roles: Record<string, RoleMetadata> = {
     "main": {color: "green", text: "Main"},
-    "searcher": {color: "orange", text: "Searcher"},
+    "searcher": {color: "orange", text: "Search"},
     "passive": {color: "gray", text: "Passive"}
 }
 
@@ -181,7 +181,7 @@ export default function Networking() {
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
-                                width: '120px',
+                                width: '100px',
                                 direction: 'rtl',
                                 textAlign: 'left',
                             }}
@@ -190,11 +190,13 @@ export default function Networking() {
                         </Text>
                     </Tooltip>
                     {connectingAddress != relay.address ? <div>
-                        {(showNetwork && hoveredIndex != relay.address && Roles[relay.role!]) &&
+                        {(showNetwork && (!relayActive || (relayActive && hoveredIndex != relay.address)) && Roles[relay.role!]) &&
                             <Badge color={Roles[relay.role!].color} radius="sm" style={{
                                 position: 'absolute',
                                 bottom: 8,
                                 right: 8,
+                                paddingLeft: 4,
+                                paddingRight: 4,
                             }}>
                                 { Roles[relay.role!].text }
                             </Badge>}
@@ -202,9 +204,9 @@ export default function Networking() {
                             <UnstyledButton onPointerEnter={() => setActionHovered(true)}
                                             onPointerLeave={() => setActionHovered(false)} onClick={action}>
                                 {(relayActive && relay.identity != identity) && (actionHovered ? <IconForbidFilled size={18} style={actionStyle}/> :
-                                        <IconForbid size={18} style={actionStyle}/>)}
+                                    <IconForbid size={18} style={actionStyle}/>)}
                                 {!relayActive && <IconStar size={18} style={{...actionStyle, stroke: 'goldenrod'}}
-                                                fill={actionHovered || saved ? 'goldenrod' : 'none'}/>}
+                                                           fill={actionHovered || saved ? 'goldenrod' : 'none'}/>}
                             </UnstyledButton>}
                         {!showNetwork && <UnstyledButton onClick={connect}>
                             <IconLogin2 size={18} style={connectStyle}/>

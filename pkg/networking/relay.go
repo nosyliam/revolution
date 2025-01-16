@@ -35,10 +35,25 @@ type Relay struct {
 	actionTime time.Time
 }
 
+func getRandomOpenPort() (int, error) {
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return 0, fmt.Errorf("failed to get a random open port: %v", err)
+	}
+	defer listener.Close()
+
+	addr := listener.Addr().(*net.TCPAddr)
+	return addr.Port, nil
+}
+
 func NewRelay(client *Client, state *config.Object[config.MacroState], logger *logging.Logger) *Relay {
+	port, err := getRandomOpenPort()
+	if err != nil {
+		port = 45645
+	}
 	return &Relay{
 		client:     client,
-		port:       45645, // squid game?
+		port:       port,
 		identities: make(map[string]net.Conn),
 		banned:     make(map[string]bool),
 		roles:      make(map[string]ClientRole),
@@ -61,7 +76,7 @@ func (r *Relay) Start() error {
 	var err error
 	defer r.state.SetPath("networking.relayStarting", false)
 	r.state.SetPath("networking.relayStarting", true)
-	r.listener, err = net.Listen("tcp", fmt.Sprintf(":45645"))
+	r.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", r.port))
 	if err != nil {
 		return err
 	}

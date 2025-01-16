@@ -202,24 +202,31 @@ func (i *Interface) Start() {
 				i.Macro.Unlock()
 			case <-i.stop:
 				i.Macro.Lock()
+				fmt.Println("block 1")
 				if i.Macro.Window != nil {
 					i.Macro.Window.Dissociate()
 				}
+				fmt.Println("block 2")
 				for _, watcher := range i.Macro.UnpauseWatchers {
 					if len(watcher) == 0 {
 						watcher <- struct{}{}
 					}
 				}
+				fmt.Println("block 3")
 				for _, watcher := range i.Macro.Watchers {
 					if len(watcher) == 0 {
 						watcher <- nil
 					}
 				}
+				fmt.Println("block 4")
 				if len(stop) == 0 {
 					stop <- struct{}{}
 				}
+				fmt.Println("block 5")
 				i.NetworkClient.UnsubscribeAll()
+				fmt.Println("block 6")
 				i.NetworkClient.SetRole(common.InactiveClientRole)
+				fmt.Println("block 7")
 				i.VicHop.UnregisterMacro(i.Macro)
 				i.Macro.Scheduler.Close()
 				i.command <- nil

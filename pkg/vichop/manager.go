@@ -10,17 +10,16 @@ import (
 	"github.com/nosyliam/revolution/pkg/movement"
 	. "github.com/nosyliam/revolution/pkg/networking"
 	"github.com/pkg/errors"
-	"image/png"
 	"io"
 	"net/http"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
 type ServerData struct {
-	Data []struct {
+	NextPageCursor string `json:"nextPageCursor"`
+	Data           []struct {
 		ID string `json:"id"`
 	} `json:"data"`
 }
@@ -43,6 +42,7 @@ type Manager struct {
 	waiters    map[chan *ServerData]bool
 	loading    atomic.Bool
 	serverData atomic.Pointer[ServerData]
+	cursor     string
 }
 
 func NewManager(logger *logging.Logger, settings *Object[Config], state *Object[State]) *Manager {
@@ -221,9 +221,9 @@ func (m *Manager) Detect(macro *common.Macro, field string) (bool, error) {
 		return false, err
 	}
 	if image != nil {
-		f, _ := os.Create("detected.png")
+		/*f, _ := os.Create("detected.png")
 		png.Encode(f, image)
-		f.Close()
+		f.Close()*/
 		<-macro.EventBus.KeyDown(macro, common.LShift)
 		movement.Sleep(50, macro)
 		<-macro.EventBus.KeyUp(macro, common.LShift)
@@ -243,7 +243,11 @@ func (m *Manager) LoadNewServers() <-chan *ServerData {
 	go func() {
 		m.mu.Lock()
 		defer m.mu.Unlock()
-		resp, err := http.Get("https://games.roblox.com/v1/games/1537690962/servers/Public?cursor=&sortOrder=Desc&excludeFullGames=true")
+		url := "https://games.roblox.com/v1/games/1537690962/servers/Public?cursor=&sortOrder=Desc&excludeFullGames=true"
+		if m.cursor != "" {
+			url = fmt.Sprintf("https://games.roblox.com/v1/games/1537690962/servers/Public?cursor=%s&sortOrder=Desc&excludeFullGames=true", m.cursor)
+		}
+		resp, err := http.Get(url)
 		if resp.StatusCode != http.StatusOK {
 			m.logger.Log(0, logging.Error, "Failed to load new servers: rate limited")
 			<-time.After(5 * time.Second)
@@ -266,11 +270,13 @@ func (m *Manager) LoadNewServers() <-chan *ServerData {
 
 		var servers ServerData
 		err = json.Unmarshal(body, &servers)
-		if err != nil {
+		if err != nil || len(servers.Data) == 0 {
+			m.cursor = ""
 			m.logger.Log(0, logging.Error, fmt.Sprintf("Failed to load new servers: %v", err))
 			<-time.After(5 * time.Second)
 			m.LoadNewServers()
 		}
+		m.cursor = servers.NextPageCursor
 		m.loading.Store(false)
 		m.serverData.Store(&servers)
 		for ch := range m.waiters {

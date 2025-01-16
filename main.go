@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"flag"
+	"github.com/getsentry/sentry-go"
 	"github.com/nosyliam/revolution/platform"
 	"github.com/pkg/errors"
 	"github.com/sqweek/dialog"
@@ -23,6 +24,14 @@ var assets embed.FS
 var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
 
 func main() {
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:              "https://645d28ea8dd7113dad0aace50f276f16@o4508651129536512.ingest.us.sentry.io/4508651131764736",
+		TracesSampleRate: 0.5,
+	})
+	if err != nil {
+		log.Fatalf("sentry.Init: %s", err)
+	}
+
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -36,8 +45,10 @@ func main() {
 	app := NewMacro(platform.WindowBackend, platform.ControlBackend)
 
 	var height = 400
+	var width = 600
 	if runtime.GOOS == "windows" {
 		height += 11
+		width += 12
 	}
 	backdrop := windows.Acrylic
 	if determineOs() == "windows11" {
@@ -46,7 +57,7 @@ func main() {
 
 	if err := wails.Run(&options.App{
 		Title:         "Revolution Macro",
-		Width:         600,
+		Width:         width,
 		Height:        height,
 		DisableResize: true,
 		AssetServer: &assetserver.Options{
@@ -81,3 +92,12 @@ func main() {
 		return
 	}
 }
+
+/*func init() {
+	syscall.NewLazyDLL("kernel32.dll").NewProc("AllocConsole").Call()
+	stdoutHandle, _ := syscall.GetStdHandle(syscall.STD_OUTPUT_HANDLE)
+	stderrHandle, _ := syscall.GetStdHandle(syscall.STD_ERROR_HANDLE)
+
+	os.Stdout = os.NewFile(uintptr(stdoutHandle), "/dev/stdout")
+	os.Stderr = os.NewFile(uintptr(stderrHandle), "/dev/stderr")
+}*/
