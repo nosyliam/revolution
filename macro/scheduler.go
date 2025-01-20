@@ -41,6 +41,7 @@ type Scheduler struct {
 	close       chan struct{}
 	stop        chan<- struct{}
 	redirect    chan<- *common.RedirectExecution
+	waiters     map[chan *image.RGBA]bool
 	tick        int
 	adjustFails int
 }
@@ -139,6 +140,10 @@ func (s *Scheduler) Start() {
 			if len(s.close) == 1 {
 				continue
 			}
+			for waiter := range s.waiters {
+				waiter <- frame
+				delete(s.waiters, waiter)
+			}
 			s.Tick(frame)
 			if frame == nil && len(s.stop) == 0 {
 				s.stop <- struct{}{}
@@ -152,12 +157,19 @@ func (s *Scheduler) Start() {
 	}
 }
 
+func (s *Scheduler) RequestFrame() <-chan *image.RGBA {
+	ch := make(chan *image.RGBA)
+	s.waiters[ch] = true
+	return ch
+}
+
 func (s *Scheduler) Initialize(macro *common.Macro) {
 	s.macro = macro
 }
 
 func NewScheduler(redirect chan<- *common.RedirectExecution, stop chan<- struct{}) common.Scheduler {
 	return &Scheduler{
+		waiters:  make(map[chan *image.RGBA]bool),
 		redirect: redirect,
 		stop:     stop,
 	}

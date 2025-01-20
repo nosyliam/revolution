@@ -96,6 +96,14 @@ Available commands:\r
         EventsEmit("command", "detect", args[0])
     },
 
+    d: (...args: string[]) => {
+        EventsEmit("command", "detect", args[0])
+    },
+
+    detectvic: (...args: string[]) => {
+        EventsEmit("command", "detectvic", args[0])
+    },
+
     clear: () => null,
 };
 

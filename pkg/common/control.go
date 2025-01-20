@@ -63,11 +63,27 @@ type EventBus interface {
 	ScrollMouse(macro *Macro, x, y int) Receiver
 }
 
+type InputManager interface {
+	Reset()
+	ResetCharacter()
+	KeyDown(key Key)
+	KeyUp(key Key)
+	KeyPress(key Key)
+	SetPitch(pitch int)
+	SetYaw(yaw int)
+	SetZoom(zoom int)
+	Pitch() int
+	Yaw() int
+	Zoom() int
+	Sleep(ms int)
+}
+
 type Scheduler interface {
 	Execute(interruptType InterruptKind)
 	Start()
 	Close()
 	Initialize(macro *Macro)
+	RequestFrame() <-chan *image.RGBA
 }
 
 type Event interface {
@@ -79,6 +95,10 @@ type BuffDetector interface {
 	MoveSpeed() float64
 	Watch() chan struct{}
 	Unwatch(chan struct{})
+}
+
+type Alignment interface {
+	PerformDetection(macro *Macro)
 }
 
 type PatternLoader interface {

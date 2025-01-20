@@ -1,7 +1,6 @@
 package actions
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/image"
 )
@@ -80,7 +79,6 @@ func (i *imageSearch) X() func(macro *common.Macro) int {
 	return func(macro *common.Macro) int {
 		ctx := NewImageSearchContext(i, macro)
 		ctx.execute()
-		fmt.Println(ctx.lastResult)
 		if len(ctx.lastResult) == 0 {
 			return -1
 		}

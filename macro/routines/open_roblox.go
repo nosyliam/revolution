@@ -1,9 +1,12 @@
 package routines
 
 import (
+	"fmt"
 	"github.com/nosyliam/revolution/macro/routines/vichop"
 	. "github.com/nosyliam/revolution/pkg/common"
 	. "github.com/nosyliam/revolution/pkg/control/actions"
+	"image/png"
+	"os"
 )
 
 const (
@@ -85,6 +88,13 @@ var RobloxOffsetImage = ImageSteps{
 	Variance(2),
 	Direction(0),
 	Search("roblox").Find(),
+}
+
+var HotbarOffsetImage = ImageSteps{
+	SelectCoordinate(Change, 0, Sub(Height, 200), Width, Height),
+	Variance(5),
+	Direction(0),
+	Search("hotbar").Find(),
 }
 
 var ExperienceBlockedImage = ImageSteps{
@@ -247,6 +257,27 @@ var OpenRobloxRoutine = Actions{
 		Sleep(10).Seconds(),
 		Restart(),
 	),
+	Logic(func() { fmt.Println("offset") }),
+	Set(OffsetX, Image(HotbarOffsetImage...).X()),
+	Condition(
+		If(GreaterThan(V[int](OffsetX), 0)),
+		Set(OffsetY, Image(HotbarOffsetImage...).Y()),
+		Logic(func(macro *Macro) {
+			f, _ := os.Create("test.png")
+			png.Encode(f, macro.GetWindow().Screenshot())
+			f.Close()
+			fmt.Println("Offset", macro.Scratch.Get("offset-x"), macro.Scratch.Get("offset-y"))
+		}),
+		Subtract(OffsetX, 28),
+		Subtract(OffsetY, 24),
+		SetState("hotbarOriginX", V[int](OffsetX)),
+		SetState("hotbarOriginY", V[int](OffsetY)),
+		Else(),
+		Error("Offsets could not be detected!")(Status, Discord),
+		Sleep(10).Seconds(),
+		Restart(),
+	),
+
 	Condition(
 		If(Nil(Window)),
 		Error("Waiting 30 seconds before retrying")(Status, Discord),
@@ -256,6 +287,7 @@ var OpenRobloxRoutine = Actions{
 	Condition(
 		If(False(V[bool](RestartSleep))),
 		Logic(func(macro *Macro) {
+			macro.Input.Reset()
 			go macro.Scheduler.Start()
 		}),
 	),

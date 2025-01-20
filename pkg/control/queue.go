@@ -1,9 +1,7 @@
 package control
 
 import (
-	"fmt"
 	"github.com/nosyliam/revolution/pkg/common"
-	"runtime/debug"
 )
 
 type event struct {
@@ -18,35 +16,31 @@ type eventBusImpl struct {
 }
 
 func (e *eventBusImpl) KeyDown(macro *common.Macro, key common.Key) common.Receiver {
-	if key == common.LShift {
-		fmt.Println("Pressing shift")
-		debug.PrintStack()
-	}
-	if _, ok := e.attachedPid[macro.Root.Window.PID()]; ok {
-		e.backend.AttachInput(macro.Root.Window.PID())
-		e.attachedPid[macro.Root.Window.PID()] = true
+	if _, ok := e.attachedPid[macro.GetWindow().PID()]; ok {
+		e.backend.AttachInput(macro.GetWindow().PID())
+		e.attachedPid[macro.GetWindow().PID()] = true
 	}
 	ch := make(chan struct{})
-	e.queue <- event{&KeyDownEvent{Event{macro.Root.Window}, key}, ch}
+	e.queue <- event{&KeyDownEvent{Event{macro.GetWindow()}, key}, ch}
 	return ch
 
 }
 
 func (e *eventBusImpl) KeyUp(macro *common.Macro, key common.Key) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&KeyUpEvent{Event{macro.Root.Window}, key}, ch}
+	e.queue <- event{&KeyUpEvent{Event{macro.GetWindow()}, key}, ch}
 	return ch
 }
 
 func (e *eventBusImpl) MoveMouse(macro *common.Macro, x, y int) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&MouseMoveEvent{Event{macro.Root.Window}, x, y}, ch}
+	e.queue <- event{&MouseMoveEvent{Event{macro.GetWindow()}, x, y}, ch}
 	return ch
 }
 
 func (e *eventBusImpl) ScrollMouse(macro *common.Macro, x, y int) common.Receiver {
 	ch := make(chan struct{})
-	e.queue <- event{&MouseScrollEvent{Event{macro.Root.Window}, x, y}, ch}
+	e.queue <- event{&MouseScrollEvent{Event{macro.GetWindow()}, x, y}, ch}
 	return ch
 }
 

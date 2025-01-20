@@ -23,9 +23,7 @@ type keyPressAction struct {
 }
 
 func (a *keyPressAction) Execute(macro *common.Macro) error {
-	<-macro.EventBus.KeyDown(macro, a.key)
-	movement.Sleep(50, macro) // TODO: Key delay
-	<-macro.EventBus.KeyUp(macro, a.key)
+	macro.Input.KeyPress(a.key)
 	return nil
 }
 
@@ -38,7 +36,7 @@ type keyDownAction struct {
 }
 
 func (a *keyDownAction) Execute(macro *common.Macro) error {
-	<-macro.EventBus.KeyDown(macro, a.key)
+	macro.Input.KeyDown(a.key)
 	return nil
 }
 
@@ -51,7 +49,8 @@ type keyUpAction struct {
 }
 
 func (a *keyUpAction) Execute(macro *common.Macro) error {
-	<-macro.EventBus.KeyUp(macro, a.key)
+	macro.Input.KeyPress(a.key)
+
 	return nil
 }
 
@@ -89,16 +88,7 @@ func Walk(key common.Key, distance float64) common.Action {
 type resetCharacterAction struct{}
 
 func (a *resetCharacterAction) Execute(macro *common.Macro) error {
-	<-macro.EventBus.KeyDown(macro, common.Esc)
-	movement.Sleep(50, macro)
-	<-macro.EventBus.KeyUp(macro, common.Esc)
-	<-macro.EventBus.KeyDown(macro, common.R)
-	movement.Sleep(50, macro)
-	<-macro.EventBus.KeyUp(macro, common.R)
-	<-macro.EventBus.KeyDown(macro, common.Enter)
-	movement.Sleep(50, macro)
-	<-macro.EventBus.KeyUp(macro, common.Enter)
-	movement.Sleep(8000, macro)
+	macro.Input.ResetCharacter()
 	return nil
 }
 

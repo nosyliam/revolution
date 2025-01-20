@@ -16,7 +16,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.24.11
 	github.com/sqweek/dialog v0.0.0-20240226140203-065105509627
 	github.com/stretchr/testify v1.9.0
-	github.com/wailsapp/wails/v2 v2.9.2
+	github.com/wailsapp/wails/v2 v2.9.1
 	github.com/yuin/gopher-lua v1.1.1
 	go.mongodb.org/mongo-driver v1.17.2
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1

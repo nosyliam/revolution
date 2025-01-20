@@ -43,12 +43,18 @@ type WindowSettings struct {
 }
 
 type PlayerSettings struct {
-	MoveSpeed float64 `yaml:"moveSpeed" default:"16"`
+	MoveSpeed float64 `yaml:"moveSpeed" default:"24"`
 }
 
 type PatternSettings struct {
-	Overrides *List[PatternOverride] `yaml:"overrides"`
-	Active    *List[Pattern]         `yaml:"active"`
+	Overrides      *List[PatternOverride] `yaml:"overrides"`
+	Active         *List[Pattern]         `yaml:"active"`
+	RetryCount     int                    `yaml:"retryCount" default:"3"`
+	AlignmentLevel string                 `yaml:"alignmentLevel" default:"Low"`
+}
+
+type MacroSettings struct {
+	KeyDelay int `yaml:"keyDelay" default:"50"`
 }
 
 // Settings defines the configuration for an individual preset
@@ -60,6 +66,7 @@ type Settings struct {
 	Player       *Object[PlayerSettings]  `yaml:"player"`
 	Patterns     *Object[PatternSettings] `yaml:"patterns"`
 	VicHop       *Object[VicHop]          `yaml:"vicHop"`
+	Macro        *Object[MacroSettings]   `yaml:"macro"`
 }
 
 type Tools struct {

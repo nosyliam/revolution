@@ -9,6 +9,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/control"
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/movement"
+	"github.com/nosyliam/revolution/pkg/movement/alignment"
 	"github.com/nosyliam/revolution/pkg/networking"
 	"github.com/nosyliam/revolution/pkg/vichop"
 	"github.com/nosyliam/revolution/pkg/window"
@@ -97,7 +98,7 @@ func (i *Interface) ReceiveCommands() {
 					return
 				}
 			},
-			"detect": func(args ...string) {
+			"detectvic": func(args ...string) {
 				if len(args) != 1 {
 					common.Console(logging.Error, "Expected a field name!")
 					return
@@ -107,6 +108,20 @@ func (i *Interface) ReceiveCommands() {
 					common.Console(logging.Error, "Vicious bee detected!")
 				} else {
 					common.Console(logging.Error, "Vicious bee not detected!")
+				}
+			},
+			"detect": func(args ...string) {
+				if len(args) != 1 {
+					common.Console(logging.Error, "Expected a detector name!")
+					return
+				}
+				result, err := alignment.Manager.PerformDetection(i.Macro, args[0])
+				if err != nil {
+					common.Console(logging.Error, fmt.Sprintf("Detection failed: %v", err))
+				} else if result {
+					common.Console(logging.Success, "Checkpoint detected!")
+				} else {
+					common.Console(logging.Error, "Checkpoint not detected!")
 				}
 			},
 		}
@@ -145,6 +160,7 @@ func (i *Interface) Start() {
 		Client: i.NetworkClient,
 		Relay:  i.NetworkRelay,
 	}
+	i.Macro.Input = movement.NewInputManager(i.Macro)
 	i.Macro.Scheduler = NewScheduler(i.redirect, i.stop)
 
 	i.State.SetPath("running", true)
@@ -202,31 +218,24 @@ func (i *Interface) Start() {
 				i.Macro.Unlock()
 			case <-i.stop:
 				i.Macro.Lock()
-				fmt.Println("block 1")
 				if i.Macro.Window != nil {
 					i.Macro.Window.Dissociate()
 				}
-				fmt.Println("block 2")
 				for _, watcher := range i.Macro.UnpauseWatchers {
 					if len(watcher) == 0 {
 						watcher <- struct{}{}
 					}
 				}
-				fmt.Println("block 3")
 				for _, watcher := range i.Macro.Watchers {
 					if len(watcher) == 0 {
 						watcher <- nil
 					}
 				}
-				fmt.Println("block 4")
 				if len(stop) == 0 {
 					stop <- struct{}{}
 				}
-				fmt.Println("block 5")
 				i.NetworkClient.UnsubscribeAll()
-				fmt.Println("block 6")
 				i.NetworkClient.SetRole(common.InactiveClientRole)
-				fmt.Println("block 7")
 				i.VicHop.UnregisterMacro(i.Macro)
 				i.Macro.Scheduler.Close()
 				i.command <- nil

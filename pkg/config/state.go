@@ -53,8 +53,12 @@ type MacroState struct {
 
 	HoneyOriginX int `state:"honeyOriginX" yaml:"-"`
 	HoneyOriginY int `state:"honeyOriginY" yaml:"-"`
-	BaseOriginX  int `state:"baseOriginX" yaml:"-"`
-	BaseOriginY  int `state:"baseOriginY" yaml:"-"`
+
+	BaseOriginX int `state:"baseOriginX" yaml:"-"`
+	BaseOriginY int `state:"baseOriginY" yaml:"-"`
+
+	HotbarOriginX int `state:"hotbarOriginX" yaml:"-"`
+	HotbarOriginY int `state:"hotbarOriginY" yaml:"-"`
 
 	Networking *Object[MacroNetworkingConfig] `yaml:"networking"`
 }

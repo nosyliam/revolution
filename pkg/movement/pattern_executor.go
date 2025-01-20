@@ -6,6 +6,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/common"
 	"github.com/nosyliam/revolution/pkg/config"
 	"github.com/nosyliam/revolution/pkg/logging"
+	"github.com/nosyliam/revolution/pkg/movement/alignment"
 	lua "github.com/yuin/gopher-lua"
 	"reflect"
 	"strings"
@@ -113,6 +114,23 @@ func LuaWalk(L *lua.LState) int {
 	return 0
 }
 
+func LuaWalkAlign(L *lua.LState) int {
+	macro := L.Context().Value("macro").(*common.Macro)
+	dirUD := L.CheckUserData(1)
+	studs := L.CheckNumber(2)
+	addonStuds := 0
+	if *config.Concrete[string](macro.Settings, "patterns.alignmentLevel") == "High" {
+		addonStuds += 8
+	}
+	if dir, ok := dirUD.Value.(Direction); !ok {
+		L.RaiseError("expected a direction as the first argument, got %s", L.Get(1).Type().String())
+		return 0
+	} else {
+		Walk(dir, float64(int(studs)+addonStuds), macro)
+	}
+	return 0
+}
+
 func LuaWalkAsync(L *lua.LState) int {
 	macro := L.Context().Value("macro").(*common.Macro)
 	dirUD := L.CheckUserData(1)
@@ -133,7 +151,7 @@ func LuaKeyUp(L *lua.LState) int {
 		L.RaiseError("expected a key as the first argument, got %s", L.Get(1).Type().String())
 		return 0
 	} else {
-		<-macro.EventBus.KeyUp(macro, key)
+		macro.Input.KeyUp(key)
 	}
 	return 0
 }
@@ -145,7 +163,7 @@ func LuaKeyDown(L *lua.LState) int {
 		L.RaiseError("expected a key as the first argument, got %s", L.Get(1).Type().String())
 		return 0
 	} else {
-		<-macro.EventBus.KeyDown(macro, key)
+		macro.Input.KeyDown(key)
 	}
 	return 0
 }
@@ -157,10 +175,26 @@ func LuaKeyPress(L *lua.LState) int {
 		L.RaiseError("expected a key as the first argument, got %s", L.Get(1).Type().String())
 		return 0
 	} else {
-		<-macro.EventBus.KeyDown(macro, key)
-		Sleep(50, macro) // TODO: Custom key delay
-		<-macro.EventBus.KeyUp(macro, key)
+		macro.Input.KeyPress(key)
 	}
+	return 0
+}
+
+func LuaSetZoom(L *lua.LState) int {
+	macro := L.Context().Value("macro").(*common.Macro)
+	macro.Input.SetZoom(int(L.CheckNumber(1)))
+	return 0
+}
+
+func LuaSetPitch(L *lua.LState) int {
+	macro := L.Context().Value("macro").(*common.Macro)
+	macro.Input.SetPitch(int(L.CheckNumber(1)))
+	return 0
+}
+
+func LuaSetYaw(L *lua.LState) int {
+	macro := L.Context().Value("macro").(*common.Macro)
+	macro.Input.SetYaw(int(L.CheckNumber(1)))
 	return 0
 }
 
@@ -235,6 +269,8 @@ func LuaExit(L *lua.LState) int {
 
 func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *common.Macro) {
 	L := lua.NewState()
+	state := L.NewTable()
+
 	defer L.Close()
 	registerDirection(L)
 	registerKeys(L)
@@ -245,18 +281,24 @@ func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *commo
 	L.SetGlobal("SetName", L.NewFunction(NoopFunction))
 	L.SetGlobal("Sleep", L.NewFunction(LuaSleep))
 	L.SetGlobal("Walk", L.NewFunction(LuaWalk))
+	L.SetGlobal("WalkAlign", L.NewFunction(LuaWalkAlign))
 	L.SetGlobal("WalkAsync", L.NewFunction(LuaWalkAsync))
 	L.SetGlobal("KeyUp", L.NewFunction(LuaKeyUp))
 	L.SetGlobal("KeyDown", L.NewFunction(LuaKeyDown))
 	L.SetGlobal("KeyPress", L.NewFunction(LuaKeyPress))
+	L.SetGlobal("SetZoom", L.NewFunction(LuaSetZoom))
+	L.SetGlobal("SetPitch", L.NewFunction(LuaSetPitch))
+	L.SetGlobal("SetYaw", L.NewFunction(LuaSetYaw))
 	L.SetGlobal("QueryState", L.NewFunction(LuaQueryState))
 	L.SetGlobal("QuerySetting", L.NewFunction(LuaQuerySetting))
 	L.SetGlobal("Status", L.NewFunction(LuaStatus))
 	L.SetGlobal("PerformDetection", L.NewFunction(LuaPerformDetection))
+	L.SetGlobal("Checkpoint", L.NewFunction(alignment.LuaCheckpoint))
+	L.SetGlobal("ExecuteWithAlignment", L.NewFunction(alignment.LuaExecuteWithAlignment))
 	L.SetGlobal("Exit", L.NewFunction(LuaExit))
+	L.SetGlobal("State", state)
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = context.WithValue(ctx, "macro", macro)
-	ctx = context.WithValue(ctx, "cancel", cancel)
 	macro.Root.CancelPattern = cancel
 	L.SetContext(ctx)
 	go func() {
@@ -272,13 +314,28 @@ func ExecutePattern(pattern *Pattern, meta *config.PatternMetadata, macro *commo
 		}
 	}()
 	lf := L.NewFunctionFromProto(pattern.Proto)
-	L.Push(lf)
-	err := L.PCall(0, 0, nil)
-	if err != nil && !strings.Contains(err.Error(), "exiting script") && !strings.Contains(err.Error(), "context canceled") {
-		macro.Status("Pattern execution error!")
-		macro.Logger.LogDiscord(logging.Error, fmt.Sprintf("Failed to execute pattern %s: %v", pattern.Path, err), nil, nil)
-		macro.Root.CancelPattern = nil
-		Sleep(5000, macro)
+	retryCount := *config.Concrete[int](macro.Settings, "patterns.retryCount")
+	for i := 0; i < retryCount+1; i++ {
+		L.Push(lf)
+		err := L.PCall(0, 0, nil)
+		if err != nil {
+			macro.Logger.LogDiscord(logging.Error, fmt.Sprintf("Failed to execute pattern %s: %v", pattern.Path, err), nil, nil)
+			if strings.Contains(err.Error(), "exiting script") && !strings.Contains(err.Error(), "context canceled") {
+				macro.Root.CancelPattern = nil
+				return
+			}
+			if strings.Contains(err.Error(), "retryable") && i != retryCount {
+				macro.Input.ResetCharacter()
+				continue
+			}
+			if !strings.Contains(err.Error(), "exiting script") && !strings.Contains(err.Error(), "context canceled") {
+				macro.Status("Pattern execution error!")
+				macro.Root.CancelPattern = nil
+				Sleep(5000, macro)
+				return
+			}
+		}
+		break
 	}
 	macro.Root.CancelPattern = nil
 }

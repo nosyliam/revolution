@@ -20,7 +20,7 @@ func HexToRGBA(hex uint32) color.RGBA {
 		R: uint8((hex >> 16) & 0xFF),
 		G: uint8((hex >> 8) & 0xFF),
 		B: uint8(hex & 0xFF),
-		A: 0xFF, // Default alpha to fully opaque
+		A: 0xFF,
 	}
 }
 
@@ -43,6 +43,16 @@ func CropRGBA(src *image.RGBA, rect image.Rectangle) *image.RGBA {
 	}
 
 	return cropped
+}
+
+func ClearRGBA(img *image.RGBA, rect image.Rectangle) {
+	rect = rect.Intersect(img.Bounds())
+
+	for y := rect.Min.Y; y < rect.Max.Y; y++ {
+		for x := rect.Min.X; x < rect.Max.X; x++ {
+			img.SetRGBA(x, y, color.RGBA{R: 255, G: 255, B: 255})
+		}
+	}
 }
 
 type Point struct {

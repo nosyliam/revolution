@@ -10,6 +10,7 @@ import (
 	"github.com/nosyliam/revolution/pkg/control"
 	"github.com/nosyliam/revolution/pkg/logging"
 	"github.com/nosyliam/revolution/pkg/movement"
+	"github.com/nosyliam/revolution/pkg/movement/alignment"
 	"github.com/nosyliam/revolution/pkg/vichop"
 	"github.com/nosyliam/revolution/pkg/window"
 	"github.com/pkg/errors"
@@ -82,13 +83,17 @@ func (m *Macro) startup(ctx context.Context) {
 	go m.eventBus.Start()
 	m.vicHop = vichop.NewManager(m.logger, m.config, m.state)
 	m.vicHop.Start()
-
-	if err := m.vicHop.Dataset.CheckVersion(); err != nil {
-		dialog.Message(fmt.Sprintf("Failed to check Vic Hop dataset version: %v", err.Error())).Error()
-	}
-	if err := m.vicHop.Dataset.Load(); err != nil {
-		dialog.Message(fmt.Sprintf("Failed to load Vic Hop dataset: %v", err.Error())).Error()
-	}
+	go func() {
+		if err := m.vicHop.Dataset.CheckVersion(); err != nil {
+			dialog.Message(fmt.Sprintf("Failed to check Vic Hop dataset version: %v", err.Error())).Error()
+		}
+		if err := m.vicHop.Dataset.Load(); err != nil {
+			dialog.Message(fmt.Sprintf("Failed to load Vic Hop dataset: %v", err.Error())).Error()
+		}
+		if err := alignment.Manager.Load(true); err != nil {
+			dialog.Message(fmt.Sprintf("Failed to load alignment dataset: %v", err.Error())).Error()
+		}
+	}()
 
 	presets := *Concrete[[]*Object[Settings]](m.config, "presets")
 	var accounts = make(map[string]*Object[Settings])

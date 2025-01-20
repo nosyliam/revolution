@@ -1,17 +1,29 @@
 SetName("test")
 
-Walk(Direction.Right, 37)
-
---KeyPress(Key.Esc)
---KeyPress(Key.R)
---KeyPress(Key.Enter)
---[[Walk(Direction.Forward, 10)
-Sleep(1000)
-Walk(Direction.Right, 10)
-WalkAsync(Direction.Forward, 50)
-Sleep(200)
-KeyPress(Key.RotLeft)
-Walk(Direction.Right, 20)-
+WalkAsync(Direction.Left, 4)
 Walk(Direction.Backward, 20)
-Walk(Direction.Left, 20)]]
+KeyPress(Key.Space)
+Sleep(500)
+KeyPress(Key.Space)
+KeyDown(Key.Backward)
+Sleep(1600)
+KeyPress(Key.Space)
+KeyUp(Key.Backward)
+WalkAlign(Direction.Backward, 16)
+WalkAlign(Direction.Left, 40)
+Walk(Direction.Right, 16)
+Walk(Direction.Forward, 16)
+SetYaw(6)
+Walk(Direction.Forward, 96)
+Walk(Direction.Left, 44)
+Checkpoint({
+    Detector = "press_e",
+    Walk = function()
+        Walk(Direction.Forward, 80)
+    end,
+    Nudge = function()
+        Walk(Direction.Forward, 6)
+    end,
+    MaxAttempts = 10
+})
 

@@ -45,6 +45,7 @@ type Macro struct {
 
 	Account    string
 	EventBus   EventBus
+	Input      InputManager
 	Backend    Backend
 	Scheduler  Scheduler
 	Results    *ActionResults
@@ -154,6 +155,7 @@ func (m *Macro) Copy() *Macro {
 		Root:       root,
 		Account:    m.Account,
 		EventBus:   m.EventBus,
+		Input:      m.Input,
 		Backend:    m.Backend,
 		Scheduler:  m.Scheduler,
 		Settings:   m.Settings,
